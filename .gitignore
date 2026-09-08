@@ -3,6 +3,8 @@ CONCEPT.md
 PROGRESS.md
 DOCS.md
 
+tests/
+
 # Build artifacts
 *.o
 *.a
