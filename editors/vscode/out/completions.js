@@ -85,7 +85,7 @@ class SkylangCompletionItemProvider {
             const parts = rawList.split(',').map(s => s.trim().toLowerCase());
             const currentQuery = parts[parts.length - 1];
             const alreadyImported = parts.slice(0, -1);
-            const allModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust', 'math', 'str', 'fmt', 'io'];
+            const allModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust', 'math', 'fmt', 'io'];
             const importItems = [];
             for (const mod of allModules) {
                 if (alreadyImported.includes(mod))

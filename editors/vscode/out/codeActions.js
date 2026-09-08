@@ -43,7 +43,7 @@ class SkylangCodeActionProvider {
         const actions = [];
         const text = document.getText();
         const line = document.lineAt(range.start.line).text;
-        const checkModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust', 'math', 'str', 'fmt', 'io'];
+        const checkModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust', 'math', 'fmt', 'io'];
         // 1. Diagnostics-driven QuickFix
         for (const diagnostic of context.diagnostics) {
             if (diagnostic.code === 'skylang-unimported-module') {

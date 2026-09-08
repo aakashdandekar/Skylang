@@ -316,17 +316,39 @@ print(lang[-4:])         // lang
 
 ### Properties & Methods
 
+All string operations in Skylang are first-class built-in methods and properties:
+
 | Usage | Returns | Description |
 |-------|---------|-------------|
-| `str.size` | `int` | Length of the string |
-| `str.value(index)` | `char` | Character at the given index |
-| `str[start:end]` | `string` | Substring slice |
+| `s.size` / `s.length` | `int` | Length of the string |
+| `s.chars` | `list` | Dynamic list of individual character strings |
+| `s.bytes` | `list` | Dynamic list of integer ASCII byte values |
+| `s.value(index)` | `char` | Character at the given index |
+| `s[start:end]` | `string` | Substring slice |
+| `s.upper()` | `string` | Uppercase conversion |
+| `s.lower()` | `string` | Lowercase conversion |
+| `s.trim()` | `string` | Strip leading and trailing whitespace |
+| `s.trimleft()` / `s.trimright()` | `string` | Strip leading / trailing whitespace |
+| `s.split([delimiter])` | `list` | Split by delimiter (or characters if omitted) |
+| `s.join(list)` | `string` | Join list elements with separator `s` |
+| `s.contains(substr)` / `s.has(substr)` | `bool` | Check if substring exists |
+| `s.startswith(prefix)` | `bool` | Check prefix match |
+| `s.endswith(suffix)` | `bool` | Check suffix match |
+| `s.replace(old, new)` | `string` | Replace occurrences of substring |
+| `s.find(substr)` | `int` | 0-based index of substring or -1 |
+| `s.count(substr)` | `int` | Number of occurrences of substring |
+| `s.reverse()` | `string` | Reversed string |
 
 ```skylang
-S greeting = "Hello, World!"
-print(greeting.size)         // 13
-print(greeting.value(0))     // H
-print(greeting[0:5])         // Hello
+S greeting = "  Hello, World!  "
+print(greeting.size)          // 17
+print(greeting.trim())        // "Hello, World!"
+print("skylang".upper())      // "SKYLANG"
+print("a,b,c".split(","))     // ["a", "b", "c"]
+print(", ".join(["x", "y"]))  // "x, y"
+print("banana".replace("a", "o")) // "bonono"
+print("abc".chars)            // ["a", "b", "c"]
+print("ABC".bytes)            // [65, 66, 67]
 ```
 
 ---
@@ -693,6 +715,21 @@ Skylang provides core built-in functions globally without requiring imports:
 | `panic(msg)` | `panic(message)` | Halts execution immediately and displays the error |
 | `gc()` | `gc()` | Triggers an immediate garbage collection cycle |
 | `free(obj)` | `free(obj)` | Explicitly frees an object's memory |
+| `split(str, delim)` | `split(str, delimiter)` | Splits string into a list of substrings |
+| `join(list, delim)` | `join(list, delimiter)` | Joins list elements into a single string |
+| `upper(str)` | `upper(str)` | Returns uppercase version of string |
+| `lower(str)` | `lower(str)` | Returns lowercase version of string |
+| `trim(str)` | `trim(str)` | Strips leading and trailing whitespace |
+| `trimleft(str)` / `trimright(str)` | `trimleft(str)` / `trimright(str)` | Strips leading or trailing whitespace |
+| `contains(str/list, target)` | `contains(str_or_list, target)` | Checks if substring or item is present |
+| `startswith(str, prefix)` | `startswith(str, prefix)` | Checks if string starts with prefix |
+| `endswith(str, suffix)` | `endswith(str, suffix)` | Checks if string ends with suffix |
+| `replace(str, old, new)` | `replace(str, old_sub, new_sub)` | Replaces occurrences of substring |
+| `find(str/list, target)` | `find(str_or_list, target)` | Returns 0-based index or -1 if not found |
+| `count(str/list, target)` | `count(str_or_list, target)` | Counts non-overlapping occurrences |
+| `reverse(str/list)` | `reverse(str_or_list)` | Returns reversed string or list |
+| `chars(str)` | `chars(str)` | Returns list of characters as strings |
+| `bytes(str)` | `bytes(str)` | Returns list of integer ASCII byte values |
 
 ---
 
@@ -809,22 +846,7 @@ print(math.clamp(15, 0, 10))    // 10
 print(math.hypot(3, 4))         // 5.0
 ```
 
-### 2. `str` Module
-
-```skylang
-print(str.upper("hello"))             // HELLO
-print(str.lower("WORLD"))             // world
-print(str.trim("  skylang  "))         // skylang
-print(str.contains("Skylang", "lan")) // true
-print(str.startswith("Sky", "Sk"))    // true
-print(str.replace("banana", "a", "o"))// bonono
-print(str.reverse("Skylang"))         // gnalykS
-
-words := str.split("a,b,c", ",")      // ["a", "b", "c"]
-joined := str.join(words, " - ")      // "a - b - c"
-```
-
-### 3. `fmt` Module
+### 2. `fmt` Module
 
 ```skylang
 msg := fmt.format("Hello {}! Score: {}", "Alice", 95)
@@ -835,7 +857,7 @@ print(fmt.oct(64))             // 100
 print(fmt.repeat("*-", 5))     // *-*-*-*-*-
 ```
 
-### 4. `io` Module
+### 3. `io` Module
 
 ```skylang
 io.writefile("data.txt", "Line 1\nLine 2\n")
@@ -1300,7 +1322,7 @@ skylang/
 │   ├── 04_functions.sky   #   Functions, takes(), recursion
 │   ├── 05_classes.sky     #   Classes, init, methods, instances
 │   ├── 06_error_handling.sky # Error handling, multiple returns, blank _
-│   ├── 07_stdlib.sky      #   Standard library (math, str, fmt, io)
+│   ├── 07_stdlib.sky      #   Standard library (math, fmt, io)
 │   ├── 08_ffi.sky         #   C header cimport and extern declarations
 │   ├── 09_vm_profile.sky  #   Bytecode VM execution and profiling
 │   ├── 10_python.sky      #   Python interop and package loading
@@ -1312,7 +1334,7 @@ skylang/
 ├── include/               # Header files
 │   ├── skylang.h          #   Compiler internals (lexer, parser, codegen)
 │   ├── skylang_rt.h       #   Runtime API (Value, GC, collections, OBJ_FOREIGN)
-│   ├── sky_stdlib.h       #   Standard library API (math, io, fmt, str)
+│   ├── sky_stdlib.h       #   Standard library API (math, fmt, io)
 │   ├── sky_vm.h           #   Bytecode VM, chunk format, profiler
 │   ├── sky_python.h       #   Python C API bridge
 │   ├── sky_js.h           #   Node.js / NPM interop bridge
@@ -1362,7 +1384,7 @@ The test suite (`tests/test_all.sky`) covers **24 categories** — all passing:
 2. Walrus operator `:=`
 3. Arithmetic operators (`+`, `-`, `*`, `/`, `//`, `^`, `%`)
 4. Comparisons and boolean logic (`and`, `or`, `!`)
-5. String indexing, slicing, and `.size`
+5. String indexing, slicing, built-in methods, and properties (`.size`, `.chars`, `.bytes`)
 6. Fixed-size arrays (`<val1, val2>` and `arr I 5`)
 7. Dynamic lists (`push`, `pop`, `clear`, slicing)
 8. Tuples
@@ -1373,7 +1395,7 @@ The test suite (`tests/test_all.sky`) covers **24 categories** — all passing:
 13. Functions, `takes(...)`, and recursion
 14. Control flow (`if`, `elif`, `else`, unified `for` loops)
 15. Classes, constructors, fields, and methods
-16. Standard Library modules (`math`, `str`, `fmt`, `io`)
+16. Standard Library modules (`math`, `fmt`, `io`)
 17. Foreign Function Interface (`cimport`, `extern f`)
 18. Go-style error handling, multiple returns, and blank `_`
 19. Python Interoperability (`import python`, embedded C API)
@@ -1388,7 +1410,8 @@ The test suite (`tests/test_all.sky`) covers **24 categories** — all passing:
 ## Roadmap
 
 - [x] **FFI (Foreign Function Interface)** — Direct C header `cimport` and `extern f` function bindings
-- [x] **Standard Library** — `math`, `str`, `fmt`, and `io` modules built-in
+- [x] **Standard Library** — `math`, `fmt`, and `io` modules built-in
+- [x] **Built-in String Operations** — Full suite of built-in string methods, properties, and functions
 - [x] **Dynamic eval(...) Engine** — Built-in dynamic expression and statement evaluation
 - [x] **Multi-Language Interoperability** — Native language bridges for Python, JavaScript/NPM, C++, Java, Golang, and Rust
 - [x] **Python-Style Traceback Engine** — Clean compile-time and runtime error tracebacks with call stack unwinding

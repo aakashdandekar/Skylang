@@ -290,12 +290,27 @@ static void vm_register_builtins(VM* vm) {
     vm_set_global(vm, "free",    val_function("free",    vm_builtin_free_fn,   1));
     vm_set_global(vm, "panic",   val_function("panic",   vm_builtin_panic,    -1));
     vm_set_global(vm, "error",   val_function("error",   vm_builtin_error,     1));
+    vm_set_global(vm, "split",      val_function("split",      sky_builtin_split,      -1));
+    vm_set_global(vm, "join",       val_function("join",       sky_builtin_join,       -1));
+    vm_set_global(vm, "upper",      val_function("upper",      sky_builtin_upper,       1));
+    vm_set_global(vm, "lower",      val_function("lower",      sky_builtin_lower,       1));
+    vm_set_global(vm, "trim",       val_function("trim",       sky_builtin_trim,        1));
+    vm_set_global(vm, "trimleft",   val_function("trimleft",   sky_builtin_trimleft,    1));
+    vm_set_global(vm, "trimright",  val_function("trimright",  sky_builtin_trimright,   1));
+    vm_set_global(vm, "contains",   val_function("contains",   sky_builtin_contains,    2));
+    vm_set_global(vm, "startswith", val_function("startswith", sky_builtin_startswith,  2));
+    vm_set_global(vm, "endswith",   val_function("endswith",   sky_builtin_endswith,    2));
+    vm_set_global(vm, "replace",    val_function("replace",    sky_builtin_replace,     3));
+    vm_set_global(vm, "find",       val_function("find",       sky_builtin_find,        2));
+    vm_set_global(vm, "count",      val_function("count",      sky_builtin_count,       2));
+    vm_set_global(vm, "reverse",    val_function("reverse",    sky_builtin_reverse,     1));
+    vm_set_global(vm, "chars",      val_function("chars",      sky_builtin_chars,       1));
+    vm_set_global(vm, "bytes",      val_function("bytes",      sky_builtin_bytes,       1));
 
     sky_stdlib_init_all();
     vm_set_global(vm, "math", sky_mod_math);
     vm_set_global(vm, "io",   sky_mod_io);
     vm_set_global(vm, "fmt",  sky_mod_fmt);
-    vm_set_global(vm, "str",  sky_mod_str);
 
     vm_set_global(vm, "python", sky_python_init());
     vm_set_global(vm, "js",     sky_js_init());

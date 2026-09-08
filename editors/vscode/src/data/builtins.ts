@@ -99,6 +99,134 @@ export const BUILTIN_FUNCTIONS: Record<string, BuiltinDoc> = {
         params: [{ name: 'obj', doc: 'Object to deallocate' }],
         returns: 'none',
         example: 'free(heavy_buffer)'
+    },
+    'split': {
+        name: 'split',
+        signature: 'split(str, delimiter)',
+        description: 'Splits string `str` by `delimiter` into a dynamic list of substrings. If delimiter is empty, splits into characters.',
+        params: [{ name: 'str', doc: 'Input string' }, { name: 'delimiter', doc: 'Separator delimiter string' }],
+        returns: 'list',
+        example: 'words := split("apple,banana,cherry", ",")\nprintln(words)'
+    },
+    'join': {
+        name: 'join',
+        signature: 'join(list, delimiter)',
+        description: 'Joins all elements of a list into a single string separated by `delimiter`.',
+        params: [{ name: 'list', doc: 'List of elements to join' }, { name: 'delimiter', doc: 'Separator delimiter string' }],
+        returns: 'string',
+        example: 's := join(["a", "b", "c"], "-") // "a-b-c"'
+    },
+    'upper': {
+        name: 'upper',
+        signature: 'upper(str)',
+        description: 'Returns a new string with all ASCII characters converted to uppercase.',
+        params: [{ name: 'str', doc: 'Input string' }],
+        returns: 'string',
+        example: 's := upper("hello") // "HELLO"'
+    },
+    'lower': {
+        name: 'lower',
+        signature: 'lower(str)',
+        description: 'Returns a new string with all ASCII characters converted to lowercase.',
+        params: [{ name: 'str', doc: 'Input string' }],
+        returns: 'string',
+        example: 's := lower("HELLO") // "hello"'
+    },
+    'trim': {
+        name: 'trim',
+        signature: 'trim(str)',
+        description: 'Returns a new string with all leading and trailing whitespace characters removed.',
+        params: [{ name: 'str', doc: 'Input string' }],
+        returns: 'string',
+        example: 's := trim("   hello   ") // "hello"'
+    },
+    'trimleft': {
+        name: 'trimleft',
+        signature: 'trimleft(str)',
+        description: 'Returns a new string with all leading whitespace characters removed.',
+        params: [{ name: 'str', doc: 'Input string' }],
+        returns: 'string',
+        example: 's := trimleft("   hello") // "hello"'
+    },
+    'trimright': {
+        name: 'trimright',
+        signature: 'trimright(str)',
+        description: 'Returns a new string with all trailing whitespace characters removed.',
+        params: [{ name: 'str', doc: 'Input string' }],
+        returns: 'string',
+        example: 's := trimright("hello   ") // "hello"'
+    },
+    'contains': {
+        name: 'contains',
+        signature: 'contains(str_or_list, target)',
+        description: 'Returns true if `target` is found in the string or list, otherwise false.',
+        params: [{ name: 'str_or_list', doc: 'String or list' }, { name: 'target', doc: 'Substring or item to search for' }],
+        returns: 'bool',
+        example: 'if contains("skylang", "sky") { println("yes") }'
+    },
+    'startswith': {
+        name: 'startswith',
+        signature: 'startswith(str, prefix)',
+        description: 'Returns true if `str` begins with the specified `prefix`.',
+        params: [{ name: 'str', doc: 'Input string' }, { name: 'prefix', doc: 'Prefix to check' }],
+        returns: 'bool',
+        example: 'if startswith("skylang", "sky") { println("yes") }'
+    },
+    'endswith': {
+        name: 'endswith',
+        signature: 'endswith(str, suffix)',
+        description: 'Returns true if `str` ends with the specified `suffix`.',
+        params: [{ name: 'str', doc: 'Input string' }, { name: 'suffix', doc: 'Suffix to check' }],
+        returns: 'bool',
+        example: 'if endswith("file.sky", ".sky") { println("yes") }'
+    },
+    'replace': {
+        name: 'replace',
+        signature: 'replace(str, old_sub, new_sub)',
+        description: 'Returns a new string where all occurrences of `old_sub` are replaced by `new_sub`.',
+        params: [{ name: 'str', doc: 'Input string' }, { name: 'old_sub', doc: 'Substring to replace' }, { name: 'new_sub', doc: 'Replacement substring' }],
+        returns: 'string',
+        example: 's := replace("banana", "a", "o") // "bonono"'
+    },
+    'find': {
+        name: 'find',
+        signature: 'find(str_or_list, target)',
+        description: 'Returns the 0-based index of the first occurrence of `target` in the string or list, or -1 if not found.',
+        params: [{ name: 'str_or_list', doc: 'String or list' }, { name: 'target', doc: 'Substring or item to search for' }],
+        returns: 'int',
+        example: 'idx := find("skylang", "lan") // 3'
+    },
+    'count': {
+        name: 'count',
+        signature: 'count(str_or_list, target)',
+        description: 'Returns the number of non-overlapping occurrences of `target` in the string or list.',
+        params: [{ name: 'str_or_list', doc: 'String or list' }, { name: 'target', doc: 'Substring or item to count' }],
+        returns: 'int',
+        example: 'n := count("banana", "a") // 3'
+    },
+    'reverse': {
+        name: 'reverse',
+        signature: 'reverse(str_or_list)',
+        description: 'Returns a new string or list with elements in reverse order.',
+        params: [{ name: 'str_or_list', doc: 'Input string or list' }],
+        returns: 'string | list',
+        example: 'r := reverse("skylang") // "gnalyks"'
+    },
+    'chars': {
+        name: 'chars',
+        signature: 'chars(str)',
+        description: 'Returns a dynamic list containing each character of `str` as a string element.',
+        params: [{ name: 'str', doc: 'Input string' }],
+        returns: 'list',
+        example: 'c := chars("Sky") // ["S", "k", "y"]'
+    },
+    'bytes': {
+        name: 'bytes',
+        signature: 'bytes(str)',
+        description: 'Returns a dynamic list containing the integer ASCII byte values of `str`.',
+        params: [{ name: 'str', doc: 'Input string' }],
+        returns: 'list',
+        example: 'b := bytes("ABC") // [65, 66, 67]'
     }
 };
 
@@ -140,12 +268,12 @@ export const COLLECTION_METHODS: Record<string, BuiltinDoc> = {
     },
     'has': {
         name: 'has',
-        signature: 'dict.has(key) / set.has(item)',
-        description: 'Returns `true` if the key exists in the dictionary or the item exists in the set, otherwise returns `false`.',
-        params: [{ name: 'key_or_item', doc: 'Key or item to test for existence' }],
+        signature: 'dict.has(key) / set.has(item) / str.has(substr) / list.has(item)',
+        description: 'Returns `true` if the key exists in the dictionary, item in the set/list, or substring in the string, otherwise `false`.',
+        params: [{ name: 'key_or_item', doc: 'Key, item, or substring to test' }],
         returns: 'bool',
-        example: 'if scores.has("Alice") {\n    println("Alice found!")\n}\nif tags.has("coding") {\n    ...\n}',
-        container: 'dict | set'
+        example: 'if scores.has("Alice") {\n    println("Alice found!")\n}',
+        container: 'dict | set | string | list'
     },
     'value': {
         name: 'value',
@@ -154,6 +282,142 @@ export const COLLECTION_METHODS: Record<string, BuiltinDoc> = {
         params: [{ name: 'index', doc: 'Character index (0-based)' }],
         returns: 'char',
         example: 'ch := name.value(0) // \'S\'',
+        container: 'string'
+    },
+    'split': {
+        name: 'split',
+        signature: 'str.split([delimiter])',
+        description: 'Splits the string into a list of substrings separated by delimiter.',
+        params: [{ name: 'delimiter', doc: 'Separator delimiter string (optional)' }],
+        returns: 'list',
+        example: 'words := "hello,world".split(",")',
+        container: 'string'
+    },
+    'join': {
+        name: 'join',
+        signature: 'str.join(list) / list.join(delimiter)',
+        description: 'Joins elements of a list with the string delimiter.',
+        params: [{ name: 'arg', doc: 'List to join or string delimiter' }],
+        returns: 'string',
+        example: '", ".join(["a", "b", "c"])\n["a", "b"].join("-")',
+        container: 'string | list'
+    },
+    'upper': {
+        name: 'upper',
+        signature: 'str.upper()',
+        description: 'Returns uppercase version of the string.',
+        returns: 'string',
+        example: '"hello".upper() // "HELLO"',
+        container: 'string'
+    },
+    'lower': {
+        name: 'lower',
+        signature: 'str.lower()',
+        description: 'Returns lowercase version of the string.',
+        returns: 'string',
+        example: '"HELLO".lower() // "hello"',
+        container: 'string'
+    },
+    'trim': {
+        name: 'trim',
+        signature: 'str.trim()',
+        description: 'Returns string stripped of leading and trailing whitespace.',
+        returns: 'string',
+        example: '"  hello  ".trim() // "hello"',
+        container: 'string'
+    },
+    'trimleft': {
+        name: 'trimleft',
+        signature: 'str.trimleft()',
+        description: 'Returns string stripped of leading whitespace.',
+        returns: 'string',
+        example: '"  hello".trimleft() // "hello"',
+        container: 'string'
+    },
+    'trimright': {
+        name: 'trimright',
+        signature: 'str.trimright()',
+        description: 'Returns string stripped of trailing whitespace.',
+        returns: 'string',
+        example: '"hello  ".trimright() // "hello"',
+        container: 'string'
+    },
+    'contains': {
+        name: 'contains',
+        signature: 'str.contains(substr) / list.contains(item)',
+        description: 'Returns true if substring or item exists.',
+        params: [{ name: 'target', doc: 'Substring or item to look for' }],
+        returns: 'bool',
+        example: '"skylang".contains("sky") // true',
+        container: 'string | list'
+    },
+    'startswith': {
+        name: 'startswith',
+        signature: 'str.startswith(prefix)',
+        description: 'Returns true if string starts with prefix.',
+        params: [{ name: 'prefix', doc: 'Prefix string' }],
+        returns: 'bool',
+        example: '"skylang".startswith("sky") // true',
+        container: 'string'
+    },
+    'endswith': {
+        name: 'endswith',
+        signature: 'str.endswith(suffix)',
+        description: 'Returns true if string ends with suffix.',
+        params: [{ name: 'suffix', doc: 'Suffix string' }],
+        returns: 'bool',
+        example: '"file.sky".endswith(".sky") // true',
+        container: 'string'
+    },
+    'replace': {
+        name: 'replace',
+        signature: 'str.replace(old_sub, new_sub)',
+        description: 'Returns new string with old_sub replaced by new_sub.',
+        params: [{ name: 'old_sub', doc: 'Old substring' }, { name: 'new_sub', doc: 'New substring' }],
+        returns: 'string',
+        example: '"banana".replace("a", "o") // "bonono"',
+        container: 'string'
+    },
+    'find': {
+        name: 'find',
+        signature: 'str.find(substr) / list.find(item)',
+        description: 'Returns 0-based index of target, or -1 if not found.',
+        params: [{ name: 'target', doc: 'Target to search for' }],
+        returns: 'int',
+        example: '"skylang".find("lan") // 3',
+        container: 'string | list'
+    },
+    'count': {
+        name: 'count',
+        signature: 'str.count(substr) / list.count(item)',
+        description: 'Returns count of occurrences.',
+        params: [{ name: 'target', doc: 'Target to count' }],
+        returns: 'int',
+        example: '"banana".count("a") // 3',
+        container: 'string | list'
+    },
+    'reverse': {
+        name: 'reverse',
+        signature: 'str.reverse() / list.reverse()',
+        description: 'Returns reversed string or list.',
+        returns: 'string | list',
+        example: '"hello".reverse() // "olleh"',
+        container: 'string | list'
+    },
+    'chars': {
+        name: 'chars',
+        signature: 'str.chars()',
+        description: 'Returns dynamic list containing each character of the string.',
+        returns: 'list',
+        example: '"Sky".chars() // ["S", "k", "y"]',
+        container: 'string'
+    },
+    'bytes': {
+        name: 'bytes',
+        signature: 'str.bytes()',
+        description: 'Returns dynamic list containing integer ASCII byte values.',
+        returns: 'list',
+        example: '"ABC".bytes() // [65, 66, 67]',
         container: 'string'
     }
 };
@@ -166,6 +430,27 @@ export const PROPERTIES: Record<string, BuiltinDoc> = {
         returns: 'int',
         example: 'println("List size:", tasks.size)\nprintln("String length:", name.size)\nprintln("Dict entries:", scores.size)'
     },
+    'length': {
+        name: 'length',
+        signature: 'container.length / string.length',
+        description: 'Alias for .size property returning element count or string character count.',
+        returns: 'int',
+        example: 'println("Length:", "hello".length)'
+    },
+    'chars': {
+        name: 'chars',
+        signature: 'string.chars',
+        description: 'Property returning a dynamic list of individual character strings.',
+        returns: 'list',
+        example: 'for c in "hello".chars { println(c) }'
+    },
+    'bytes': {
+        name: 'bytes',
+        signature: 'string.bytes',
+        description: 'Property returning a dynamic list of integer ASCII byte values.',
+        returns: 'list',
+        example: 'println("Bytes:", "hello".bytes)'
+    },
     'T': {
         name: 'T',
         signature: 'val.T',
@@ -177,31 +462,31 @@ export const PROPERTIES: Record<string, BuiltinDoc> = {
 
 export const CONTAINER_TYPE_MEMBERS: Record<string, { methods: string[]; properties: string[] }> = {
     'list': {
-        methods: ['push', 'pop', 'clear'],
-        properties: ['size', 'T']
+        methods: ['push', 'pop', 'clear', 'join', 'contains', 'has', 'find', 'count', 'reverse'],
+        properties: ['size', 'length', 'T']
     },
     'sortedList': {
         methods: ['push', 'pop'],
-        properties: ['size', 'T']
+        properties: ['size', 'length', 'T']
     },
     'dict': {
         methods: ['has'],
-        properties: ['size', 'T']
+        properties: ['size', 'length', 'T']
     },
     'set': {
         methods: ['add', 'has'],
-        properties: ['size', 'T']
+        properties: ['size', 'length', 'T']
     },
     'string': {
-        methods: ['value'],
-        properties: ['size', 'T']
+        methods: ['value', 'split', 'join', 'upper', 'lower', 'trim', 'trimleft', 'trimright', 'contains', 'has', 'startswith', 'endswith', 'replace', 'find', 'count', 'reverse', 'chars', 'bytes'],
+        properties: ['size', 'length', 'chars', 'bytes', 'T']
     },
     'array': {
         methods: [],
-        properties: ['size', 'T']
+        properties: ['size', 'length', 'T']
     },
     'tuple': {
         methods: [],
-        properties: ['size', 'T']
+        properties: ['size', 'length', 'T']
     }
 };

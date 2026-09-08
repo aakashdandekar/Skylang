@@ -27,7 +27,7 @@ println("Alice score:", scores["Alice"])
 
 // 4. Standard Library on VM
 println("math.sqrt(256):", math.sqrt(256))
-println("str.upper('skylang'):", str.upper("skylang"))
+println("upper('skylang'):", upper("skylang"))
 println("fmt.format:", fmt.format("Hello {} from VM!", "World"))
 
 println("=== VM Execution Complete ===")

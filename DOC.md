@@ -129,13 +129,20 @@ if x > 10 and x < 20 {
 ## 5. Strings, Collections & Slicing
 
 ### Strings
-Strings support indexing, slicing, `.size`, and `.value(index)`:
+Strings support indexing, slicing, properties (`.size`, `.length`, `.chars`, `.bytes`), and built-in methods:
 ```skylang
 S lang = "Skylang"
-print("Length:", lang.size)       // 7
-print("First char:", lang[0])      // S
-print("Value at 1:", lang.value(1)) // k
-print("Slice [0:3]:", lang[0:3])   // Sky
+print("Length:", lang.size)           // 7
+print("First char:", lang[0])          // S
+print("Value at 1:", lang.value(1))    // k
+print("Slice [0:3]:", lang[0:3])       // Sky
+print("Uppercase:", lang.upper())      // SKYLANG
+print("Lowercase:", lang.lower())      // skylang
+print("Split:", "a,b,c".split(","))    // ["a", "b", "c"]
+print("Join:", "-".join(["1", "2"]))   // 1-2
+print("Replace:", "banana".replace("a", "o")) // bonono
+print("Chars list:", "abc".chars)      // ["a", "b", "c"]
+print("Bytes list:", "ABC".bytes)      // [65, 66, 67]
 ```
 
 ### Fixed-size Array vs Dynamic List
@@ -476,6 +483,21 @@ Skylang provides core built-in functions available everywhere without imports:
 | `panic(msg)` | `panic(message)` | Halts execution immediately |
 | `gc()` | `gc()` | Triggers an immediate garbage collection cycle |
 | `free(obj)` | `free(obj)` | Explicitly frees an object's memory |
+| `split(str, delim)` | `split(str, delim)` | Splits string into a list of substrings |
+| `join(list, delim)` | `join(list, delim)` | Joins list elements into a single string |
+| `upper(str)` | `upper(str)` | Returns uppercase version of string |
+| `lower(str)` | `lower(str)` | Returns lowercase version of string |
+| `trim(str)` | `trim(str)` | Strips leading and trailing whitespace |
+| `trimleft(str)` / `trimright(str)` | `trimleft(str)` / `trimright(str)` | Strips leading / trailing whitespace |
+| `contains(str/list, target)` | `contains(str_or_list, target)` | Checks if substring or item is present |
+| `startswith(str, prefix)` | `startswith(str, prefix)` | Checks if string starts with prefix |
+| `endswith(str, suffix)` | `endswith(str, suffix)` | Checks if string ends with suffix |
+| `replace(str, old, new)` | `replace(str, old_sub, new_sub)` | Replaces occurrences of substring |
+| `find(str/list, target)` | `find(str_or_list, target)` | Returns 0-based index or -1 if not found |
+| `count(str/list, target)` | `count(str_or_list, target)` | Counts non-overlapping occurrences |
+| `reverse(str/list)` | `reverse(str_or_list)` | Returns reversed string or list |
+| `chars(str)` | `chars(str)` | Returns list of characters as strings |
+| `bytes(str)` | `bytes(str)` | Returns list of integer ASCII byte values |
 
 ### Multi-Language Interoperability
 Skylang connects directly to other languages:

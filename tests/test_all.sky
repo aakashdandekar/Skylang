@@ -35,11 +35,11 @@ for x in [10, 20, 30] {
 }
 if sum != 60 { panic("Test failed: for in list") }
 
-count := 0
-while count < 5 {
-    count += 1
+loop_count := 0
+while loop_count < 5 {
+    loop_count += 1
 }
-if count != 5 { panic("Test failed: while loop") }
+if loop_count != 5 { panic("Test failed: while loop") }
 
 // 4. Functions & Gateway
 f add {
@@ -49,16 +49,27 @@ f add {
 if add(15, 25) != 40 { panic("Test failed: function add") }
 if add(y=30, x=10) != 40 { panic("Test failed: named args gateway") }
 
-// 5. Standard Library: math, str, fmt, io
+// 5. Standard Library (math, fmt, io) and Built-in Strings
 if math.sqrt(64) != 8 { panic("Test failed: math.sqrt") }
 if math.abs(-10) != 10 { panic("Test failed: math.abs") }
 if math.min(5, 9) != 5 { panic("Test failed: math.min") }
 if math.max(5, 9) != 9 { panic("Test failed: math.max") }
 
-if str.upper("sky") != "SKY" { panic("Test failed: str.upper") }
-if str.lower("SKY") != "sky" { panic("Test failed: str.lower") }
-if str.trim("  abc  ") != "abc" { panic("Test failed: str.trim") }
-if str.replace("hello", "l", "w") != "hewwo" { panic("Test failed: str.replace") }
+if "sky".upper() != "SKY" || upper("sky") != "SKY" { panic("Test failed: upper") }
+if "SKY".lower() != "sky" || lower("SKY") != "sky" { panic("Test failed: lower") }
+if "  abc  ".trim() != "abc" || trim("  abc  ") != "abc" { panic("Test failed: trim") }
+if "hello".replace("l", "w") != "hewwo" || replace("hello", "l", "w") != "hewwo" { panic("Test failed: replace") }
+if "skylang".startswith("sky") != true || startswith("skylang", "sky") != true { panic("Test failed: startswith") }
+if "skylang".endswith("lang") != true || endswith("skylang", "lang") != true { panic("Test failed: endswith") }
+if "skylang".contains("ylan") != true || contains("skylang", "ylan") != true { panic("Test failed: contains") }
+if "skylang".find("lan") != 3 || find("skylang", "lan") != 3 { panic("Test failed: find") }
+if "banana".count("a") != 3 || count("banana", "a") != 3 { panic("Test failed: count") }
+if "sky".reverse() != "yks" || reverse("sky") != "yks" { panic("Test failed: reverse") }
+if "a,b,c".split(",").size != 3 || split("a,b,c", ",").size != 3 { panic("Test failed: split") }
+if ", ".join(["a", "b", "c"]) != "a, b, c" || join(["a", "b", "c"], ", ") != "a, b, c" { panic("Test failed: join") }
+if ["a", "b", "c"].join(", ") != "a, b, c" { panic("Test failed: list join") }
+if "sky".chars.size != 3 || chars("sky").size != 3 { panic("Test failed: chars") }
+if "ABC".bytes[0] != 65 || bytes("ABC")[0] != 65 { panic("Test failed: bytes") }
 
 formatted := fmt.format("Number: {}", 42)
 if formatted != "Number: 42" { panic("Test failed: fmt.format") }
@@ -68,7 +79,7 @@ tmp := "/tmp/skylang_test_file.txt"
 io.writefile(tmp, "hello test\n")
 if !io.exists(tmp) { panic("Test failed: io.exists") }
 txt := io.readfile(tmp)
-if str.trim(txt) != "hello test" { panic("Test failed: io.readfile") }
+if txt.trim() != "hello test" || trim(txt) != "hello test" { panic("Test failed: io.readfile") }
 io.remove(tmp)
 if io.exists(tmp) { panic("Test failed: io.remove") }
 

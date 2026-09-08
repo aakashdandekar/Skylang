@@ -184,7 +184,7 @@
             "patterns": [
                 {
                     "name": "support.function.builtin.sky",
-                    "match": "\\b(print|println|range|len|type|takes|error|panic|gc|free|eval)\\b(?=\\s*\\()"
+                    "match": "\\b(print|println|range|len|type|takes|error|panic|gc|free|eval|split|join|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|chars|bytes)\\b(?=\\s*\\()"
                 },
                 {
                     "name": "variable.language.special.sky",
@@ -196,7 +196,7 @@
             "patterns": [
                 {
                     "name": "support.class.module.sky",
-                    "match": "\\b(math|io|fmt|str|python|js|cpp|java|go|golang|rust)\\b"
+                    "match": "\\b(math|io|fmt|python|js|cpp|java|go|golang|rust)\\b"
                 }
             ]
         },
@@ -215,10 +215,6 @@
                     "name": "support.function.fmt.sky"
                 },
                 {
-                    "match": "(?<=\\bstr\\.)(split|join|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|chars|bytes)\\b",
-                    "name": "support.function.str.sky"
-                },
-                {
                     "match": "(?<=\\b(python|js|cpp|java|go|golang|rust)\\.)(load|exec|compile|version)\\b",
                     "name": "support.function.interop.sky"
                 }
@@ -227,7 +223,7 @@
         "collection_methods": {
             "patterns": [
                 {
-                    "match": "(?<=\\.)(push|pop|clear|add|has|value)\\b(?=\\s*\\()",
+                    "match": "(?<=\\.)(push|pop|clear|add|has|value|split|join|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|chars|bytes)\\b(?=\\s*\\()",
                     "name": "support.function.collection.sky"
                 }
             ]
@@ -235,7 +231,7 @@
         "properties": {
             "patterns": [
                 {
-                    "match": "(?<=\\.)(size|T)\\b",
+                    "match": "(?<=\\.)(size|length|chars|bytes|T)\\b",
                     "name": "support.variable.property.sky"
                 }
             ]

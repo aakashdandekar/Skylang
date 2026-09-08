@@ -2,7 +2,7 @@
   "Import Module": {
     "prefix": "import",
     "body": [
-      "import ${1|python,js,cpp,java,go,rust,math,str,fmt,io|}"
+      "import ${1|python,js,cpp,java,go,rust,math,fmt,io|}"
     ],
     "description": "Import a Skylang standard library or interop module"
   },

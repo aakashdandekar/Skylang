@@ -94,7 +94,7 @@ export class SkylangDiagnosticsProvider {
             }
 
             // 3. Unknown method on standard library & interop modules
-            const moduleCallMatch = line.match(/\b(math|io|fmt|str|python|js|cpp|java|go|golang|rust)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
+            const moduleCallMatch = line.match(/\b(math|io|fmt|python|js|cpp|java|go|golang|rust)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
             if (moduleCallMatch) {
                 for (const match of moduleCallMatch) {
                     const [mod, member] = match.split('.');
@@ -103,8 +103,8 @@ export class SkylangDiagnosticsProvider {
                         const isFn = modDef.functions && modDef.functions[member] !== undefined;
                         const isConst = modDef.constants && modDef.constants[member] !== undefined;
 
-                        // For math/io/fmt/str (static stdlib), check invalid member names
-                        if (['math', 'io', 'fmt', 'str'].includes(mod) && !isFn && !isConst) {
+                        // For math/io/fmt (static stdlib), check invalid member names
+                        if (['math', 'io', 'fmt'].includes(mod) && !isFn && !isConst) {
                             const col = rawLine.indexOf(match);
                             if (col >= 0) {
                                 const range = new vscode.Range(

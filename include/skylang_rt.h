@@ -299,6 +299,22 @@ Value set_remove(ObjSet* set, Value item);
 /* Built-in helpers */
 void sky_init_runtime(void);
 Value sky_builtin_eval(int argc, Value* argv);
+Value sky_builtin_split(int argc, Value* argv);
+Value sky_builtin_join(int argc, Value* argv);
+Value sky_builtin_upper(int argc, Value* argv);
+Value sky_builtin_lower(int argc, Value* argv);
+Value sky_builtin_trim(int argc, Value* argv);
+Value sky_builtin_trimleft(int argc, Value* argv);
+Value sky_builtin_trimright(int argc, Value* argv);
+Value sky_builtin_contains(int argc, Value* argv);
+Value sky_builtin_startswith(int argc, Value* argv);
+Value sky_builtin_endswith(int argc, Value* argv);
+Value sky_builtin_replace(int argc, Value* argv);
+Value sky_builtin_find(int argc, Value* argv);
+Value sky_builtin_count(int argc, Value* argv);
+Value sky_builtin_reverse(int argc, Value* argv);
+Value sky_builtin_chars(int argc, Value* argv);
+Value sky_builtin_bytes(int argc, Value* argv);
 void sky_check_takes(const char* fn_name, int actual_argc, int expected_argc, ...);
 
 /* Traceback and Location Tracking */

@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
+#include <ctype.h>
 #include "../include/sky_python.h"
 #include "../include/sky_js.h"
 #include "../include/sky_cpp.h"
@@ -1276,12 +1277,147 @@ Value val_unpack(Value coll, size_t index) {
     return val_nil();
 }
 
+static const char* value_get_str(Value v) {
+    if (v.type == VAL_OBJ && v.as.obj != NULL && v.as.obj->type == OBJ_STRING) {
+        return ((ObjString*)v.as.obj)->chars;
+    }
+    return val_to_string(v);
+}
+
+static Value sky_str_split_impl(const char* s, const char* delim) {
+    size_t dlen = strlen(delim);
+    Value result = val_list();
+    ObjList* list = as_list(result);
+    if (dlen == 0) {
+        for (const char* p = s; *p; p++) {
+            char c[2] = {*p, '\0'};
+            list_push(list, val_string(c));
+        }
+        return result;
+    }
+    const char* start = s;
+    const char* found;
+    while ((found = strstr(start, delim)) != NULL) {
+        list_push(list, val_string_len(start, found - start));
+        start = found + dlen;
+    }
+    list_push(list, val_string(start));
+    return result;
+}
+
+static Value sky_str_join_impl(const char* delim, Value coll) {
+    if (coll.type != VAL_OBJ || coll.as.obj == NULL) return val_string("");
+    size_t count = 0;
+    Value* items = NULL;
+    if (coll.as.obj->type == OBJ_LIST) {
+        ObjList* l = (ObjList*)coll.as.obj;
+        count = l->count;
+        items = l->items;
+    } else if (coll.as.obj->type == OBJ_TUPLE) {
+        ObjTuple* t = (ObjTuple*)coll.as.obj;
+        count = t->count;
+        items = t->items;
+    } else if (coll.as.obj->type == OBJ_ARRAY) {
+        ObjArray* a = (ObjArray*)coll.as.obj;
+        count = a->capacity;
+        items = a->items;
+    } else {
+        return val_string("");
+    }
+    size_t dlen = strlen(delim);
+    size_t cap = 256, len = 0;
+    char* buf = (char*)GC_MALLOC(cap);
+    for (size_t i = 0; i < count; i++) {
+        char* s = val_to_string(items[i]);
+        size_t sl = strlen(s);
+        while (len + sl + dlen + 1 >= cap) {
+            cap *= 2;
+            buf = (char*)GC_REALLOC(buf, cap);
+        }
+        if (i > 0) {
+            memcpy(buf + len, delim, dlen);
+            len += dlen;
+        }
+        memcpy(buf + len, s, sl);
+        len += sl;
+        free(s);
+    }
+    buf[len] = '\0';
+    return val_string(buf);
+}
+
+static Value sky_str_upper_impl(const char* s) {
+    size_t len = strlen(s);
+    char* buf = (char*)GC_MALLOC(len + 1);
+    for (size_t i = 0; i < len; i++) buf[i] = toupper((unsigned char)s[i]);
+    buf[len] = '\0';
+    return val_string(buf);
+}
+
+static Value sky_str_lower_impl(const char* s) {
+    size_t len = strlen(s);
+    char* buf = (char*)GC_MALLOC(len + 1);
+    for (size_t i = 0; i < len; i++) buf[i] = tolower((unsigned char)s[i]);
+    buf[len] = '\0';
+    return val_string(buf);
+}
+
+static Value sky_str_trim_impl(const char* s) {
+    const char* start = s;
+    while (*start && isspace((unsigned char)*start)) start++;
+    const char* end = s + strlen(s) - 1;
+    while (end > start && isspace((unsigned char)*end)) end--;
+    return val_string_len(start, end - start + 1);
+}
+
+static Value sky_str_trimleft_impl(const char* s) {
+    while (*s && isspace((unsigned char)*s)) s++;
+    return val_string(s);
+}
+
+static Value sky_str_trimright_impl(const char* s) {
+    size_t len = strlen(s);
+    while (len > 0 && isspace((unsigned char)s[len - 1])) len--;
+    return val_string_len(s, len);
+}
+
+static Value sky_str_replace_impl(const char* s, const char* old_s, const char* new_s) {
+    size_t old_len = strlen(old_s), new_len = strlen(new_s);
+    if (old_len == 0) return val_string(s);
+    int count = 0;
+    const char* p = s;
+    while ((p = strstr(p, old_s)) != NULL) { count++; p += old_len; }
+    if (count == 0) return val_string(s);
+
+    size_t result_len = strlen(s) + count * ((int)new_len - (int)old_len);
+    char* buf = (char*)GC_MALLOC(result_len + 1);
+    char* dst = buf;
+    p = s;
+    const char* found;
+    while ((found = strstr(p, old_s)) != NULL) {
+        size_t chunk = found - p;
+        memcpy(dst, p, chunk); dst += chunk;
+        memcpy(dst, new_s, new_len); dst += new_len;
+        p = found + old_len;
+    }
+    strcpy(dst, p);
+    return val_string(buf);
+}
+
+static Value sky_str_reverse_impl(const char* s) {
+    size_t len = strlen(s);
+    char* buf = (char*)GC_MALLOC(len + 1);
+    for (size_t i = 0; i < len; i++) buf[i] = s[len - 1 - i];
+    buf[len] = '\0';
+    return val_string(buf);
+}
+
 Value val_get_prop(Value target, const char* name) {
     if (strcmp(name, "T") == 0) {
         return val_get_type(target);
     }
-    if (strcmp(name, "size") == 0) {
-        if (target.type == VAL_OBJ) {
+    if (strcmp(name, "size") == 0 || strcmp(name, "length") == 0) {
+        if (target.type == VAL_OBJ && target.as.obj != NULL) {
             switch (target.as.obj->type) {
                 case OBJ_STRING: return val_int((int64_t)((ObjString*)target.as.obj)->length);
                 case OBJ_ARRAY: return val_int((int64_t)((ObjArray*)target.as.obj)->capacity);
@@ -1294,14 +1430,34 @@ Value val_get_prop(Value target, const char* name) {
             }
         }
     }
-    if (target.type == VAL_OBJ && target.as.obj->type == OBJ_DICT) {
+    if (target.type == VAL_OBJ && target.as.obj != NULL && target.as.obj->type == OBJ_STRING) {
+        ObjString* s = (ObjString*)target.as.obj;
+        if (strcmp(name, "chars") == 0) {
+            Value result = val_list();
+            ObjList* list = as_list(result);
+            for (const char* p = s->chars; *p; p++) {
+                char c[2] = {*p, '\0'};
+                list_push(list, val_string(c));
+            }
+            return result;
+        }
+        if (strcmp(name, "bytes") == 0) {
+            Value result = val_list();
+            ObjList* list = as_list(result);
+            for (const char* p = s->chars; *p; p++) {
+                list_push(list, val_int((unsigned char)*p));
+            }
+            return result;
+        }
+    }
+    if (target.type == VAL_OBJ && target.as.obj != NULL && target.as.obj->type == OBJ_DICT) {
         ObjDict* d = (ObjDict*)target.as.obj;
         Value key = val_string(name);
         if (dict_has(d, key)) {
             return dict_get(d, key);
         }
     }
-    if (target.type == VAL_OBJ && target.as.obj->type == OBJ_FOREIGN) {
+    if (target.type == VAL_OBJ && target.as.obj != NULL && target.as.obj->type == OBJ_FOREIGN) {
         ObjForeign* f = (ObjForeign*)target.as.obj;
         switch (f->lang) {
             case FOREIGN_PYTHON: return sky_python_get_prop(f, name);
@@ -1313,7 +1469,7 @@ Value val_get_prop(Value target, const char* name) {
             default: break;
         }
     }
-    if (target.type == VAL_OBJ && target.as.obj->type == OBJ_INSTANCE) {
+    if (target.type == VAL_OBJ && target.as.obj != NULL && target.as.obj->type == OBJ_INSTANCE) {
         ObjInstance* inst = (ObjInstance*)target.as.obj;
         FieldEntry* f = inst->fields;
         while (f) {
@@ -1331,12 +1487,12 @@ Value val_get_prop(Value target, const char* name) {
 }
 
 Value val_set_prop(Value target, const char* name, Value val) {
-    if (target.type == VAL_OBJ && target.as.obj->type == OBJ_DICT) {
+    if (target.type == VAL_OBJ && target.as.obj != NULL && target.as.obj->type == OBJ_DICT) {
         ObjDict* d = (ObjDict*)target.as.obj;
         dict_set(d, val_string(name), val);
         return val;
     }
-    if (target.type == VAL_OBJ && target.as.obj->type == OBJ_FOREIGN) {
+    if (target.type == VAL_OBJ && target.as.obj != NULL && target.as.obj->type == OBJ_FOREIGN) {
         ObjForeign* f = (ObjForeign*)target.as.obj;
         switch (f->lang) {
             case FOREIGN_PYTHON: return sky_python_set_prop(f, name, val);
@@ -1348,7 +1504,7 @@ Value val_set_prop(Value target, const char* name, Value val) {
             default: break;
         }
     }
-    if (target.type == VAL_OBJ && target.as.obj->type == OBJ_INSTANCE) {
+    if (target.type == VAL_OBJ && target.as.obj != NULL && target.as.obj->type == OBJ_INSTANCE) {
         ObjInstance* inst = (ObjInstance*)target.as.obj;
         FieldEntry* f = inst->fields;
         while (f) {
@@ -1371,14 +1527,88 @@ Value val_set_prop(Value target, const char* name, Value val) {
 }
 
 Value val_call_method_kw(Value target, const char* name, int argc, Value* argv, const char** arg_names) {
-    if (strcmp(name, "size") == 0) {
+    if (strcmp(name, "size") == 0 || strcmp(name, "length") == 0) {
         return val_get_prop(target, "size");
     }
     if (strcmp(name, "value") == 0 && argc >= 1) {
         return val_get_index(target, argv[0]);
     }
-    if (target.type == VAL_OBJ) {
+    if (target.type == VAL_OBJ && target.as.obj != NULL) {
         switch (target.as.obj->type) {
+            case OBJ_STRING: {
+                ObjString* s = (ObjString*)target.as.obj;
+                if (strcmp(name, "split") == 0) {
+                    const char* delim = (argc >= 1) ? ((argv[0].type == VAL_OBJ && argv[0].as.obj->type == OBJ_STRING) ? ((ObjString*)argv[0].as.obj)->chars : val_to_string(argv[0])) : " ";
+                    return sky_str_split_impl(s->chars, delim);
+                }
+                if (strcmp(name, "join") == 0 && argc >= 1) {
+                    return sky_str_join_impl(s->chars, argv[0]);
+                }
+                if (strcmp(name, "upper") == 0) {
+                    return sky_str_upper_impl(s->chars);
+                }
+                if (strcmp(name, "lower") == 0) {
+                    return sky_str_lower_impl(s->chars);
+                }
+                if (strcmp(name, "trim") == 0) {
+                    return sky_str_trim_impl(s->chars);
+                }
+                if (strcmp(name, "trimleft") == 0) {
+                    return sky_str_trimleft_impl(s->chars);
+                }
+                if (strcmp(name, "trimright") == 0) {
+                    return sky_str_trimright_impl(s->chars);
+                }
+                if (strcmp(name, "contains") == 0 || strcmp(name, "has") == 0) {
+                    if (argc < 1) return val_bool(false);
+                    const char* sub = (argv[0].type == VAL_OBJ && argv[0].as.obj->type == OBJ_STRING) ? ((ObjString*)argv[0].as.obj)->chars : val_to_string(argv[0]);
+                    return val_bool(strstr(s->chars, sub) != NULL);
+                }
+                if (strcmp(name, "startswith") == 0) {
+                    if (argc < 1) return val_bool(false);
+                    const char* prefix = (argv[0].type == VAL_OBJ && argv[0].as.obj->type == OBJ_STRING) ? ((ObjString*)argv[0].as.obj)->chars : val_to_string(argv[0]);
+                    return val_bool(strncmp(s->chars, prefix, strlen(prefix)) == 0);
+                }
+                if (strcmp(name, "endswith") == 0) {
+                    if (argc < 1) return val_bool(false);
+                    const char* suffix = (argv[0].type == VAL_OBJ && argv[0].as.obj->type == OBJ_STRING) ? ((ObjString*)argv[0].as.obj)->chars : val_to_string(argv[0]);
+                    size_t slen = s->length, xlen = strlen(suffix);
+                    if (xlen > slen) return val_bool(false);
+                    return val_bool(strcmp(s->chars + slen - xlen, suffix) == 0);
+                }
+                if (strcmp(name, "replace") == 0) {
+                    if (argc < 2) return target;
+                    const char* old_s = (argv[0].type == VAL_OBJ && argv[0].as.obj->type == OBJ_STRING) ? ((ObjString*)argv[0].as.obj)->chars : val_to_string(argv[0]);
+                    const char* new_s = (argv[1].type == VAL_OBJ && argv[1].as.obj->type == OBJ_STRING) ? ((ObjString*)argv[1].as.obj)->chars : val_to_string(argv[1]);
+                    return sky_str_replace_impl(s->chars, old_s, new_s);
+                }
+                if (strcmp(name, "find") == 0) {
+                    if (argc < 1) return val_int(-1);
+                    const char* sub = (argv[0].type == VAL_OBJ && argv[0].as.obj->type == OBJ_STRING) ? ((ObjString*)argv[0].as.obj)->chars : val_to_string(argv[0]);
+                    const char* found = strstr(s->chars, sub);
+                    return val_int(found ? (int64_t)(found - s->chars) : -1);
+                }
+                if (strcmp(name, "count") == 0) {
+                    if (argc < 1) return val_int(0);
+                    const char* sub = (argv[0].type == VAL_OBJ && argv[0].as.obj->type == OBJ_STRING) ? ((ObjString*)argv[0].as.obj)->chars : val_to_string(argv[0]);
+                    size_t sublen = strlen(sub);
+                    if (sublen == 0) return val_int(0);
+                    int count = 0;
+                    const char* p = s->chars;
+                    while ((p = strstr(p, sub)) != NULL) { count++; p += sublen; }
+                    return val_int(count);
+                }
+                if (strcmp(name, "reverse") == 0) {
+                    return sky_str_reverse_impl(s->chars);
+                }
+                if (strcmp(name, "chars") == 0) {
+                    return val_get_prop(target, "chars");
+                }
+                if (strcmp(name, "bytes") == 0) {
+                    return val_get_prop(target, "bytes");
+                }
+                break;
+            }
             case OBJ_LIST: {
                 ObjList* l = (ObjList*)target.as.obj;
                 if (strcmp(name, "push") == 0 && argc >= 1) {
@@ -1390,6 +1620,40 @@ Value val_call_method_kw(Value target, const char* name, int argc, Value* argv, 
                 }
                 if (strcmp(name, "clear") == 0) {
                     return list_clear(l);
+                }
+                if (strcmp(name, "join") == 0) {
+                    const char* delim = (argc >= 1 && argv[0].type == VAL_OBJ && argv[0].as.obj->type == OBJ_STRING) ? ((ObjString*)argv[0].as.obj)->chars : ((argc >= 1) ? val_to_string(argv[0]) : "");
+                    return sky_str_join_impl(delim, target);
+                }
+                if (strcmp(name, "contains") == 0 || strcmp(name, "has") == 0) {
+                    if (argc < 1) return val_bool(false);
+                    for (size_t i = 0; i < l->count; ++i) {
+                        if (val_eq(l->items[i], argv[0]).as.b) return val_bool(true);
+                    }
+                    return val_bool(false);
+                }
+                if (strcmp(name, "find") == 0) {
+                    if (argc < 1) return val_int(-1);
+                    for (size_t i = 0; i < l->count; ++i) {
+                        if (val_eq(l->items[i], argv[0]).as.b) return val_int((int64_t)i);
+                    }
+                    return val_int(-1);
+                }
+                if (strcmp(name, "count") == 0) {
+                    if (argc < 1) return val_int(0);
+                    int cnt = 0;
+                    for (size_t i = 0; i < l->count; ++i) {
+                        if (val_eq(l->items[i], argv[0]).as.b) cnt++;
+                    }
+                    return val_int(cnt);
+                }
+                if (strcmp(name, "reverse") == 0) {
+                    Value res = val_list();
+                    ObjList* rl = as_list(res);
+                    for (size_t i = 0; i < l->count; ++i) {
+                        list_push(rl, l->items[l->count - 1 - i]);
+                    }
+                    return res;
                 }
                 break;
             }
@@ -1592,5 +1856,181 @@ void sky_check_takes(const char* fn_name, int actual_argc, int expected_argc, ..
         sky_runtime_error("TypeError", "%s() expected at least %d arguments but got %d",
                           fn_name ? fn_name : "function", expected_argc, actual_argc);
     }
+}
+
+Value sky_builtin_split(int argc, Value* argv) {
+    if (argc < 1) return val_list();
+    const char* s = value_get_str(argv[0]);
+    const char* delim = (argc >= 2) ? value_get_str(argv[1]) : " ";
+    return sky_str_split_impl(s, delim);
+}
+
+Value sky_builtin_join(int argc, Value* argv) {
+    if (argc < 1) return val_string("");
+    if (argc == 1) {
+        return sky_str_join_impl("", argv[0]);
+    }
+    if (argv[0].type == VAL_OBJ && argv[0].as.obj != NULL &&
+        (argv[0].as.obj->type == OBJ_LIST || argv[0].as.obj->type == OBJ_TUPLE || argv[0].as.obj->type == OBJ_ARRAY)) {
+        const char* delim = value_get_str(argv[1]);
+        return sky_str_join_impl(delim, argv[0]);
+    }
+    if (argv[1].type == VAL_OBJ && argv[1].as.obj != NULL &&
+        (argv[1].as.obj->type == OBJ_LIST || argv[1].as.obj->type == OBJ_TUPLE || argv[1].as.obj->type == OBJ_ARRAY)) {
+        const char* delim = value_get_str(argv[0]);
+        return sky_str_join_impl(delim, argv[1]);
+    }
+    return val_string("");
+}
+
+Value sky_builtin_upper(int argc, Value* argv) {
+    if (argc < 1) return val_string("");
+    return sky_str_upper_impl(value_get_str(argv[0]));
+}
+
+Value sky_builtin_lower(int argc, Value* argv) {
+    if (argc < 1) return val_string("");
+    return sky_str_lower_impl(value_get_str(argv[0]));
+}
+
+Value sky_builtin_trim(int argc, Value* argv) {
+    if (argc < 1) return val_string("");
+    return sky_str_trim_impl(value_get_str(argv[0]));
+}
+
+Value sky_builtin_trimleft(int argc, Value* argv) {
+    if (argc < 1) return val_string("");
+    return sky_str_trimleft_impl(value_get_str(argv[0]));
+}
+
+Value sky_builtin_trimright(int argc, Value* argv) {
+    if (argc < 1) return val_string("");
+    return sky_str_trimright_impl(value_get_str(argv[0]));
+}
+
+Value sky_builtin_contains(int argc, Value* argv) {
+    if (argc < 2) return val_bool(false);
+    if (argv[0].type == VAL_OBJ && argv[0].as.obj != NULL) {
+        if (argv[0].as.obj->type == OBJ_STRING) {
+            return val_bool(strstr(((ObjString*)argv[0].as.obj)->chars, value_get_str(argv[1])) != NULL);
+        }
+        if (argv[0].as.obj->type == OBJ_LIST) {
+            ObjList* l = (ObjList*)argv[0].as.obj;
+            for (size_t i = 0; i < l->count; ++i) {
+                if (val_eq(l->items[i], argv[1]).as.b) return val_bool(true);
+            }
+            return val_bool(false);
+        }
+        if (argv[0].as.obj->type == OBJ_DICT) {
+            return val_bool(dict_has((ObjDict*)argv[0].as.obj, argv[1]));
+        }
+        if (argv[0].as.obj->type == OBJ_SET) {
+            return val_bool(set_has((ObjSet*)argv[0].as.obj, argv[1]));
+        }
+    }
+    return val_bool(false);
+}
+
+Value sky_builtin_startswith(int argc, Value* argv) {
+    if (argc < 2) return val_bool(false);
+    const char* s = value_get_str(argv[0]);
+    const char* prefix = value_get_str(argv[1]);
+    return val_bool(strncmp(s, prefix, strlen(prefix)) == 0);
+}
+
+Value sky_builtin_endswith(int argc, Value* argv) {
+    if (argc < 2) return val_bool(false);
+    const char* s = value_get_str(argv[0]);
+    const char* suffix = value_get_str(argv[1]);
+    size_t slen = strlen(s), xlen = strlen(suffix);
+    if (xlen > slen) return val_bool(false);
+    return val_bool(strcmp(s + slen - xlen, suffix) == 0);
+}
+
+Value sky_builtin_replace(int argc, Value* argv) {
+    if (argc < 3) return (argc >= 1) ? argv[0] : val_string("");
+    return sky_str_replace_impl(value_get_str(argv[0]), value_get_str(argv[1]), value_get_str(argv[2]));
+}
+
+Value sky_builtin_find(int argc, Value* argv) {
+    if (argc < 2) return val_int(-1);
+    if (argv[0].type == VAL_OBJ && argv[0].as.obj != NULL && argv[0].as.obj->type == OBJ_STRING) {
+        const char* s = ((ObjString*)argv[0].as.obj)->chars;
+        const char* sub = value_get_str(argv[1]);
+        const char* found = strstr(s, sub);
+        return val_int(found ? (int64_t)(found - s) : -1);
+    }
+    if (argv[0].type == VAL_OBJ && argv[0].as.obj != NULL && argv[0].as.obj->type == OBJ_LIST) {
+        ObjList* l = (ObjList*)argv[0].as.obj;
+        for (size_t i = 0; i < l->count; ++i) {
+            if (val_eq(l->items[i], argv[1]).as.b) return val_int((int64_t)i);
+        }
+    }
+    return val_int(-1);
+}
+
+Value sky_builtin_count(int argc, Value* argv) {
+    if (argc < 2) return val_int(0);
+    if (argv[0].type == VAL_OBJ && argv[0].as.obj != NULL && argv[0].as.obj->type == OBJ_STRING) {
+        const char* s = ((ObjString*)argv[0].as.obj)->chars;
+        const char* sub = value_get_str(argv[1]);
+        size_t sublen = strlen(sub);
+        if (sublen == 0) return val_int(0);
+        int count = 0;
+        const char* p = s;
+        while ((p = strstr(p, sub)) != NULL) { count++; p += sublen; }
+        return val_int(count);
+    }
+    if (argv[0].type == VAL_OBJ && argv[0].as.obj != NULL && argv[0].as.obj->type == OBJ_LIST) {
+        ObjList* l = (ObjList*)argv[0].as.obj;
+        int count = 0;
+        for (size_t i = 0; i < l->count; ++i) {
+            if (val_eq(l->items[i], argv[1]).as.b) count++;
+        }
+        return val_int(count);
+    }
+    return val_int(0);
+}
+
+Value sky_builtin_reverse(int argc, Value* argv) {
+    if (argc < 1) return val_nil();
+    if (argv[0].type == VAL_OBJ && argv[0].as.obj != NULL) {
+        if (argv[0].as.obj->type == OBJ_STRING) {
+            return sky_str_reverse_impl(((ObjString*)argv[0].as.obj)->chars);
+        }
+        if (argv[0].as.obj->type == OBJ_LIST) {
+            ObjList* l = (ObjList*)argv[0].as.obj;
+            Value res = val_list();
+            ObjList* rl = as_list(res);
+            for (size_t i = 0; i < l->count; ++i) {
+                list_push(rl, l->items[l->count - 1 - i]);
+            }
+            return res;
+        }
+    }
+    return argv[0];
+}
+
+Value sky_builtin_chars(int argc, Value* argv) {
+    if (argc < 1) return val_list();
+    const char* s = value_get_str(argv[0]);
+    Value result = val_list();
+    ObjList* list = as_list(result);
+    for (const char* p = s; *p; p++) {
+        char c[2] = {*p, '\0'};
+        list_push(list, val_string(c));
+    }
+    return result;
+}
+
+Value sky_builtin_bytes(int argc, Value* argv) {
+    if (argc < 1) return val_list();
+    const char* s = value_get_str(argv[0]);
+    Value result = val_list();
+    ObjList* list = as_list(result);
+    for (const char* p = s; *p; p++) {
+        list_push(list, val_int((unsigned char)*p));
+    }
+    return result;
 }
 
