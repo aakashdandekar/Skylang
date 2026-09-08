@@ -426,6 +426,16 @@ static void compile_expr(Compiler* c, AstNode* node) {
             break;
         }
 
+        case AST_FSTRING: {
+            size_t count = node->as.fstring.parts.count;
+            emit_constant(c, val_string(""), line);
+            for (size_t i = 0; i < count; ++i) {
+                compile_expr(c, node->as.fstring.parts.items[i]);
+                emit_byte(c, OP_ADD, line);
+            }
+            break;
+        }
+
         case AST_STMT_ASSIGN: {
             compile_expr(c, node->as.assign.value);
             AstNode* target = node->as.assign.target;

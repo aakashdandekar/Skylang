@@ -707,6 +707,23 @@ static void emit_expr(Buffer* b, AstNode* node, const char* current_class) {
             buf_printf(b, "_sl_%d; })", t);
             break;
         }
+        case AST_FSTRING: {
+            size_t count = node->as.fstring.parts.count;
+            if (count == 0) {
+                buf_puts(b, "val_string(\"\")");
+            } else {
+                for (size_t i = 0; i < count; ++i) {
+                    buf_puts(b, "val_add(");
+                }
+                buf_puts(b, "val_string(\"\")");
+                for (size_t i = 0; i < count; ++i) {
+                    buf_puts(b, ", ");
+                    emit_expr(b, node->as.fstring.parts.items[i], current_class);
+                    buf_puts(b, ")");
+                }
+            }
+            break;
+        }
         default:
             buf_puts(b, "val_nil()");
             break;

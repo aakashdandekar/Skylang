@@ -363,6 +363,39 @@ print("abc".chars)            // ["a", "b", "c"]
 print("ABC".bytes)            // [65, 66, 67]
 ```
 
+### Python-Style F-Strings (Formatted String Interpolation)
+
+Skylang supports full Python-style **f-strings** (`f"..."`, `f'...'`, `F"..."`, `F'...'`) for embedded expression interpolation:
+
+- **Variables & Expressions**: Directly embed variables, calculations, or method calls inside `{...}`.
+- **Any Data Type**: Integers, doubles, booleans, lists, dictionaries, tuples, and objects are automatically converted to strings.
+- **Escaped Braces**: Use `{{` and `}}` to output literal `{` and `}` characters.
+- **Nested Quotes**: Supports double or single quotes inside `{...}` expressions (e.g. dict indexing `f"User {user[\"name\"]}"` or `f'User {user["name"]}'`).
+
+```skylang
+name := "Alice"
+age := 25
+score := 98.5
+
+// Basic variable and arithmetic interpolation
+println(f"Hello {name}, in 5 years you will be {age + 5}!")
+// Output: Hello Alice, in 5 years you will be 30!
+
+// Expressions, method calls, and collections
+items := [10, 20, 30]
+user := {"role": "Admin", "active": true}
+println(f"User {name} ({user[\"role\"]}) has {items.size} items. Active: {user[\"active\"]}")
+// Output: User Alice (Admin) has 3 items. Active: true
+
+// Escaped braces
+println(f"Literal {{brace}} and evaluated: {10 * 10}")
+// Output: Literal {brace} and evaluated: 100
+
+// Single-quoted f-strings
+println(f'Single-quoted: {name.upper()}')
+// Output: Single-quoted: ALICE
+```
+
 ---
 
 ## Arrays

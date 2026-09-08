@@ -181,5 +181,29 @@ if MOD_E < 2.7 || MOD_E > 2.8 { panic("Test failed: from ... import constant") }
 from examples.sub.helper import greet as mod_greet
 if mod_greet("Skylang") != "Hello from sub.helper, Skylang!" { panic("Test failed: nested submodule import") }
 
+// 15. Python-style F-Strings (f"...", f'...', F"...", F'...')
+f_name := "Skylang"
+f_ver := 2
+f_val := f"Welcome to {f_name} v{f_ver}!"
+if f_val != "Welcome to Skylang v2!" { panic("Test failed: basic f-string") }
+
+f_calc := f"Math: {10 + 20} * 2 = {(10 + 20) * 2}"
+if f_calc != "Math: 30 * 2 = 60" { panic("Test failed: f-string arithmetic") }
+
+f_escaped := f"Braces: {{literal}} and {42}"
+if f_escaped != "Braces: {literal} and 42" { panic("Test failed: f-string escaped braces") }
+
+f_single := f'Single quoted: {f_name} has {list.size} items'
+if f_single != "Single quoted: Skylang has 4 items" { panic("Test failed: single quoted f-string") }
+
+f_upper := F"Uppercase prefix: {100 + 50}"
+if f_upper != "Uppercase prefix: 150" { panic("Test failed: uppercase F prefix") }
+
+f_dict_esc := f"Dict key: {dict[\"x\"]} and {dict[\"y\"]}"
+if f_dict_esc != "Dict key: 100 and 200" { panic("Test failed: f-string escaped quotes in dict subscript") }
+
+f_methods := f"Method: {'hello'.upper()} - {list[0]}"
+if f_methods != "Method: HELLO - 1" { panic("Test failed: f-string method call") }
+
 println("All Skylang tests passed successfully! [100% OK]")
 

@@ -112,7 +112,152 @@ static AstNode* parse_factor(Parser* parser);
 static AstNode* parse_power(Parser* parser);
 static AstNode* parse_unary(Parser* parser);
 static AstNode* parse_postfix(Parser* parser);
-static AstNode* parse_primary(Parser* parser);
+static AstNode* parse_fstring(Parser* parser, const char* raw, int line) {
+    AstNode* n = ast_new(AST_FSTRING, line);
+    node_list_init(&n->as.fstring.parts);
+
+    if (!raw) {
+        AstNode* lit = ast_new(AST_LITERAL, line);
+        lit->as.literal.lit_type = TOK_STRING_LIT;
+        lit->as.literal.as.s_val = strdup("");
+        node_list_add(&n->as.fstring.parts, lit);
+        return n;
+    }
+
+    size_t len = strlen(raw);
+    size_t i = 0;
+    char* buf = (char*)malloc(len + 1);
+    size_t buf_len = 0;
+
+    while (i < len) {
+        if (raw[i] == '{') {
+            if (i + 1 < len && raw[i + 1] == '{') {
+                buf[buf_len++] = '{';
+                i += 2;
+                continue;
+            }
+            if (buf_len > 0) {
+                buf[buf_len] = '\0';
+                AstNode* lit = ast_new(AST_LITERAL, line);
+                lit->as.literal.lit_type = TOK_STRING_LIT;
+                lit->as.literal.as.s_val = strdup(buf);
+                node_list_add(&n->as.fstring.parts, lit);
+                buf_len = 0;
+            }
+
+            i++; // skip '{'
+            size_t expr_start = i;
+            int depth = 1;
+            char in_quote = 0;
+
+            while (i < len && depth > 0) {
+                if (raw[i] == '\\' && i + 1 < len) {
+                    char esc = raw[i + 1];
+                    if (in_quote == 0) {
+                        if (esc == '"' || esc == '\'') {
+                            in_quote = esc;
+                        }
+                    } else if (in_quote == esc) {
+                        in_quote = 0;
+                    }
+                    i += 2;
+                    continue;
+                }
+
+                char c = raw[i];
+                if (in_quote) {
+                    if (c == in_quote) {
+                        in_quote = 0;
+                    }
+                } else {
+                    if (c == '"' || c == '\'') {
+                        in_quote = c;
+                    } else if (c == '{') {
+                        depth++;
+                    } else if (c == '}') {
+                        depth--;
+                        if (depth == 0) break;
+                    }
+                }
+                i++;
+            }
+
+            if (depth > 0) {
+                error_at(parser, &parser->previous, "Unterminated '{' in f-string expression");
+                free(buf);
+                return n;
+            }
+
+            size_t expr_len = i - expr_start;
+            char* expr_code = (char*)malloc(expr_len + 1);
+            size_t elen = 0;
+            for (size_t k = expr_start; k < i; ++k) {
+                if (raw[k] == '\\' && k + 1 < i && (raw[k+1] == '"' || raw[k+1] == '\'')) {
+                    expr_code[elen++] = raw[k+1];
+                    k++;
+                } else {
+                    expr_code[elen++] = raw[k];
+                }
+            }
+            expr_code[elen] = '\0';
+            i++; // skip closing '}'
+
+            Lexer sub_lexer;
+            lexer_init(&sub_lexer, expr_code);
+            Parser sub_parser;
+            parser_init(&sub_parser, expr_code, parser->filename);
+
+            AstNode* expr_node = parse_expression(&sub_parser);
+            if (expr_node) {
+                node_list_add(&n->as.fstring.parts, expr_node);
+            }
+            free(expr_code);
+        } else if (raw[i] == '}') {
+            if (i + 1 < len && raw[i + 1] == '}') {
+                buf[buf_len++] = '}';
+                i += 2;
+                continue;
+            }
+            buf[buf_len++] = raw[i++];
+        } else if (raw[i] == '\\') {
+            i++;
+            if (i < len) {
+                char esc = raw[i++];
+                switch (esc) {
+                    case 'n': buf[buf_len++] = '\n'; break;
+                    case 't': buf[buf_len++] = '\t'; break;
+                    case 'r': buf[buf_len++] = '\r'; break;
+                    case '\\': buf[buf_len++] = '\\'; break;
+                    case '"': buf[buf_len++] = '"'; break;
+                    case '\'': buf[buf_len++] = '\''; break;
+                    case '0': buf[buf_len++] = '\0'; break;
+                    default: buf[buf_len++] = esc; break;
+                }
+            }
+        } else {
+            buf[buf_len++] = raw[i++];
+        }
+    }
+
+    if (buf_len > 0) {
+        buf[buf_len] = '\0';
+        AstNode* lit = ast_new(AST_LITERAL, line);
+        lit->as.literal.lit_type = TOK_STRING_LIT;
+        lit->as.literal.as.s_val = strdup(buf);
+        node_list_add(&n->as.fstring.parts, lit);
+    }
+
+    free(buf);
+
+    if (n->as.fstring.parts.count == 0) {
+        AstNode* lit = ast_new(AST_LITERAL, line);
+        lit->as.literal.lit_type = TOK_STRING_LIT;
+        lit->as.literal.as.s_val = strdup("");
+        node_list_add(&n->as.fstring.parts, lit);
+    }
+
+    return n;
+}
 
 static AstNode* parse_primary(Parser* parser) {
     int line = parser->current.line;
@@ -136,6 +281,10 @@ static AstNode* parse_primary(Parser* parser) {
         n->as.literal.lit_type = TOK_STRING_LIT;
         n->as.literal.as.s_val = strdup(parser->previous.as.s_val);
         return n;
+    }
+
+    if (match(parser, TOK_FSTRING_LIT)) {
+        return parse_fstring(parser, parser->previous.as.s_val, line);
     }
 
     if (match(parser, TOK_CHAR_LIT)) {

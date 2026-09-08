@@ -182,27 +182,137 @@ static Token string_lit(Lexer* lexer, const char* start, int line, int col) {
 }
 
 static Token char_lit(Lexer* lexer, const char* start, int line, int col) {
-    if (is_at_end(lexer)) return error_token(lexer, "Unterminated character literal");
-    char c = advance(lexer);
-    if (c == '\\') {
-        char esc = advance(lexer);
-        switch (esc) {
-            case 'n': c = '\n'; break;
-            case 't': c = '\t'; break;
-            case 'r': c = '\r'; break;
-            case '\\': c = '\\'; break;
-            case '\'': c = '\''; break;
-            case '0': c = '\0'; break;
-            default: c = esc; break;
-        }
-    }
-    if (peek(lexer) != '\'') {
-        return error_token(lexer, "Unterminated or multi-character char literal");
-    }
-    advance(lexer);
+    size_t cap = 16;
+    size_t len = 0;
+    char* buf = (char*)malloc(cap);
 
-    Token token = make_token(lexer, TOK_CHAR_LIT, start, line, col);
-    token.as.c_val = c;
+    while (peek(lexer) != '\'' && !is_at_end(lexer)) {
+        char c = advance(lexer);
+        if (c == '\\') {
+            char esc = advance(lexer);
+            switch (esc) {
+                case 'n': c = '\n'; break;
+                case 't': c = '\t'; break;
+                case 'r': c = '\r'; break;
+                case '\\': c = '\\'; break;
+                case '\'': c = '\''; break;
+                case '0': c = '\0'; break;
+                default: c = esc; break;
+            }
+        }
+        if (len + 1 >= cap) {
+            cap *= 2;
+            buf = (char*)realloc(buf, cap);
+        }
+        buf[len++] = c;
+    }
+
+    if (is_at_end(lexer)) {
+        free(buf);
+        return error_token(lexer, "Unterminated character or string literal");
+    }
+
+    advance(lexer);
+    buf[len] = '\0';
+
+    if (len == 1) {
+        Token token = make_token(lexer, TOK_CHAR_LIT, start, line, col);
+        token.as.c_val = buf[0];
+        free(buf);
+        return token;
+    } else {
+        Token token = make_token(lexer, TOK_STRING_LIT, start, line, col);
+        token.as.s_val = buf;
+        return token;
+    }
+}
+
+static Token fstring_lit(Lexer* lexer, char quote, const char* start, int line, int col) {
+    size_t cap = 64;
+    size_t len = 0;
+    char* buf = (char*)malloc(cap);
+
+    while (peek(lexer) != quote && !is_at_end(lexer)) {
+        if (peek(lexer) == '\\') {
+            char c1 = advance(lexer);
+            if (len + 2 >= cap) { cap *= 2; buf = (char*)realloc(buf, cap); }
+            buf[len++] = c1;
+            if (!is_at_end(lexer)) {
+                char c2 = advance(lexer);
+                buf[len++] = c2;
+            }
+            continue;
+        }
+
+        if (peek(lexer) == '{') {
+            if (peek_next(lexer) == '{') {
+                if (len + 2 >= cap) { cap *= 2; buf = (char*)realloc(buf, cap); }
+                buf[len++] = advance(lexer);
+                buf[len++] = advance(lexer);
+                continue;
+            }
+
+            if (len + 1 >= cap) { cap *= 2; buf = (char*)realloc(buf, cap); }
+            buf[len++] = advance(lexer);
+
+            int depth = 1;
+            char in_quote = 0;
+            while (depth > 0 && !is_at_end(lexer)) {
+                if (peek(lexer) == '\\') {
+                    char c1 = advance(lexer);
+                    if (len + 1 >= cap) { cap *= 2; buf = (char*)realloc(buf, cap); }
+                    buf[len++] = c1;
+                    if (!is_at_end(lexer)) {
+                        char esc = advance(lexer);
+                        if (len + 1 >= cap) { cap *= 2; buf = (char*)realloc(buf, cap); }
+                        buf[len++] = esc;
+                        if (in_quote == 0) {
+                            if (esc == '"' || esc == '\'') {
+                                in_quote = esc;
+                            }
+                        } else if (in_quote == esc) {
+                            in_quote = 0;
+                        }
+                    }
+                    continue;
+                }
+
+                char ch = advance(lexer);
+                if (len + 1 >= cap) { cap *= 2; buf = (char*)realloc(buf, cap); }
+                buf[len++] = ch;
+
+                if (in_quote) {
+                    if (ch == in_quote) {
+                        in_quote = 0;
+                    }
+                } else {
+                    if (ch == '"' || ch == '\'') {
+                        in_quote = ch;
+                    } else if (ch == '{') {
+                        depth++;
+                    } else if (ch == '}') {
+                        depth--;
+                    }
+                }
+            }
+            continue;
+        }
+
+        char c = advance(lexer);
+        if (len + 1 >= cap) { cap *= 2; buf = (char*)realloc(buf, cap); }
+        buf[len++] = c;
+    }
+
+    if (is_at_end(lexer)) {
+        free(buf);
+        return error_token(lexer, "Unterminated f-string literal");
+    }
+
+    advance(lexer);
+    buf[len] = '\0';
+
+    Token token = make_token(lexer, TOK_FSTRING_LIT, start, line, col);
+    token.as.s_val = buf;
     return token;
 }
 
@@ -319,6 +429,13 @@ Token lexer_next_token(Lexer* lexer) {
         Token t = number_lit(lexer, start, start_line, start_col);
         last_token_can_end_expr = true;
         return t;
+    }
+
+    if ((c == 'f' || c == 'F') && (peek(lexer) == '"' || peek(lexer) == '\'')) {
+        char quote = advance(lexer);
+        Token tok = fstring_lit(lexer, quote, start, start_line, start_col);
+        last_token_can_end_expr = true;
+        return tok;
     }
 
     if (isalpha(c) || c == '_') {
@@ -462,6 +579,7 @@ const char* token_type_name(TokenType type) {
         case TOK_DOUBLE_LIT: return "DOUBLE_LIT";
         case TOK_STRING_LIT: return "STRING_LIT";
         case TOK_CHAR_LIT: return "CHAR_LIT";
+        case TOK_FSTRING_LIT: return "FSTRING_LIT";
         case TOK_IDENT: return "IDENT";
         case TOK_KW_I: return "I";
         case TOK_KW_D: return "D";

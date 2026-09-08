@@ -18,6 +18,7 @@ typedef enum {
     TOK_DOUBLE_LIT,
     TOK_STRING_LIT,
     TOK_CHAR_LIT,
+    TOK_FSTRING_LIT,  /* f"..." or f'...' */
     TOK_IDENT,
 
     /* Keywords - Scalar types */
@@ -145,6 +146,7 @@ typedef enum {
     AST_DICT_LIT,
     AST_SET_LIT,
     AST_SORTED_LIST_LIT,
+    AST_FSTRING,
 
     /* Statements */
     AST_STMT_EXPR,
@@ -273,6 +275,11 @@ struct AstNode {
             AstNodeList keys;
             AstNodeList values;
         } dict_lit;
+
+        /* AST_FSTRING */
+        struct {
+            AstNodeList parts;
+        } fstring;
 
         /* AST_STMT_VAR_DECL */
         struct {

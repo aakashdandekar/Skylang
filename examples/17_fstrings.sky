@@ -1,0 +1,35 @@
+// 17_fstrings.sky - Demonstrating Python-style f-strings in Skylang
+
+name := "Skylang"
+version := 2.0
+is_fast := true
+
+// 1. Basic interpolation
+msg := f"Welcome to {name} version {version}!"
+println(msg)
+
+// 2. Expressions inside interpolation
+println(f"Math calculation: 25 * 4 = {25 * 4}")
+println(f"Boolean check: is_fast is {is_fast}")
+
+// 3. Object & collection member access inside f-strings
+user := {"name": "Alice", "role": "Admin", "score": 98.5}
+println(f"User {user[\"name\"]} has role {user[\"role\"]} with score {user[\"score\"]}")
+
+// 4. Function & method calls inside f-strings
+f greet {
+    takes(who)
+    return "Hello " + who
+}
+println(f"Greeting: {greet(\"World\")}")
+
+// 5. Escaped braces {{ and }}
+println(f"Escaped braces: {{this_is_literal}} and variable {name}")
+
+// 6. Single quoted f-strings
+single_msg := f'Single quoted f-string with {name}: {10 + 20}'
+println(single_msg)
+
+// 7. Dynamic eval with f-string
+eval_fstr := eval('f"Eval inside: {100 / 4}"')
+println(eval_fstr)

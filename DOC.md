@@ -146,6 +146,18 @@ print("Chars list:", "abc".chars)      // ["a", "b", "c"]
 print("Bytes list:", "ABC".bytes)      // [65, 66, 67]
 ```
 
+### Python-Style F-Strings (`f"..."`, `f'...'`)
+Skylang provides first-class support for Python-style formatted string interpolation (`f"..."`, `f'...'`, `F"..."`, `F'...'`):
+```skylang
+name := "Alice"
+score := 95
+println(f"Student {name} scored {score} points!")
+// Expressions and calculations inside braces:
+println(f"Double score: {score * 2}, Next year age: {20 + 1}")
+// Escaped braces with {{ and }}:
+println(f"Braces literal: {{escaped}} and val: {score}")
+```
+
 ### Fixed-size Array vs Dynamic List
 Skylang clearly separates fixed arrays from dynamic lists:
 

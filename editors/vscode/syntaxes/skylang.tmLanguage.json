@@ -4,6 +4,7 @@
     "scopeName": "source.sky",
     "patterns": [
         { "include": "#comments" },
+        { "include": "#fstrings" },
         { "include": "#strings" },
         { "include": "#chars" },
         { "include": "#constants" },
@@ -38,6 +39,80 @@
                     "name": "comment.block.sky",
                     "begin": "/\\*",
                     "end": "\\*/"
+                }
+            ]
+        },
+        "fstrings": {
+            "patterns": [
+                {
+                    "name": "string.interpolated.double.sky",
+                    "begin": "(?<![a-zA-Z0-9_])[fF]\"",
+                    "end": "\"",
+                    "beginCaptures": {
+                        "0": { "name": "string.interpolated.double.sky" }
+                    },
+                    "endCaptures": {
+                        "0": { "name": "string.interpolated.double.sky" }
+                    },
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.sky",
+                            "match": "\\\\([nrtvfb0\"'\\\\]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4})"
+                        },
+                        {
+                            "name": "constant.character.escape.brace.sky",
+                            "match": "\\{\\{|\\}\\}"
+                        },
+                        {
+                            "name": "meta.embedded.expression.sky",
+                            "begin": "\\{",
+                            "end": "\\}",
+                            "beginCaptures": {
+                                "0": { "name": "punctuation.definition.template-expression.begin.sky" }
+                            },
+                            "endCaptures": {
+                                "0": { "name": "punctuation.definition.template-expression.end.sky" }
+                            },
+                            "patterns": [
+                                { "include": "$self" }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "string.interpolated.single.sky",
+                    "begin": "(?<![a-zA-Z0-9_])[fF]'",
+                    "end": "'",
+                    "beginCaptures": {
+                        "0": { "name": "string.interpolated.single.sky" }
+                    },
+                    "endCaptures": {
+                        "0": { "name": "string.interpolated.single.sky" }
+                    },
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.sky",
+                            "match": "\\\\([nrtvfb0\"'\\\\]|x[0-9a-fA-F]{2})"
+                        },
+                        {
+                            "name": "constant.character.escape.brace.sky",
+                            "match": "\\{\\{|\\}\\}"
+                        },
+                        {
+                            "name": "meta.embedded.expression.sky",
+                            "begin": "\\{",
+                            "end": "\\}",
+                            "beginCaptures": {
+                                "0": { "name": "punctuation.definition.template-expression.begin.sky" }
+                            },
+                            "endCaptures": {
+                                "0": { "name": "punctuation.definition.template-expression.end.sky" }
+                            },
+                            "patterns": [
+                                { "include": "$self" }
+                            ]
+                        }
+                    ]
                 }
             ]
         },
