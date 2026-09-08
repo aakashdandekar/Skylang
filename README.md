@@ -138,15 +138,16 @@ After installation, two commands are available globally: `skylang` and `sky` (an
 |---|---|
 | `sky run <file.sky>` | Transpiles to C, compiles, and executes immediately |
 | `sky build <file.sky> [-o <output>]` | Transpiles to C and compiles into a standalone native binary (defaults to `./<basename>`, silent on success) |
-| `sky vm <file.sky>` | Runs program on the stack-based Bytecode VM |
-| `sky profile <file.sky>` | Runs program on the Bytecode VM and displays opcode performance profile |
-| `sky repl` | Starts an interactive read-eval-print loop |
+| `sky <file.sky>` | Shorthand for `sky run <file.sky>` |
 
 ### Examples
 
 ```bash
 # Run a program immediately
 sky run my_app.sky
+
+# Or run directly without the 'run' keyword
+sky my_app.sky
 
 # Compile to a native standalone binary (produces `./my_app` silently on success)
 sky build my_app.sky
@@ -1303,7 +1304,7 @@ skylang/
 │   ├── 08_ffi.sky         #   C header cimport and extern declarations
 │   ├── 09_vm_profile.sky  #   Bytecode VM execution and profiling
 │   ├── 10_python.sky      #   Python interop and package loading
-│   ├── 11_npm.sky         #   JavaScript & NPM package interop
+│   ├── 11_js.sky          #   JavaScript & NPM package interop
 │   ├── 12_cpp.sky         #   C++ interop and dynamic JIT compilation
 │   ├── 13_java.sky        #   Java interop and reflection
 │   ├── 14_go.sky          #   Golang interop and c-shared JIT compilation
@@ -1321,14 +1322,15 @@ skylang/
 │   └── sky_rust.h         #   Rust interop bridge
 ├── lib/                   # Static runtime library (libskylang_rt.a)
 ├── tests/                 # Test suite
-│   └── test_all.sky       #   Comprehensive automated test suite
+│   ├── test_all.sky       #   Comprehensive automated test suite
+│   └── test_eval.sky      #   Dynamic eval() test suite
 └── src/                   # Source code
-    ├── main.c             #   CLI driver (run, build, vm, profile, repl)
+    ├── main.c             #   CLI driver (run, build)
     ├── lexer.c            #   Tokenizer
     ├── parser.c           #   Recursive descent parser → AST
     ├── codegen.c          #   AST → C code transpiler
     ├── compiler.c         #   AST → Bytecode compiler
-    ├── vm.c               #   Stack-based VM interpreter & profiler
+    ├── vm.c               #   Stack-based VM interpreter & dynamic eval engine
     ├── runtime.c          #   Runtime: Value system, GC, collections, dynamic dispatch, traceback engine
     ├── sky_stdlib.c       #   Standard library implementation
     ├── sky_python.c       #   Python interop bridge
@@ -1343,7 +1345,7 @@ skylang/
 
 ```
  .sky file → Lexer → Tokens → Parser → AST ──┬──→ Codegen ──→ C code ──→ GCC ──→ Native Binary
-                                            └──→ Compiler ─→ Bytecode ────────→ Bytecode VM
+                                            └──→ Compiler ─→ Bytecode ────────→ Bytecode VM (eval)
 ```
 
 ---
@@ -1375,7 +1377,7 @@ The test suite (`tests/test_all.sky`) covers **24 categories** — all passing:
 17. Foreign Function Interface (`cimport`, `extern f`)
 18. Go-style error handling, multiple returns, and blank `_`
 19. Python Interoperability (`import python`, embedded C API)
-20. JavaScript / NPM Interoperability (`import js`, `import npm`)
+20. JavaScript / NPM Interoperability (`import js`)
 21. C++ Interoperability & Dynamic JIT (`import cpp`)
 22. Java Interoperability (`import java`, reflection bridge)
 23. Golang Interoperability & c-shared JIT (`import go`, `import golang`)
@@ -1387,7 +1389,7 @@ The test suite (`tests/test_all.sky`) covers **24 categories** — all passing:
 
 - [x] **FFI (Foreign Function Interface)** — Direct C header `cimport` and `extern f` function bindings
 - [x] **Standard Library** — `math`, `str`, `fmt`, and `io` modules built-in
-- [x] **Bytecode VM + Profiler** — Stack-based bytecode virtual machine with opcode performance profiler
+- [x] **Dynamic eval(...) Engine** — Built-in dynamic expression and statement evaluation
 - [x] **Multi-Language Interoperability** — Native language bridges for Python, JavaScript/NPM, C++, Java, Golang, and Rust
 - [x] **Python-Style Traceback Engine** — Clean compile-time and runtime error tracebacks with call stack unwinding
 - [ ] **Package Manager** — Import and share Skylang packages

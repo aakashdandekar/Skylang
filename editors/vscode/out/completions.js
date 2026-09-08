@@ -1,7 +1,40 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SkylangCompletionItemProvider = void 0;
-const vscode = require("vscode");
+const vscode = __importStar(require("vscode"));
 const keywords_1 = require("./data/keywords");
 const builtins_1 = require("./data/builtins");
 const stdlib_1 = require("./data/stdlib");
@@ -52,7 +85,7 @@ class SkylangCompletionItemProvider {
             const parts = rawList.split(',').map(s => s.trim().toLowerCase());
             const currentQuery = parts[parts.length - 1];
             const alreadyImported = parts.slice(0, -1);
-            const allModules = ['python', 'js', 'npm', 'cpp', 'java', 'go', 'golang', 'rust', 'math', 'str', 'fmt', 'io'];
+            const allModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust', 'math', 'str', 'fmt', 'io'];
             const importItems = [];
             for (const mod of allModules) {
                 if (alreadyImported.includes(mod))
@@ -73,8 +106,8 @@ class SkylangCompletionItemProvider {
             }
             return new vscode.CompletionList(importItems, false);
         }
-        // 4. Context: python.load("..."), java.load("..."), js/npm.load("..."), go.load("..."), rust.load("...")
-        const pyLoadMatch = linePrefix.match(/python\.(?:load|import)\s*\(\s*["']([^"']*)$/);
+        // 4. Context: python.load("..."), java.load("..."), js.load("..."), go.load("..."), rust.load("...")
+        const pyLoadMatch = linePrefix.match(/python\.load\s*\(\s*["']([^"']*)$/);
         if (pyLoadMatch) {
             for (const pkg of stdlib_1.COMMON_PYTHON_PACKAGES) {
                 const item = new vscode.CompletionItem(pkg, vscode.CompletionItemKind.Module);
@@ -86,7 +119,7 @@ class SkylangCompletionItemProvider {
             }
             return items;
         }
-        const javaLoadMatch = linePrefix.match(/java\.(?:load|import)\s*\(\s*["']([^"']*)$/);
+        const javaLoadMatch = linePrefix.match(/java\.load\s*\(\s*["']([^"']*)$/);
         if (javaLoadMatch) {
             for (const cls of stdlib_1.COMMON_JAVA_CLASSES) {
                 const item = new vscode.CompletionItem(cls, vscode.CompletionItemKind.Class);
@@ -98,8 +131,8 @@ class SkylangCompletionItemProvider {
             }
             return items;
         }
-        const npmLoadMatch = linePrefix.match(/(?:npm|js)\.(?:load|import)\s*\(\s*["']([^"']*)$/);
-        if (npmLoadMatch) {
+        const jsLoadMatch = linePrefix.match(/js\.load\s*\(\s*["']([^"']*)$/);
+        if (jsLoadMatch) {
             for (const pkg of stdlib_1.COMMON_NPM_PACKAGES) {
                 const item = new vscode.CompletionItem(pkg, vscode.CompletionItemKind.Module);
                 item.detail = `NPM package / JS global: ${pkg}`;
@@ -143,7 +176,7 @@ class SkylangCompletionItemProvider {
         if (dotMatch) {
             const receiver = dotMatch[1];
             const parsedSymbols = this.parseDocumentSymbols(document);
-            // A. Standard Library & Interop Modules (math., io., fmt., str., python., js., npm., cpp., java.)
+            // A. Standard Library & Interop Modules (math., io., fmt., str., python., js., cpp., java., go., rust.)
             if (stdlib_1.STDLIB_MODULES[receiver]) {
                 const mod = stdlib_1.STDLIB_MODULES[receiver];
                 for (const [fnName, fnDoc] of Object.entries(mod.functions)) {
@@ -350,13 +383,6 @@ class SkylangCompletionItemProvider {
             item.sortText = `00_${modName}`;
             items.push(item);
         }
-        // Special NPM alias completion with auto-import
-        const npmItem = new vscode.CompletionItem('npm', vscode.CompletionItemKind.Module);
-        npmItem.detail = 'NPM package bridge (via JS runtime)';
-        npmItem.documentation = new vscode.MarkdownString('Imports the JavaScript/NPM runtime bridge.');
-        npmItem.additionalTextEdits = this.getAutoImportEdits(document, 'js');
-        npmItem.sortText = `00_npm`;
-        items.push(npmItem);
         // 12. Document Defined Symbols (Functions, Classes, Methods, Variables, Parameters)
         const docSymbols = this.parseDocumentSymbols(document);
         for (const sym of docSymbols) {

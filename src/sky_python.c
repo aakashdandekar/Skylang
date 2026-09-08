@@ -326,9 +326,8 @@ Value sky_python_init(void) {
 
     Value mod = val_dict();
     ObjDict* d = as_dict(mod);
-    dict_set(d, val_string("load"),   val_function("load",   py_native_load, -1));
-    dict_set(d, val_string("import"), val_function("import", py_native_load, -1));
-    dict_set(d, val_string("exec"),   val_function("exec",   py_native_exec,  1));
+    dict_set(d, val_string("load"), val_function("load", py_native_load, -1));
+    dict_set(d, val_string("exec"), val_function("exec", py_native_exec,  1));
 
     sky_mod_python = mod;
     return mod;

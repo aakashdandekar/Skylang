@@ -123,26 +123,8 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('skylang.runVM', (uri?: vscode.Uri) => {
-            SkylangRunner.runVM(uri);
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('skylang.profile', (uri?: vscode.Uri) => {
-            SkylangRunner.profileVM(uri);
-        })
-    );
-
-    context.subscriptions.push(
         vscode.commands.registerCommand('skylang.build', (uri?: vscode.Uri) => {
             SkylangRunner.buildFile(uri);
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('skylang.repl', () => {
-            SkylangRunner.startRepl();
         })
     );
 

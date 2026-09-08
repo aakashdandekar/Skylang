@@ -101,7 +101,7 @@ export const KEYWORDS: Record<string, KeywordDoc> = {
     'import': {
         name: 'import (Multi-Language Interoperability)',
         syntax: 'import python | import js | import cpp | import java | import go | import rust',
-        description: 'Imports a multi-language interoperability runtime bridge in Skylang:\n- `import python`: Python 3 embedded runtime & package loader\n- `import js` / `import npm`: Node.js & NPM package bridge\n- `import cpp`: On-the-fly C++ JIT compilation pipeline & .so loader\n- `import java`: JVM reflection & class loader bridge\n- `import go` / `import golang`: Go c-shared JIT compilation pipeline & loader\n- `import rust`: Rust cdylib JIT compilation pipeline & loader',
+        description: 'Imports a multi-language interoperability runtime bridge in Skylang:\n- `import python`: Python 3 embedded runtime & package loader\n- `import js`: Node.js & NPM package bridge\n- `import cpp`: On-the-fly C++ JIT compilation pipeline & .so loader\n- `import java`: JVM reflection & class loader bridge\n- `import go` / `import golang`: Go c-shared JIT compilation pipeline & loader\n- `import rust`: Rust cdylib JIT compilation pipeline & loader',
         example: 'import python, js, cpp, java, go, rust\n\nmath := python.load("math")\nprintln("Python sqrt:", math.sqrt(256))\n\nMath_js := js.load("Math")\nprintln("JS Math:", Math_js.sqrt(625))',
         category: 'Interop'
     },

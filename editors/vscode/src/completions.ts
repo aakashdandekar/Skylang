@@ -81,7 +81,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             const currentQuery = parts[parts.length - 1];
             const alreadyImported = parts.slice(0, -1);
 
-            const allModules = ['python', 'js', 'npm', 'cpp', 'java', 'go', 'golang', 'rust', 'math', 'str', 'fmt', 'io'];
+            const allModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust', 'math', 'str', 'fmt', 'io'];
             const importItems: vscode.CompletionItem[] = [];
             for (const mod of allModules) {
                 if (alreadyImported.includes(mod)) continue;
@@ -101,8 +101,8 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             return new vscode.CompletionList(importItems, false);
         }
 
-        // 4. Context: python.load("..."), java.load("..."), js/npm.load("..."), go.load("..."), rust.load("...")
-        const pyLoadMatch = linePrefix.match(/python\.(?:load|import)\s*\(\s*["']([^"']*)$/);
+        // 4. Context: python.load("..."), java.load("..."), js.load("..."), go.load("..."), rust.load("...")
+        const pyLoadMatch = linePrefix.match(/python\.load\s*\(\s*["']([^"']*)$/);
         if (pyLoadMatch) {
             for (const pkg of COMMON_PYTHON_PACKAGES) {
                 const item = new vscode.CompletionItem(pkg, vscode.CompletionItemKind.Module);
@@ -115,7 +115,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             return items;
         }
 
-        const javaLoadMatch = linePrefix.match(/java\.(?:load|import)\s*\(\s*["']([^"']*)$/);
+        const javaLoadMatch = linePrefix.match(/java\.load\s*\(\s*["']([^"']*)$/);
         if (javaLoadMatch) {
             for (const cls of COMMON_JAVA_CLASSES) {
                 const item = new vscode.CompletionItem(cls, vscode.CompletionItemKind.Class);
@@ -128,8 +128,8 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             return items;
         }
 
-        const npmLoadMatch = linePrefix.match(/(?:npm|js)\.(?:load|import)\s*\(\s*["']([^"']*)$/);
-        if (npmLoadMatch) {
+        const jsLoadMatch = linePrefix.match(/js\.load\s*\(\s*["']([^"']*)$/);
+        if (jsLoadMatch) {
             for (const pkg of COMMON_NPM_PACKAGES) {
                 const item = new vscode.CompletionItem(pkg, vscode.CompletionItemKind.Module);
                 item.detail = `NPM package / JS global: ${pkg}`;
@@ -178,7 +178,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             const receiver = dotMatch[1];
             const parsedSymbols = this.parseDocumentSymbols(document);
 
-            // A. Standard Library & Interop Modules (math., io., fmt., str., python., js., npm., cpp., java.)
+            // A. Standard Library & Interop Modules (math., io., fmt., str., python., js., cpp., java., go., rust.)
             if (STDLIB_MODULES[receiver]) {
                 const mod = STDLIB_MODULES[receiver];
                 for (const [fnName, fnDoc] of Object.entries(mod.functions)) {
@@ -440,14 +440,6 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             item.sortText = `00_${modName}`;
             items.push(item);
         }
-
-        // Special NPM alias completion with auto-import
-        const npmItem = new vscode.CompletionItem('npm', vscode.CompletionItemKind.Module);
-        npmItem.detail = 'NPM package bridge (via JS runtime)';
-        npmItem.documentation = new vscode.MarkdownString('Imports the JavaScript/NPM runtime bridge.');
-        npmItem.additionalTextEdits = this.getAutoImportEdits(document, 'js');
-        npmItem.sortText = `00_npm`;
-        items.push(npmItem);
 
         // 12. Document Defined Symbols (Functions, Classes, Methods, Variables, Parameters)
         const docSymbols = this.parseDocumentSymbols(document);

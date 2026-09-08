@@ -46,8 +46,8 @@ This produces two executable binaries in the `bin/` directory:
 | Command | Description | Example |
 |---|---|---|
 | `sky run <file.sky>` | Compiles and executes a program immediately | `./bin/sky run examples/01_basics.sky` |
-| `sky build <file.sky> -o <bin>` | Compiles to a standalone native binary | `./bin/sky build main.sky -o my_app` |
-| `sky repl` | Starts interactive shell | `./bin/sky repl` |
+| `sky build <file.sky> [-o <bin>]` | Compiles to a standalone native binary (defaults to `./<basename>`) | `./bin/sky build main.sky -o my_app` |
+| `sky <file.sky>` | Shorthand for `sky run <file.sky>` | `./bin/sky main.sky` |
 
 ---
 

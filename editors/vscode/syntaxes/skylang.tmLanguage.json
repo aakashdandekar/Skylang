@@ -196,7 +196,7 @@
             "patterns": [
                 {
                     "name": "support.class.module.sky",
-                    "match": "\\b(math|io|fmt|str|python|js|npm|cpp|java|go|golang|rust)\\b"
+                    "match": "\\b(math|io|fmt|str|python|js|cpp|java|go|golang|rust)\\b"
                 }
             ]
         },
@@ -219,7 +219,7 @@
                     "name": "support.function.str.sky"
                 },
                 {
-                    "match": "(?<=\\b(python|js|npm|cpp|java|go|golang|rust)\\.)(load|exec|compile|import|call|get|set|is_init|version)\\b",
+                    "match": "(?<=\\b(python|js|cpp|java|go|golang|rust)\\.)(load|exec|compile|version)\\b",
                     "name": "support.function.interop.sky"
                 }
             ]

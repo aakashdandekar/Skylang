@@ -70,32 +70,14 @@
     "commands": [
       {
         "command": "skylang.run",
-        "title": "Skylang: Run File (AOT)",
+        "title": "Skylang: Run File",
         "icon": "$(play)",
-        "category": "Skylang"
-      },
-      {
-        "command": "skylang.runVM",
-        "title": "Skylang: Run File in Bytecode VM",
-        "icon": "$(zap)",
-        "category": "Skylang"
-      },
-      {
-        "command": "skylang.profile",
-        "title": "Skylang: Profile in Bytecode VM",
-        "icon": "$(dashboard)",
         "category": "Skylang"
       },
       {
         "command": "skylang.build",
         "title": "Skylang: Build Native Binary",
         "icon": "$(package)",
-        "category": "Skylang"
-      },
-      {
-        "command": "skylang.repl",
-        "title": "Skylang: Start Interactive REPL",
-        "icon": "$(terminal)",
         "category": "Skylang"
       },
       {
@@ -120,19 +102,9 @@
           "group": "1_skylang@1"
         },
         {
-          "command": "skylang.runVM",
-          "when": "resourceLangId == skylang",
-          "group": "1_skylang@2"
-        },
-        {
-          "command": "skylang.profile",
-          "when": "resourceLangId == skylang",
-          "group": "1_skylang@3"
-        },
-        {
           "command": "skylang.build",
           "when": "resourceLangId == skylang",
-          "group": "1_skylang@4"
+          "group": "1_skylang@2"
         }
       ]
     },

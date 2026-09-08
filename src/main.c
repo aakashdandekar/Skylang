@@ -6,7 +6,6 @@
 #include <libgen.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include "../include/sky_vm.h"
 
 static char* read_file(const char* path) {
     FILE* f = fopen(path, "rb");
@@ -349,85 +348,11 @@ static int cmd_build(const char* sky_file, const char* out_bin) {
     return res;
 }
 
-static int cmd_repl(void) {
-    printf("Skylang Interactive REPL (Type 'exit' to quit)\n");
-    printf("Built upon C with Boehm GC\n\n");
-
-    char line_buf[2048];
-    char accumulated[16384] = "";
-
-    for (;;) {
-        printf("sky> ");
-        fflush(stdout);
-
-        if (!fgets(line_buf, sizeof(line_buf), stdin)) {
-            putchar('\n');
-            break;
-        }
-
-        if (strncmp(line_buf, "exit", 4) == 0 && (line_buf[4] == '\n' || line_buf[4] == '\0')) {
-            break;
-        }
-
-        strcat(accumulated, line_buf);
-
-        Parser parser;
-        parser_init(&parser, accumulated, "<repl>");
-        AstNode* ast = parse_program(&parser);
-        if (parser.had_error) {
-
-            accumulated[strlen(accumulated) - strlen(line_buf)] = '\0';
-            continue;
-        }
-
-        char* c_code = codegen_emit_c(ast, "<repl>");
-        char bin_path[1024];
-        snprintf(bin_path, sizeof(bin_path), "/tmp/sky_repl_%d.bin", getpid());
-        if (compile_c_to_binary(c_code, bin_path, "<repl>") == 0) {
-            system(bin_path);
-            unlink(bin_path);
-        }
-        free(c_code);
-    }
-
-    return 0;
-}
-
-static int cmd_vm(const char* sky_file, bool profile) {
-    char* source = read_file(sky_file);
-    if (!source) return 1;
-
-    Parser parser;
-    parser_init(&parser, source, sky_file);
-    AstNode* ast = parse_program(&parser);
-    if (parser.had_error) {
-        free(source);
-        return 1;
-    }
-    free(source);
-
-    CompiledFn* fn = compile_ast(ast);
-    if (!fn) {
-        fprintf(stderr, "Bytecode compilation failed.\n");
-        return 1;
-    }
-
-    VM vm;
-    vm_init(&vm);
-    VMResult res = vm_run(&vm, fn, profile);
-    vm_free(&vm);
-
-    return (res == VM_OK) ? 0 : 1;
-}
-
 static void print_help(const char* prog) {
     printf("Skylang Compiler and Toolchain\n");
     printf("Usage:\n");
     printf("  %s run <file.sky>               Compile and run a Skylang program\n", prog);
     printf("  %s build <file.sky> [-o <bin>]  Compile Skylang program to native binary (default: <file>)\n", prog);
-    printf("  %s vm <file.sky>                Run Skylang program on Bytecode VM\n", prog);
-    printf("  %s profile <file.sky>           Run and profile Skylang program on Bytecode VM\n", prog);
-    printf("  %s repl                         Start interactive REPL\n", prog);
     printf("  %s <file.sky>                   Short for 'run <file.sky>'\n", prog);
 }
 
@@ -469,26 +394,6 @@ int main(int argc, char** argv) {
             }
         }
         return cmd_build(sky_file, out_bin);
-    }
-
-    if (strcmp(command, "vm") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: Missing filename for 'vm'\n");
-            return 1;
-        }
-        return cmd_vm(argv[2], false);
-    }
-
-    if (strcmp(command, "profile") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: Missing filename for 'profile'\n");
-            return 1;
-        }
-        return cmd_vm(argv[2], true);
-    }
-
-    if (strcmp(command, "repl") == 0) {
-        return cmd_repl();
     }
 
     if (strcmp(command, "-h") == 0 || strcmp(command, "--help") == 0 || strcmp(command, "help") == 0) {

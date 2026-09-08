@@ -871,7 +871,6 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "static Value sky_var_str;\n");
     buf_puts(&b, "static Value sky_var_python;\n");
     buf_puts(&b, "static Value sky_var_js;\n");
-    buf_puts(&b, "static Value sky_var_npm;\n");
     buf_puts(&b, "static Value sky_var_cpp;\n");
     buf_puts(&b, "static Value sky_var_java;\n");
     buf_puts(&b, "static Value sky_var_go;\n");
@@ -1003,7 +1002,6 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "    sky_var_str = sky_mod_str;\n");
     buf_puts(&b, "    sky_var_python = sky_python_init();\n");
     buf_puts(&b, "    sky_var_js = sky_js_init();\n");
-    buf_puts(&b, "    sky_var_npm = sky_js_init();\n");
     buf_puts(&b, "    sky_var_cpp = sky_cpp_init();\n");
     buf_puts(&b, "    sky_var_java = sky_java_init();\n");
     buf_puts(&b, "    sky_var_go = sky_go_init();\n");

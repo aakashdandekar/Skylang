@@ -185,9 +185,8 @@ static Value java_native_exec(int argc, Value* argv) {
 Value sky_java_init(void) {
     Value mod = val_dict();
     ObjDict* d = as_dict(mod);
-    dict_set(d, val_string("load"),   val_function("load",   java_native_load, -1));
-    dict_set(d, val_string("import"), val_function("import", java_native_load, -1));
-    dict_set(d, val_string("exec"),   val_function("exec",   java_native_exec,  1));
+    dict_set(d, val_string("load"), val_function("load", java_native_load, -1));
+    dict_set(d, val_string("exec"), val_function("exec", java_native_exec,  1));
 
     sky_mod_java = mod;
     return mod;

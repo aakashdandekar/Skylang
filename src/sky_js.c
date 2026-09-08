@@ -8,7 +8,6 @@
 #include <gc.h>
 
 Value sky_mod_js;
-Value sky_mod_npm;
 
 typedef struct {
     char* data;
@@ -406,12 +405,10 @@ static Value js_native_exec(int argc, Value* argv) {
 Value sky_js_init(void) {
     Value mod = val_dict();
     ObjDict* d = as_dict(mod);
-    dict_set(d, val_string("load"),   val_function("load",   js_native_load, -1));
-    dict_set(d, val_string("import"), val_function("import", js_native_load, -1));
-    dict_set(d, val_string("exec"),   val_function("exec",   js_native_exec,  1));
+    dict_set(d, val_string("load"), val_function("load", js_native_load, -1));
+    dict_set(d, val_string("exec"), val_function("exec", js_native_exec,  1));
 
     sky_mod_js = mod;
-    sky_mod_npm = mod;
     return mod;
 }
 

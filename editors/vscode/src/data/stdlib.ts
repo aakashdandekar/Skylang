@@ -94,12 +94,7 @@ export const STDLIB_MODULES: Record<string, ModuleDoc> = {
         description: 'Direct embedded Python 3 C API runtime bridge with automatic bidirectional type marshalling for loading NumPy, SciPy, PyTorch, sys, math, and custom Python scripts.',
         functions: {
             'load': { name: 'python.load', signature: 'python.load(module_name, ...)', description: 'Loads one or more Python standard or third-party modules into callable Skylang objects.', params: [{ name: 'module_name', doc: 'Python module name (e.g. "numpy", "pandas", "math", "os", "sys", "torch")' }], returns: 'foreign_obj', example: 'import python\nnp := python.load("numpy")\narr := np.array([1, 2, 3, 4])\nprintln(arr)' },
-            'import': { name: 'python.import', signature: 'python.import(module_name, ...)', description: 'Alias for `python.load(...)` to import Python packages.', params: [{ name: 'module_name', doc: 'Python module name (e.g. "numpy", "torch")' }], returns: 'foreign_obj', example: 'import python\nnp := python.import("numpy")' },
-            'exec': { name: 'python.exec', signature: 'python.exec(code_str)', description: 'Executes Python source code statements, classes, and function definitions inside the embedded Python session.', params: [{ name: 'code_str', doc: 'Python source code block' }], returns: 'none', example: 'import python\npython.exec("\ndef greet(name):\n    return f\'Hello, {name}!\'\n")\nprintln(python.call("greet", "Skylang"))' },
-            'call': { name: 'python.call', signature: 'python.call(fn_name, ...args)', description: 'Invokes a globally defined Python function with arguments.', params: [{ name: 'fn_name', doc: 'Name of the Python function' }, { name: '...args', doc: 'Arguments to pass to the function' }], returns: 'any', example: 'import python\nres := python.call("sum", [1, 2, 3, 4, 5])' },
-            'get': { name: 'python.get', signature: 'python.get(attr_name)', description: 'Retrieves an attribute or variable from Python globals.', params: [{ name: 'attr_name', doc: 'Name of the attribute or global variable' }], returns: 'any', example: 'import python\nver := python.get("__version__")' },
-            'set': { name: 'python.set', signature: 'python.set(attr_name, value)', description: 'Sets a global variable or attribute in the embedded Python interpreter.', params: [{ name: 'attr_name', doc: 'Name of the attribute' }, { name: 'value', doc: 'Value to assign' }], returns: 'none', example: 'import python\npython.set("MAX_RETRIES", 5)' },
-            'is_init': { name: 'python.is_init', signature: 'python.is_init()', description: 'Checks whether the embedded Python 3 runtime interpreter is currently initialized.', params: [], returns: 'bool', example: 'import python\nif python.is_init() {\n    println("Python runtime active")\n}' },
+            'exec': { name: 'python.exec', signature: 'python.exec(code_str)', description: 'Executes Python source code statements, classes, and function definitions inside the embedded Python session.', params: [{ name: 'code_str', doc: 'Python source code block' }], returns: 'none', example: 'import python\npython.exec("\ndef greet(name):\n    return f\'Hello, {name}!\'\n")' },
             'version': { name: 'python.version', signature: 'python.version()', description: 'Returns the version string of the embedded Python runtime.', params: [], returns: 'string', example: 'import python\nprintln("Python:", python.version())' }
         }
     },
@@ -108,17 +103,7 @@ export const STDLIB_MODULES: Record<string, ModuleDoc> = {
         description: 'JavaScript / Node.js runtime and global ecosystem bridge with bidirectional JSON marshalling.',
         functions: {
             'load': { name: 'js.load', signature: 'js.load(global_or_pkg)', description: 'Loads a JavaScript global object (e.g. "Math", "JSON") or installed Node.js/NPM package into a callable Skylang object.', params: [{ name: 'global_or_pkg', doc: 'JS global object or NPM package name (e.g. "Math", "lodash", "axios")' }], returns: 'foreign_obj', example: 'import js\nMath_js := js.load("Math")\nprintln(Math_js.sqrt(625))' },
-            'import': { name: 'js.import', signature: 'js.import(package_name)', description: 'Alias for `js.load(...)`.', params: [{ name: 'package_name', doc: 'Package name' }], returns: 'foreign_obj', example: 'import js\n_ := js.import("lodash")' },
             'exec': { name: 'js.exec', signature: 'js.exec(code_str)', description: 'Executes JavaScript code statements in the Node.js runtime environment.', params: [{ name: 'code_str', doc: 'JavaScript code block' }], returns: 'none', example: 'import js\njs.exec("console.log(\'Hello from Node.js\');")' }
-        }
-    },
-    'npm': {
-        name: 'npm (NPM Package Interoperability Bridge)',
-        description: 'NPM package loader interface for seamless access to the NPM ecosystem (powered by Node.js).',
-        functions: {
-            'load': { name: 'npm.load', signature: 'npm.load(package_name)', description: 'Loads an installed NPM package into Skylang.', params: [{ name: 'package_name', doc: 'NPM package name (e.g. "lodash", "axios", "chalk", "moment")' }], returns: 'foreign_obj', example: 'import js\n_ := npm.load("lodash")' },
-            'import': { name: 'npm.import', signature: 'npm.import(package_name)', description: 'Alias for `npm.load(...)`.', params: [{ name: 'package_name', doc: 'NPM package name' }], returns: 'foreign_obj' },
-            'exec': { name: 'npm.exec', signature: 'npm.exec(code_str)', description: 'Executes JS/NPM statements.', params: [{ name: 'code_str', doc: 'Code string' }], returns: 'none' }
         }
     },
     'cpp': {
@@ -134,7 +119,6 @@ export const STDLIB_MODULES: Record<string, ModuleDoc> = {
         description: 'Java Virtual Machine (OpenJDK) interop bridge supporting class reflection, static method dispatch, property access, and statement execution.',
         functions: {
             'load': { name: 'java.load', signature: 'java.load(class_name, ...)', description: 'Loads one or more Java classes via JVM reflection into callable Skylang objects.', params: [{ name: 'class_name', doc: 'Fully qualified Java class name (e.g. "java.lang.Math", "java.util.ArrayList")' }], returns: 'foreign_obj', example: 'import java\nMath := java.load("java.lang.Math")\nprintln("Java sqrt:", Math.sqrt(256.0))\nprintln("Java PI:", Math.PI)' },
-            'import': { name: 'java.import', signature: 'java.import(class_name, ...)', description: 'Alias for `java.load(...)`.', params: [{ name: 'class_name', doc: 'Java class name' }], returns: 'foreign_obj' },
             'exec': { name: 'java.exec', signature: 'java.exec(code_str)', description: 'Executes Java statements and definitions in the JVM environment.', params: [{ name: 'code_str', doc: 'Java code block' }], returns: 'none' }
         }
     },

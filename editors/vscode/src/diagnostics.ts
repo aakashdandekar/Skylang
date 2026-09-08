@@ -94,7 +94,7 @@ export class SkylangDiagnosticsProvider {
             }
 
             // 3. Unknown method on standard library & interop modules
-            const moduleCallMatch = line.match(/\b(math|io|fmt|str|python|js|npm|cpp|java)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
+            const moduleCallMatch = line.match(/\b(math|io|fmt|str|python|js|cpp|java|go|golang|rust)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
             if (moduleCallMatch) {
                 for (const match of moduleCallMatch) {
                     const [mod, member] = match.split('.');
@@ -124,14 +124,13 @@ export class SkylangDiagnosticsProvider {
                 }
             }
 
-            // 4. Unimported module check for interop modules (python, js, cpp, java, npm)
-            const interopMods = ['python', 'js', 'cpp', 'java', 'npm'];
+            // 4. Unimported module check for interop modules (python, js, cpp, java, go, golang, rust)
+            const interopMods = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'];
             for (const mod of interopMods) {
-                const targetMod = mod === 'npm' ? 'js' : mod;
                 const modUsageRegex = new RegExp(`\\b${mod}\\.([a-zA-Z_][a-zA-Z0-9_]*)`, 'g');
                 let m: RegExpExecArray | null;
                 while ((m = modUsageRegex.exec(rawLine)) !== null) {
-                    const importRegex = new RegExp(`^\\s*import\\s+[^;\\n]*\\b${targetMod}\\b`, 'm');
+                    const importRegex = new RegExp(`^\\s*import\\s+[^;\\n]*\\b${mod}\\b`, 'm');
                     if (!importRegex.test(text)) {
                         const startCol = m.index;
                         const endCol = startCol + mod.length;
@@ -141,7 +140,7 @@ export class SkylangDiagnosticsProvider {
                         );
                         const diag = new vscode.Diagnostic(
                             range,
-                            `Module '${targetMod}' is used without being imported. Add 'import ${targetMod}' at top of file.`,
+                            `Module '${mod}' is used without being imported. Add 'import ${mod}' at top of file.`,
                             vscode.DiagnosticSeverity.Information
                         );
                         diag.code = 'skylang-unimported-module';

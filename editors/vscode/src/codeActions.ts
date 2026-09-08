@@ -15,7 +15,7 @@ export class SkylangCodeActionProvider implements vscode.CodeActionProvider {
         const text = document.getText();
         const line = document.lineAt(range.start.line).text;
 
-        const checkModules = ['python', 'js', 'cpp', 'java', 'math', 'str', 'fmt', 'io'];
+        const checkModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust', 'math', 'str', 'fmt', 'io'];
 
         // 1. Diagnostics-driven QuickFix
         for (const diagnostic of context.diagnostics) {
@@ -39,17 +39,6 @@ export class SkylangCodeActionProvider implements vscode.CodeActionProvider {
                         const action = this.createImportAction(document, mod);
                         if (action) actions.push(action);
                     }
-                }
-            }
-        }
-
-        // Special case for 'npm' -> import js
-        if (/\bnpm\b/.test(line)) {
-            const importJsRegex = /^\s*import\s+[^;\n]*\bjs\b/m;
-            if (!importJsRegex.test(text)) {
-                if (!actions.some(a => a.title.includes(`'js'`))) {
-                    const action = this.createImportAction(document, 'js', undefined, 'Import \'js\' module for NPM packages at top of file');
-                    if (action) actions.push(action);
                 }
             }
         }

@@ -56,26 +56,6 @@ export class SkylangRunner {
         this.sendCommand(terminal, `"${skyExe}" run "${filePath}"`);
     }
 
-    public static async runVM(uri?: vscode.Uri): Promise<void> {
-        const filePath = this.getTargetFilePath(uri);
-        if (!filePath) return;
-
-        const fileDir = path.dirname(filePath);
-        const skyExe = this.getExecutablePath();
-        const terminal = this.getOrCreateTerminal(fileDir);
-        this.sendCommand(terminal, `"${skyExe}" vm "${filePath}"`);
-    }
-
-    public static async profileVM(uri?: vscode.Uri): Promise<void> {
-        const filePath = this.getTargetFilePath(uri);
-        if (!filePath) return;
-
-        const fileDir = path.dirname(filePath);
-        const skyExe = this.getExecutablePath();
-        const terminal = this.getOrCreateTerminal(fileDir);
-        this.sendCommand(terminal, `"${skyExe}" profile "${filePath}"`);
-    }
-
     public static async buildFile(uri?: vscode.Uri): Promise<void> {
         const filePath = this.getTargetFilePath(uri);
         if (!filePath) return;
@@ -92,13 +72,6 @@ export class SkylangRunner {
         const terminal = this.getOrCreateTerminal();
         terminal.show();
         terminal.sendText(`"${skyExe}" build "${filePath}" -o "${outBin}"`);
-    }
-
-    public static startRepl(): void {
-        const skyExe = this.getExecutablePath();
-        const terminal = this.getOrCreateTerminal();
-        terminal.show();
-        terminal.sendText(`"${skyExe}" repl`);
     }
 
     private static getTargetFilePath(uri?: vscode.Uri): string | null {

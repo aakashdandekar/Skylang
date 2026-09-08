@@ -1,7 +1,40 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SkylangDiagnosticsProvider = void 0;
-const vscode = require("vscode");
+const vscode = __importStar(require("vscode"));
 const stdlib_1 = require("./data/stdlib");
 class SkylangDiagnosticsProvider {
     diagnosticCollection;
@@ -81,7 +114,7 @@ class SkylangDiagnosticsProvider {
                 diagnostics.push(diag);
             }
             // 3. Unknown method on standard library & interop modules
-            const moduleCallMatch = line.match(/\b(math|io|fmt|str|python|js|npm|cpp|java)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
+            const moduleCallMatch = line.match(/\b(math|io|fmt|str|python|js|cpp|java|go|golang|rust)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
             if (moduleCallMatch) {
                 for (const match of moduleCallMatch) {
                     const [mod, member] = match.split('.');
@@ -102,19 +135,18 @@ class SkylangDiagnosticsProvider {
                     }
                 }
             }
-            // 4. Unimported module check for interop modules (python, js, cpp, java, npm)
-            const interopMods = ['python', 'js', 'cpp', 'java', 'npm'];
+            // 4. Unimported module check for interop modules (python, js, cpp, java, go, golang, rust)
+            const interopMods = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'];
             for (const mod of interopMods) {
-                const targetMod = mod === 'npm' ? 'js' : mod;
                 const modUsageRegex = new RegExp(`\\b${mod}\\.([a-zA-Z_][a-zA-Z0-9_]*)`, 'g');
                 let m;
                 while ((m = modUsageRegex.exec(rawLine)) !== null) {
-                    const importRegex = new RegExp(`^\\s*import\\s+[^;\\n]*\\b${targetMod}\\b`, 'm');
+                    const importRegex = new RegExp(`^\\s*import\\s+[^;\\n]*\\b${mod}\\b`, 'm');
                     if (!importRegex.test(text)) {
                         const startCol = m.index;
                         const endCol = startCol + mod.length;
                         const range = new vscode.Range(new vscode.Position(i, startCol), new vscode.Position(i, endCol));
-                        const diag = new vscode.Diagnostic(range, `Module '${targetMod}' is used without being imported. Add 'import ${targetMod}' at top of file.`, vscode.DiagnosticSeverity.Information);
+                        const diag = new vscode.Diagnostic(range, `Module '${mod}' is used without being imported. Add 'import ${mod}' at top of file.`, vscode.DiagnosticSeverity.Information);
                         diag.code = 'skylang-unimported-module';
                         diagnostics.push(diag);
                     }

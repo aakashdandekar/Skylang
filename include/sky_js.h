@@ -15,8 +15,6 @@ Value sky_js_call_method(ObjForeign* f, const char* name, int argc, Value* argv)
 Value sky_js_get_prop(ObjForeign* f, const char* name);
 Value sky_js_set_prop(ObjForeign* f, const char* name, Value val);
 
-/* Global js and npm module variables */
 extern Value sky_mod_js;
-extern Value sky_mod_npm;
 
 #endif /* SKY_JS_H */
