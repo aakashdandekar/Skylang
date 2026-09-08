@@ -367,7 +367,7 @@ Customize extension behavior in your VS Code `settings.json`:
 ```json
 {
     // Path to the `sky` compiler executable (searches PATH / project bin by default)
-    "skylang.executablePath": "/home/aakashdandekar/Projects/programming_lang/bin/sky",
+    "skylang.executablePath": "/home/aakashdandekar/Projects/skylang_dev/bin/sky",
 
     // Enable real-time syntax and structural diagnostics
     "skylang.diagnostics.enabled": true,
@@ -391,10 +391,10 @@ The extension is automatically installed in your local VS Code environment under
 ### Compiler Setup
 Ensure the Skylang compiler is built and available:
 ```bash
-cd ~/Projects/programming_lang
+cd ~/Projects/skylang_dev
 make clean && make
 ```
-The extension will automatically detect the binary at `~/Projects/programming_lang/bin/sky` or globally via `~/.local/bin/sky`.
+The extension will automatically detect the binary at `~/Projects/skylang_dev/bin/sky` or globally via `~/.local/bin/sky`.
 
 ---
 

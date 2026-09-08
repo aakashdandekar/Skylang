@@ -47,7 +47,9 @@ class SkylangRunner {
         }
         // Check common default locations
         const candidatePaths = [
-            '/home/aakashdandekar/Projects/programming_lang/bin/sky',
+            path.join(process.env.HOME || '', 'Projects', 'skylang_dev', 'bin', 'sky'),
+            '/home/aakashdandekar/Projects/skylang_dev/bin/sky',
+            '/home/aakashdandekar/Applications/Skylang/bin/sky',
             path.join(process.env.HOME || '', '.local', 'bin', 'sky'),
             path.join(process.env.HOME || '', '.local', 'bin', 'skylang'),
             '/usr/local/bin/sky',
