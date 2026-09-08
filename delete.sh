@@ -25,6 +25,3 @@ rm -rf "$HOME/.vscode/extensions/skylang"* "$HOME/.vscode/extensions/"*skylang* 
 echo "Cleaning temporary execution caches..."
 rm -rf /tmp/skylang_* /tmp/skylang_*.c /tmp/skylang_*.bin /tmp/sky_* /tmp/SkyJavaRunner_* 2>/dev/null || true
 
-echo ""
-echo "  Skylang has been successfully uninstalled from your system."
-echo ""
