@@ -1,0 +1,20 @@
+// 13_java.sky - Demonstrating Java Interoperability in Skylang
+
+import java
+
+println("=== Skylang Java Interop Demo ===")
+
+// 1. Loading Java Standard Classes (e.g. java.lang.Math)
+Math := java.load("java.lang.Math")
+println("Java Math.sqrt(256.0):", Math.sqrt(256.0))
+println("Java Math.max(42, 100):", Math.max(42, 100))
+println("Java Math.PI:", Math.PI)
+
+// 2. Multi-class loading
+classes := java.load("java.lang.Math", "java.lang.String")
+println("Multi-loaded Java classes count:", classes.size)
+
+// 3. Executing Java code statements
+java.exec("System.out.println(\"Java code execution works!\");")
+
+println("=== Java Interop Complete ===")

@@ -1,0 +1,42 @@
+// Skylang Classes Example
+// Demonstrating classes, init constructor with takes(...), this fields, and methods
+
+class Counter {
+    this.value
+
+    init {
+        takes(start)
+        this.value = start
+    }
+
+    increment {
+        this.value += 1
+        return this.value
+    }
+
+    addAmount {
+        takes(amt)
+        this.value += amt
+        return this.value
+    }
+
+    getValue {
+        return this.value
+    }
+}
+
+// Instantiate Counter with positional argument
+c := Counter(10)
+print("Initial counter value:", c.getValue())
+
+c.increment()
+c.increment()
+print("After 2 increments:", c.getValue())
+
+c.addAmount(amt=50)
+print("After adding 50:", c.getValue())
+
+// Another instance with named argument constructor
+c2 := Counter(start=100)
+print("Second counter initial value:", c2.getValue())
+print("First counter remains:", c.getValue())

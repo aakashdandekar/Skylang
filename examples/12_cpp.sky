@@ -1,0 +1,26 @@
+// 12_cpp.sky - Demonstrating C++ Interoperability and Dynamic JIT in Skylang
+
+import cpp
+
+println("=== Skylang C++ Interop Demo ===")
+
+// 1. On-the-fly C++ JIT compilation with standard library
+cpp_math := cpp.compile("
+extern \"C\" {
+    double fast_power(double base, double exp) {
+        return std::pow(base, exp);
+    }
+    double fast_poly(double x) {
+        return 3.0 * x * x + 2.0 * x + 1.0;
+    }
+    double fast_hypot(double a, double b) {
+        return std::hypot(a, b);
+    }
+}
+")
+
+println("C++ JIT fast_power(2.0, 10.0):", cpp_math.fast_power(2.0, 10.0))
+println("C++ JIT fast_poly(5.0):", cpp_math.fast_poly(5.0))
+println("C++ JIT fast_hypot(30.0, 40.0):", cpp_math.fast_hypot(30.0, 40.0))
+
+println("=== C++ Interop Complete ===")

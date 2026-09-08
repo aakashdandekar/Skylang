@@ -1,0 +1,341 @@
+{
+  "Import Module": {
+    "prefix": "import",
+    "body": [
+      "import ${1|python,js,cpp,java,go,rust,math,str,fmt,io|}"
+    ],
+    "description": "Import a Skylang standard library or interop module"
+  },
+  "C Header Import (FFI)": {
+    "prefix": "cimport",
+    "body": [
+      "cimport \"${1:math.h}\""
+    ],
+    "description": "Import a C header file for native C FFI"
+  },
+  "Extern Function Declaration": {
+    "prefix": "extern",
+    "body": [
+      "extern f ${1:function_name}(${2:params})"
+    ],
+    "description": "Declare an external C function binding"
+  },
+  "Function Declaration": {
+    "prefix": "f",
+    "body": [
+      "f ${1:name} {",
+      "\ttakes(${2:params})",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Define a Skylang function with takes() parameter gateway"
+  },
+  "Function (Short)": {
+    "prefix": "fn",
+    "body": [
+      "f ${1:name} {",
+      "\ttakes(${2:params})",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Define a Skylang function with takes() parameter gateway"
+  },
+  "Variadic Function": {
+    "prefix": "fvar",
+    "body": [
+      "f ${1:name} {",
+      "\t${0:// process implicit args}",
+      "}"
+    ],
+    "description": "Define a variadic function using implicit args list"
+  },
+  "Takes Parameter Gateway": {
+    "prefix": "takes",
+    "body": [
+      "takes(${1:params})"
+    ],
+    "description": "Declare function/method parameter gateway with named argument support"
+  },
+  "Return": {
+    "prefix": "ret",
+    "body": [
+      "return ${0}"
+    ],
+    "description": "Return statement"
+  },
+  "Class Declaration": {
+    "prefix": "class",
+    "body": [
+      "class ${1:ClassName} {",
+      "\tthis.${2:field}",
+      "",
+      "\tinit {",
+      "\t\ttakes(${2:field})",
+      "\t\tthis.${2:field} = ${2:field}",
+      "\t}",
+      "",
+      "\t${3:method} {",
+      "\t\t${0}",
+      "\t}",
+      "}"
+    ],
+    "description": "Define an Object-Oriented class with fields, init constructor, and methods"
+  },
+  "Class Constructor (init)": {
+    "prefix": "init",
+    "body": [
+      "init {",
+      "\ttakes(${1:params})",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Define the class constructor block"
+  },
+  "Class Method": {
+    "prefix": "method",
+    "body": [
+      "${1:method_name} {",
+      "\ttakes(${2:params})",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Define a method inside a class"
+  },
+  "If Statement": {
+    "prefix": "if",
+    "body": [
+      "if ${1:condition} {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "If conditional branch"
+  },
+  "If Else Statement": {
+    "prefix": "ifelse",
+    "body": [
+      "if ${1:condition} {",
+      "\t${2}",
+      "} else {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "If-else conditional branch"
+  },
+  "If Elif Else Statement": {
+    "prefix": "ifelif",
+    "body": [
+      "if ${1:condition1} {",
+      "\t${2}",
+      "} elif ${3:condition2} {",
+      "\t${4}",
+      "} else {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "If-elif-else multi-branch statement"
+  },
+  "For In Loop": {
+    "prefix": "forin",
+    "body": [
+      "for ${1:item} in ${2:collection} {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Iterate over list, array, tuple, string, or set"
+  },
+  "For Condition (While) Loop": {
+    "prefix": "forcond",
+    "body": [
+      "for ${1:condition} {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Condition loop (Skylang while-loop equivalent)"
+  },
+  "For Infinite Loop": {
+    "prefix": "forinf",
+    "body": [
+      "for {",
+      "\tif ${1:condition} {",
+      "\t\tbreak",
+      "\t}",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Infinite loop running until break"
+  },
+  "For Range Loop": {
+    "prefix": "forr",
+    "body": [
+      "for ${1:i} in range(${2:10}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Iterate over range(stop)"
+  },
+  "Walrus Declaration": {
+    "prefix": ":=",
+    "body": [
+      "${1:var} := ${2:value}"
+    ],
+    "description": "Declare variable with automatic type inference"
+  },
+  "Scalar Variable Declaration": {
+    "prefix": "decl",
+    "body": [
+      "${1|I,D,B,C,S|} ${2:var} = ${3:0}"
+    ],
+    "description": "Declare an initialized scalar variable (I=int, D=double, B=bool, C=char, S=string)"
+  },
+  "List Declaration": {
+    "prefix": "list",
+    "body": [
+      "${1:items} := [${2:}]"
+    ],
+    "description": "Declare a dynamic list"
+  },
+  "Dictionary Declaration": {
+    "prefix": "dict",
+    "body": [
+      "${1:data} := {\"${2:key}\": ${3:value}}"
+    ],
+    "description": "Declare a dictionary hash map"
+  },
+  "Set Declaration": {
+    "prefix": "set",
+    "body": [
+      "${1:tags} SET"
+    ],
+    "description": "Declare a set of unique elements"
+  },
+  "Error Handling Unpack": {
+    "prefix": "err",
+    "body": [
+      "${1:res}, ${2:err} := ${3:safe_operation()}",
+      "if ${2:err} != none {",
+      "\tprintln(\"Error:\", ${2:err})",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Go-style error check and unpack"
+  },
+  "Print Line": {
+    "prefix": "println",
+    "body": [
+      "println(${0})"
+    ],
+    "description": "Print to stdout with trailing newline"
+  },
+  "Print": {
+    "prefix": "print",
+    "body": [
+      "print(${0})"
+    ],
+    "description": "Print to stdout without trailing newline"
+  },
+  "Built-in Eval": {
+    "prefix": "eval",
+    "body": [
+      "${1:res} := eval(\"${2:expression}\")"
+    ],
+    "description": "Evaluate dynamic Skylang expressions at runtime"
+  },
+  "Python Load": {
+    "prefix": "pyload",
+    "body": [
+      "${1:mod} := python.load(\"${2:numpy}\")"
+    ],
+    "description": "Load a Python module"
+  },
+  "Python Exec": {
+    "prefix": "pyexec",
+    "body": [
+      "python.exec(\"${1:code}\")"
+    ],
+    "description": "Execute Python statements"
+  },
+  "JavaScript Load": {
+    "prefix": "jsload",
+    "body": [
+      "${1:mod} := js.load(\"${2:lodash}\")"
+    ],
+    "description": "Load a JS global or NPM package via Node.js"
+  },
+  "JavaScript Exec": {
+    "prefix": "jsexec",
+    "body": [
+      "js.exec(\"${1:console.log('Hello')}\")"
+    ],
+    "description": "Execute JavaScript statements via Node.js"
+  },
+  "C++ Compile": {
+    "prefix": "cppcompile",
+    "body": [
+      "${1:mod} := cpp.compile(\"\\nextern \\\"C\\\" {\\n    double ${2:add}(double a, double b) {\\n        return a + b;\\n    }\\n}\\n\")"
+    ],
+    "description": "JIT-compile C++ source code with extern C functions"
+  },
+  "C++ Load": {
+    "prefix": "cppload",
+    "body": [
+      "${1:lib} := cpp.load(\"${2:./libnative.so}\")"
+    ],
+    "description": "Load a native shared library (.so)"
+  },
+  "Java Load": {
+    "prefix": "javaload",
+    "body": [
+      "${1:cls} := java.load(\"${2:java.lang.Math}\")"
+    ],
+    "description": "Load Java class via JVM reflection"
+  },
+  "Java Exec": {
+    "prefix": "javaexec",
+    "body": [
+      "java.exec(\"${1:System.out.println(\\\"Hello\\\");}\")"
+    ],
+    "description": "Execute Java statements in JVM"
+  },
+  "Golang Load": {
+    "prefix": "goload",
+    "body": [
+      "${1:mod} := go.load(\"${2:./libcalc.so}\")"
+    ],
+    "description": "Load a Go package or shared library"
+  },
+  "Golang Compile": {
+    "prefix": "gocompile",
+    "body": [
+      "${1:mod} := go.compile(\"\\n//export ${2:Add}\\nfunc ${2:Add}(a, b float64) float64 {\\n\\treturn a + b\\n}\\n\")"
+    ],
+    "description": "JIT-compile Go code with exported functions"
+  },
+  "Golang Exec": {
+    "prefix": "goexec",
+    "body": [
+      "go.exec(\"${1:println(\\\"Hello from Go\\\")}\")"
+    ],
+    "description": "Execute Go source code statements"
+  },
+  "Rust Load": {
+    "prefix": "rustload",
+    "body": [
+      "${1:mod} := rust.load(\"${2:./librustcalc.so}\")"
+    ],
+    "description": "Load a Rust module or compiled cdylib library"
+  },
+  "Rust Compile": {
+    "prefix": "rustcompile",
+    "body": [
+      "${1:mod} := rust.compile(\"\\n#[no_mangle]\\npub extern \\\"C\\\" fn ${2:add}(a: f64, b: f64) -> f64 {\\n\\ta + b\\n}\\n\")"
+    ],
+    "description": "JIT-compile Rust code with extern C functions"
+  },
+  "Rust Exec": {
+    "prefix": "rustexec",
+    "body": [
+      "rust.exec(\"${1:println!(\\\"Hello from Rust\\\");}\")"
+    ],
+    "description": "Execute Rust source code statements"
+  }
+}

@@ -1,0 +1,17 @@
+# Internal docs (not shipped with repo)
+CONCEPT.md
+PROGRESS.md
+DOCS.md
+
+# Build artifacts
+*.o
+*.a
+bin/
+lib/
+/tmp/skylang_*
+/tmp/sky_*
+/tmp/SkyJavaRunner_*
+.vscode/
+node_modules/
+*.vsix
+.DS_Store

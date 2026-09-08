@@ -1,0 +1,29 @@
+// 10_python.sky - Demonstrating Python Interoperability in Skylang
+
+import python
+
+println("=== Skylang Python Interop Demo ===")
+
+// 1. Loading Python standard libraries (math, os, sys, etc.)
+math_py := python.load("math")
+println("math_py.sqrt(256):", math_py.sqrt(256))
+println("math_py.sin(0):", math_py.sin(0))
+println("math_py.cos(0):", math_py.cos(0))
+
+// 2. Loading Python third-party libraries or builtins
+sys_py := python.load("sys")
+println("Python sys.version_info[0]:", sys_py.version_info)
+
+// 3. Multi-module loading
+mods := python.load("math", "sys")
+println("Multi-loaded modules count:", mods.size)
+
+// 4. Executing Python code definitions
+python.exec("
+def custom_greeting(name):
+    return f'Hello, {name} from Python 3!'
+")
+main_py := python.load("__main__")
+println("Python custom function call:", main_py.custom_greeting("Skylang"))
+
+println("=== Python Interop Complete ===")

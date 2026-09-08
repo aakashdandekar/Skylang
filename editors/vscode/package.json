@@ -1,0 +1,179 @@
+{
+  "name": "skylang",
+  "displayName": "Skylang",
+  "description": "Comprehensive language support for Skylang: snippets, IntelliSense, hover tooltips, signature help, outline symbols, formatting, diagnostics, and code execution.",
+  "version": "1.0.0",
+  "publisher": "skylang",
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Linters",
+    "Formatters"
+  ],
+  "keywords": [
+    "skylang",
+    "sky",
+    "snippets",
+    "intellisense",
+    "autocomplete",
+    "hover",
+    "formatter",
+    "linter"
+  ],
+  "main": "./out/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "activationEvents": [
+    "onLanguage:skylang",
+    "workspaceContains:**/*.sky"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "skylang",
+        "aliases": [
+          "Skylang",
+          "skylang",
+          "sky"
+        ],
+        "extensions": [
+          ".sky",
+          ".skylang"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/sky.svg",
+          "dark": "./icons/sky.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "skylang",
+        "scopeName": "source.sky",
+        "path": "./syntaxes/skylang.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "skylang",
+        "path": "./snippets/skylang.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "skylang.run",
+        "title": "Skylang: Run File (AOT)",
+        "icon": "$(play)",
+        "category": "Skylang"
+      },
+      {
+        "command": "skylang.runVM",
+        "title": "Skylang: Run File in Bytecode VM",
+        "icon": "$(zap)",
+        "category": "Skylang"
+      },
+      {
+        "command": "skylang.profile",
+        "title": "Skylang: Profile in Bytecode VM",
+        "icon": "$(dashboard)",
+        "category": "Skylang"
+      },
+      {
+        "command": "skylang.build",
+        "title": "Skylang: Build Native Binary",
+        "icon": "$(package)",
+        "category": "Skylang"
+      },
+      {
+        "command": "skylang.repl",
+        "title": "Skylang: Start Interactive REPL",
+        "icon": "$(terminal)",
+        "category": "Skylang"
+      },
+      {
+        "command": "skylang.formatDocument",
+        "title": "Skylang: Format Document",
+        "icon": "$(symbol-color)",
+        "category": "Skylang"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "skylang.run",
+          "when": "resourceExtname == .sky",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "skylang.run",
+          "when": "resourceLangId == skylang",
+          "group": "1_skylang@1"
+        },
+        {
+          "command": "skylang.runVM",
+          "when": "resourceLangId == skylang",
+          "group": "1_skylang@2"
+        },
+        {
+          "command": "skylang.profile",
+          "when": "resourceLangId == skylang",
+          "group": "1_skylang@3"
+        },
+        {
+          "command": "skylang.build",
+          "when": "resourceLangId == skylang",
+          "group": "1_skylang@4"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Skylang Configuration",
+      "properties": {
+        "skylang.executablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the `sky` executable binary. If empty, the extension will search common paths and PATH."
+        },
+        "skylang.diagnostics.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time syntax and structural diagnostics."
+        },
+        "skylang.format.indentSize": {
+          "type": "integer",
+          "default": 4,
+          "description": "Indentation size in spaces for formatting Skylang files."
+        }
+      }
+    },
+    "iconThemes": [
+      {
+        "id": "skylang-icons",
+        "label": "Skylang Icons",
+        "path": "./icons/skylang-icons.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.80.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.0.0"
+  }
+}

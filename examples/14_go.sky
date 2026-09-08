@@ -1,0 +1,39 @@
+// 14_go.sky - Demonstrating Golang Interoperability in Skylang
+
+import go
+
+println("=== Skylang Golang Interop Demo ===")
+
+// 1. Loading Go Standard Packages (e.g. math, strings)
+math_go := go.load("math")
+println("Go math.Sqrt(256.0):", math_go.Sqrt(256.0))
+println("Go math.Pi:", math_go.Pi)
+
+// 2. Multi-package loading
+pkgs := go.load("math", "strings")
+println("Multi-loaded Go packages count:", pkgs.size)
+
+// 3. On-the-fly Go JIT Compilation with c-shared binaries
+go_calc := go.compile("
+//export Add
+func Add(a, b float64) float64 {
+    return a + b
+}
+
+//export FastPower
+func FastPower(base, exp float64) float64 {
+    res := 1.0
+    for i := 0; i < int(exp); i++ {
+        res *= base
+    }
+    return res
+}
+")
+
+println("Go JIT Add(25.0, 17.0):", go_calc.Add(25.0, 17.0))
+println("Go JIT FastPower(2.0, 8.0):", go_calc.FastPower(2.0, 8.0))
+
+// 4. Executing arbitrary Go code
+go.exec("fmt.Println(\"Go code block executed successfully!\")")
+
+println("=== Golang Interop Complete ===")

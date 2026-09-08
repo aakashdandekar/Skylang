@@ -1,0 +1,41 @@
+// 15_rust.sky - Demonstrating Rust Interoperability in Skylang
+
+import rust
+
+println("=== Skylang Rust Interop Demo ===")
+
+// 1. Loading Rust modules & inspecting properties
+math_rs := rust.load("std::f64::consts")
+println("Rust math PI:", math_rs.PI)
+println("Rust math E:", math_rs.E)
+
+// 2. Multi-module loading
+mods := rust.load("std::f64::consts", "std::cmp")
+println("Multi-loaded Rust modules count:", mods.size)
+
+// 3. On-the-fly Rust Dynamic JIT Compilation
+rust_calc := rust.compile("
+#[no_mangle]
+pub extern \"C\" fn add(a: f64, b: f64) -> f64 {
+    a + b
+}
+
+#[no_mangle]
+pub extern \"C\" fn fast_power(base: f64, exp: f64) -> f64 {
+    base.powf(exp)
+}
+
+#[no_mangle]
+pub extern \"C\" fn fast_poly(x: f64) -> f64 {
+    3.0 * x * x + 2.0 * x + 1.0
+}
+")
+
+println("Rust JIT add(10.0, 32.0):", rust_calc.add(10.0, 32.0))
+println("Rust JIT fast_power(2.0, 10.0):", rust_calc.fast_power(2.0, 10.0))
+println("Rust JIT fast_poly(5.0):", rust_calc.fast_poly(5.0))
+
+// 4. Executing arbitrary Rust code
+rust.exec("println!(\"Rust code block executed successfully!\");")
+
+println("=== Rust Interop Complete ===")

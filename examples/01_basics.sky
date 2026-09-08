@@ -1,0 +1,50 @@
+// Skylang Basics Example
+// Demonstrating variables, default values, and arithmetic operators
+
+// Scalar type declarations with default values
+I a
+D b
+B c
+C d
+S s
+
+print("Default int a:", a)
+print("Default double b:", b)
+print("Default bool c:", c)
+print("Default char d:", d)
+print("Default string s:", s)
+
+// Assignments and expressions
+a = 10
+b = 3.5
+s = "Skylang"
+
+print("Updated a:", a)
+print("Updated b:", b)
+print("Updated s:", s)
+
+// Walrus initialization
+x := 25
+name := "Aakash"
+print("Walrus x:", x)
+print("Walrus name:", name)
+
+// Operators
+I sum = 10 + 5
+I diff = 10 - 3
+I prod = 4 * 6
+D quot = 10.0 / 4.0
+I fdiv = 10 // 3
+I pwr = 2 ^ 4
+
+print("10 + 5 =", sum)
+print("10 - 3 =", diff)
+print("4 * 6 =", prod)
+print("10.0 / 4.0 =", quot)
+print("10 // 3 =", fdiv)
+print("2 ^ 4 =", pwr)
+
+// Type inspection with .T
+print("Type of a:", a.T)
+print("Type of b:", b.T)
+print("Type of s:", s.T)

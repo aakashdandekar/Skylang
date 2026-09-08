@@ -1,0 +1,68 @@
+// 07_stdlib.sky - Demonstrating Skylang Standard Library (math, io, fmt, str)
+
+println("=== Skylang Standard Library Demo ===")
+
+// 1. Math Module
+println("\n--- Math Module ---")
+println("math.pi:", math.pi)
+println("math.e:", math.e)
+println("math.sqrt(144):", math.sqrt(144))
+println("math.sin(0):", math.sin(0))
+println("math.cos(0):", math.cos(0))
+println("math.abs(-42):", math.abs(-42))
+println("math.ceil(3.2):", math.ceil(3.2))
+println("math.floor(3.8):", math.floor(3.8))
+println("math.round(3.5):", math.round(3.5))
+println("math.min(10, 20):", math.min(10, 20))
+println("math.max(10, 20):", math.max(10, 20))
+println("math.clamp(15, 0, 10):", math.clamp(15, 0, 10))
+println("math.hypot(3, 4):", math.hypot(3, 4))
+println("math.log10(100):", math.log10(100))
+
+// 2. Str Module
+println("\n--- Str Module ---")
+s := "  Hello Skylang World!  "
+println("Original:", s)
+println("str.trim:", str.trim(s))
+println("str.upper:", str.upper("hello"))
+println("str.lower:", str.lower("WORLD"))
+println("str.contains:", str.contains("Skylang", "lan"))
+println("str.startswith:", str.startswith("Skylang", "Sky"))
+println("str.endswith:", str.endswith("Skylang", "lang"))
+println("str.replace:", str.replace("banana", "a", "o"))
+println("str.reverse:", str.reverse("Skylang"))
+
+words := str.split("apple,banana,orange,grape", ",")
+println("str.split count:", words.size)
+joined := str.join(words, " | ")
+println("str.join:", joined)
+
+// 3. Fmt Module
+println("\n--- Fmt Module ---")
+msg := fmt.format("Language: {}, Version: {}, Fast: {}", "Skylang", 1, true)
+println("fmt.format:", msg)
+println("fmt.hex(255):", fmt.hex(255))
+println("fmt.bin(42):", fmt.bin(42))
+println("fmt.oct(64):", fmt.oct(64))
+println("fmt.pad:", fmt.pad("Left", 10), "<end>")
+println("fmt.padleft:", fmt.padleft("Right", 10))
+println("fmt.repeat:", fmt.repeat("*-", 5))
+
+// 4. IO Module
+println("\n--- IO Module ---")
+tmp_file := "/tmp/skylang_test_io.txt"
+io.writefile(tmp_file, "Line 1: Skylang\nLine 2: Fast & Dynamic\nLine 3: Standard Library\n")
+println("io.exists:", io.exists(tmp_file))
+
+content := io.readfile(tmp_file)
+println("io.readfile:")
+print(content)
+
+lines := io.readlines(tmp_file)
+println("io.readlines count:", lines.size)
+for line in lines {
+    println(" ->", line)
+}
+
+io.remove(tmp_file)
+println("io.exists after remove:", io.exists(tmp_file))

@@ -1,0 +1,42 @@
+// Example 6: Go-Style Error Handling and Multi-Variable Assignment
+
+// Function returning result on success, or error() on failure
+f safe_divide {
+    takes(a, b)
+    if b == 0 {
+        return error("cannot divide by zero")
+    }
+    return a / b
+}
+
+print("=== Go-Style Error Handling in Skylang ===")
+
+// 1. Successful division
+result, err := safe_divide(100, 4)
+if err != none {
+    print("Error:", err)
+} else {
+    print("100 / 4 =", result)
+}
+
+// 2. Division by zero (Error case)
+result2, err2 := safe_divide(50, 0)
+if err2 != none {
+    print("Encountered expected error:", err2)
+} else {
+    print("Result:", result2)
+}
+
+// 3. Ignoring a return value with the blank identifier (_)
+answer, _ := safe_divide(42, 2)
+print("Answer with ignored error:", answer)
+
+_, err_only := safe_divide(10, 0)
+print("Error captured with blank result:", err_only)
+
+// 4. Multi-variable assignment and swapping
+x, y := 10, 20
+print("Before swap: x =", x, ", y =", y)
+
+x, y = y, x
+print("After swap:  x =", x, ", y =", y)

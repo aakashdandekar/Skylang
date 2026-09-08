@@ -1,0 +1,71 @@
+// Skylang Collections Example
+// Demonstrating Array, List, Tuple, Dict, Set, SortedList, and Slicing
+
+// 1. Strings
+S name = "Skylang"
+print("String:", name)
+print("String size:", name.size)
+print("String value at 0:", name.value(0))
+print("String slice 0:3:", name[0:3])
+
+// 2. Fixed-size Array
+arr I 4
+arr[0] = 10
+arr[1] = 20
+arr[2] = 30
+arr[3] = 40
+print("Array arr:", arr)
+print("Array size:", arr.size)
+print("Array type:", arr.T)
+
+// Array with literal syntax <...>
+arr2 I = <100, 200, 300>
+print("Array literal arr2:", arr2)
+
+// 3. Dynamic List
+numbers L
+numbers.push(10)
+numbers.push(20)
+numbers.push(30)
+print("List after pushes:", numbers)
+print("List size:", numbers.size)
+
+I popped = numbers.pop()
+print("Popped item:", popped)
+print("List after pop:", numbers)
+
+// List slicing
+more_numbers := [1, 2, 3, 4, 5]
+print("Slice [1:4]:", more_numbers[1:4])
+
+// 4. Tuple
+coords T = (10, 20, 30)
+print("Tuple:", coords)
+print("Tuple item 0:", coords[0])
+print("Tuple size:", coords.size)
+
+// 5. Dict
+scores DICT
+scores["Aakash"] = 95
+scores["Bob"] = 88
+print("Dict scores:", scores)
+print("Scores has Aakash:", scores.has("Aakash"))
+print("Aakash score:", scores["Aakash"])
+print("Dict size:", scores.size)
+
+// 6. Set
+unique SET
+unique.add("alpha")
+unique.add("beta")
+unique.add("alpha") // Duplicate should not be added
+print("Set:", unique)
+print("Set has alpha:", unique.has("alpha"))
+print("Set size:", unique.size)
+
+// 7. Sorted List (keeps items sorted automatically)
+sorted_items SL
+sorted_items.push(50)
+sorted_items.push(10)
+sorted_items.push(30)
+sorted_items.push(20)
+print("Sorted List:", sorted_items)

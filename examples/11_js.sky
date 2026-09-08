@@ -1,0 +1,24 @@
+// 11_js.sky - Demonstrating JavaScript and NPM Interoperability in Skylang
+
+import js
+
+println("=== Skylang JS & NPM Interop Demo ===")
+
+// 1. Loading built-in JavaScript globals (e.g. Math, JSON)
+Math_js := js.load("Math")
+println("Math_js.sqrt(625):", Math_js.sqrt(625))
+println("Math_js.max(10, 99, 42):", Math_js.max(10, 99, 42))
+println("Math_js.pow(2, 8):", Math_js.pow(2, 8))
+
+// 2. Loading NPM packages seamlessly (auto-detected by js.load)
+// E.g. js.load("lodash"), js.load("axios"), js.load("express")
+// When available in node_modules, js.load detects and loads them automatically.
+
+// 3. Multi-package / global loading
+mods := js.load("Math", "JSON")
+println("Multi-loaded JS modules count:", mods.size)
+
+// 4. Executing custom JavaScript code blocks
+js.exec("console.log('Hello from Node.js runtime inside Skylang!');")
+
+println("=== JS & NPM Interop Complete ===")

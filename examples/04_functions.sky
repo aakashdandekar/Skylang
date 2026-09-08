@@ -1,0 +1,64 @@
+// Skylang Functions Example
+// Demonstrating bracketless functions, default args list, takes(...) gateway, and named arguments
+
+// 1. Variadic function using implicit args list (takes arbitrary number of arguments)
+f sum_all {
+    I result
+    for i in args {
+        result += i
+    }
+    return result
+}
+
+print("sum_all(1, 2, 3, 4, 5) =", sum_all(1, 2, 3, 4, 5))
+
+// 2. Gateway function using takes(...)
+f add {
+    takes(a, b)
+    return a + b
+}
+
+// Positional call
+print("add(15, 25) =", add(15, 25))
+
+// Named argument call
+print("add(a=15, b=25) =", add(a=15, b=25))
+print("add(b=50, a=20) =", add(b=50, a=20))
+
+// Calling with initialized variables
+x := 10
+y := 20
+print("add(x, y) =", add(x, y))
+
+// 3. Multiplication with takes(...)
+f multiply {
+    takes(x, y)
+    return x * y
+}
+
+print("multiply(6, 7) =", multiply(6, 7))
+
+// 4. Recursive Fibonacci
+f fib {
+    takes(n)
+    if n <= 1 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+print("fib(0) =", fib(0))
+print("fib(1) =", fib(1))
+print("fib(7) =", fib(7))
+print("fib(10) =", fib(10))
+
+// 5. Recursive Factorial
+f fact {
+    takes(n)
+    if n <= 1 {
+        return 1
+    }
+    return n * fact(n - 1)
+}
+
+print("fact(5) =", fact(5))

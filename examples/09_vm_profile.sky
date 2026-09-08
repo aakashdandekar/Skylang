@@ -1,0 +1,33 @@
+// 09_vm_profile.sky - Bytecode VM and Performance Profiling Demo
+
+println("=== Skylang Bytecode VM & Profiler Demo ===")
+
+// 1. Math calculation on VM
+x := 10
+y := 20
+z := (x * y) + 50
+println("Computed z =", z)
+
+// 2. Loop performance
+sum := 0
+i := 0
+while i < 1000 {
+    sum += i
+    i += 1
+}
+println("Sum 0..999 =", sum)
+
+// 3. Collections on VM
+items := [10, 20, 30, 40, 50]
+println("List size:", items.size)
+println("Item at 2:", items[2])
+
+scores := {"Alice": 95, "Bob": 88}
+println("Alice score:", scores["Alice"])
+
+// 4. Standard Library on VM
+println("math.sqrt(256):", math.sqrt(256))
+println("str.upper('skylang'):", str.upper("skylang"))
+println("fmt.format:", fmt.format("Hello {} from VM!", "World"))
+
+println("=== VM Execution Complete ===")
