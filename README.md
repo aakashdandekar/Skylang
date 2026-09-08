@@ -63,6 +63,12 @@ println("Rust math PI:", rust_math.PI)
   - [Named Parameters (`takes`)](#named-parameters-with-takes)
   - [Built-in Functions](#built-in-functions)
 - [Classes & OOP](#classes--oop)
+- [Modules & Imports (Python-Style)](#modules--imports-python-style)
+  - [Standard Module Import (`import mod`)](#1-standard-module-import)
+  - [Import with Alias (`as`)](#2-import-with-alias-as)
+  - [Selective Symbol Import (`from mod import ...`)](#3-selective-symbol-import-from--import)
+  - [Wildcard Import (`from mod import *`)](#4-wildcard-import-from--import-)
+  - [Submodules & Subdirectories (`sub.helper`)](#5-submodules--nested-directories)
 - [Standard Library](#standard-library)
 - [Multi-Language Interoperability (Python, JS/NPM, C++, Java, Go, Rust)](#multi-language-interoperability)
 - [Foreign Function Interface (FFI)](#foreign-function-interface-ffi)
@@ -833,6 +839,94 @@ print("Balance:", acc.getBalance())   // 1300
 
 ---
 
+## Modules & Imports (Python-Style)
+
+Skylang provides Python-style module importation for local `.sky` files and subdirectories, complete with `import`, `from ... import`, aliasing (`as`), and wildcard imports (`*`).
+
+### 1. Standard Module Import
+
+Import an entire module file by its name (relative to the current file or workspace):
+
+```skylang
+// examples/math_utils.sky
+PI := 3.14159265
+f square {
+    takes(n)
+    return n * n
+}
+
+// main.sky
+import math_utils
+
+println("PI:", math_utils.PI)
+println("Square:", math_utils.square(8))
+```
+
+### 2. Import with Alias (`as`)
+
+Use `as` to assign a local alias to an imported module or language bridge:
+
+```skylang
+import math_utils as mu
+import python as py
+
+println("PI:", mu.PI)
+println("Square:", mu.square(10))
+
+py_math := py.load("math")
+println("Py sqrt:", py_math.sqrt(100))
+```
+
+### 3. Selective Symbol Import (`from ... import`)
+
+Selectively import specific functions, classes, or variables directly into the local namespace:
+
+```skylang
+from math_utils import add, square, Calculator
+
+println("add(10, 20):", add(10, 20))
+println("square(6):", square(6))
+
+calc := Calculator(100)
+calc.add(50)
+println("Total:", calc.get_val())
+```
+
+You can also alias individual imported symbols:
+
+```skylang
+from math_utils import square as sq, Calculator as Calc
+
+println("sq(9):", sq(9))
+c := Calc(25)
+```
+
+### 4. Wildcard Import (`from ... import *`)
+
+Import all exported functions, classes, and global variables from a module directly into the caller's scope:
+
+```skylang
+from math_utils import *
+
+println("PI:", PI)
+println("Square of 12:", square(12))
+```
+
+### 5. Submodules & Nested Directories
+
+Import modules located inside subdirectories using dotted notation:
+
+```skylang
+// Submodule at examples/sub/helper.sky
+import sub.helper as sh
+from sub.helper import greet
+
+println(sh.format_info("Version", "1.0.0"))
+println(greet("Developer"))
+```
+
+---
+
 ## Standard Library & Built-in Features
 
 Skylang includes built-in standard library modules (`math`, `str`) alongside Python-style built-ins for I/O and string formatting, available out of the box without any import required:
@@ -1367,7 +1461,11 @@ skylang/
 │   ├── 12_cpp.sky         #   C++ interop and dynamic JIT compilation
 │   ├── 13_java.sky        #   Java interop and reflection
 │   ├── 14_go.sky          #   Golang interop and c-shared JIT compilation
-│   └── 15_rust.sky        #   Rust interop and cdylib JIT compilation
+│   ├── 15_rust.sky        #   Rust interop and cdylib JIT compilation
+│   ├── 16_modules.sky     #   Python-style imports (import, from, as, *)
+│   ├── math_utils.sky     #   Example math helper module
+│   └── sub/
+│       └── helper.sky     #   Example nested submodule
 ├── include/               # Header files
 │   ├── skylang.h          #   Compiler internals (lexer, parser, codegen)
 │   ├── skylang_rt.h       #   Runtime API (Value, GC, collections, OBJ_FOREIGN)

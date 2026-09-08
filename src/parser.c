@@ -721,30 +721,121 @@ static AstNode* parse_statement(Parser* parser) {
 
     if (match(parser, TOK_KW_IMPORT)) {
         AstNode* n = ast_new(AST_STMT_IMPORT, line);
-        char** mnames = NULL;
+        ImportItem* items = NULL;
         size_t mcount = 0, mcap = 0;
 
         do {
             char* mname = NULL;
             if (match(parser, TOK_IDENT)) {
-                mname = strdup(parser->previous.as.s_val);
+                char buf[512];
+                snprintf(buf, sizeof(buf), "%s", parser->previous.as.s_val);
+                while (match(parser, TOK_DOT)) {
+                    consume(parser, TOK_IDENT, "Expect identifier after '.' in import module path");
+                    size_t cur_len = strlen(buf);
+                    snprintf(buf + cur_len, sizeof(buf) - cur_len, "/%s", parser->previous.as.s_val);
+                }
+                mname = strdup(buf);
             } else if (match(parser, TOK_STRING_LIT)) {
                 mname = strdup(parser->previous.as.s_val);
             } else {
-                error_at(parser, &parser->current, "Expect module or language name after 'import'");
+                error_at(parser, &parser->current, "Expect module or file path after 'import'");
                 return NULL;
+            }
+
+            char* alias = NULL;
+            if (match(parser, TOK_KW_AS)) {
+                consume(parser, TOK_IDENT, "Expect identifier after 'as'");
+                alias = strdup(parser->previous.as.s_val);
+            } else {
+                const char* slash = strrchr(mname, '/');
+                alias = strdup(slash ? slash + 1 : mname);
+                size_t alen = strlen(alias);
+                if (alen > 4 && strcmp(alias + alen - 4, ".sky") == 0) {
+                    alias[alen - 4] = '\0';
+                }
             }
 
             if (mcount >= mcap) {
                 mcap = mcap < 4 ? 4 : mcap * 2;
-                mnames = realloc(mnames, mcap * sizeof(char*));
+                items = realloc(items, mcap * sizeof(ImportItem));
             }
-            mnames[mcount++] = mname;
+            items[mcount].path = mname;
+            items[mcount].alias = alias;
+            mcount++;
         } while (match(parser, TOK_COMMA));
 
-        n->as.import_stmt.module_names = mnames;
+        n->as.import_stmt.items = items;
         n->as.import_stmt.count = mcount;
-        n->as.import_stmt.module_name = mcount > 0 ? mnames[0] : NULL;
+        n->as.import_stmt.module_name = mcount > 0 ? items[0].path : NULL;
+
+        char** mnames = malloc(mcount * sizeof(char*));
+        for (size_t i = 0; i < mcount; ++i) mnames[i] = items[i].path;
+        n->as.import_stmt.module_names = mnames;
+
+        match(parser, TOK_SEMICOLON);
+        return n;
+    }
+
+    if (match(parser, TOK_KW_FROM)) {
+        AstNode* n = ast_new(AST_STMT_FROM_IMPORT, line);
+        char* mpath = NULL;
+        if (match(parser, TOK_IDENT)) {
+            char buf[512];
+            snprintf(buf, sizeof(buf), "%s", parser->previous.as.s_val);
+            while (match(parser, TOK_DOT)) {
+                consume(parser, TOK_IDENT, "Expect identifier after '.' in module path");
+                size_t cur_len = strlen(buf);
+                snprintf(buf + cur_len, sizeof(buf) - cur_len, "/%s", parser->previous.as.s_val);
+            }
+            mpath = strdup(buf);
+        } else if (match(parser, TOK_STRING_LIT)) {
+            mpath = strdup(parser->previous.as.s_val);
+        } else {
+            error_at(parser, &parser->current, "Expect module name or file path after 'from'");
+            return NULL;
+        }
+
+        consume(parser, TOK_KW_IMPORT, "Expect 'import' after module in 'from ... import'");
+
+        n->as.from_import.module_path = mpath;
+        n->as.from_import.is_wildcard = false;
+        n->as.from_import.items = NULL;
+        n->as.from_import.count = 0;
+
+        if (match(parser, TOK_STAR)) {
+            n->as.from_import.is_wildcard = true;
+        } else {
+            bool has_paren = match(parser, TOK_LPAREN);
+            FromImportItem* fitems = NULL;
+            size_t fcount = 0, fcap = 0;
+
+            do {
+                consume(parser, TOK_IDENT, "Expect symbol name to import");
+                char* sym = strdup(parser->previous.as.s_val);
+                char* alias = NULL;
+                if (match(parser, TOK_KW_AS)) {
+                    consume(parser, TOK_IDENT, "Expect identifier after 'as'");
+                    alias = strdup(parser->previous.as.s_val);
+                } else {
+                    alias = strdup(sym);
+                }
+
+                if (fcount >= fcap) {
+                    fcap = fcap < 4 ? 4 : fcap * 2;
+                    fitems = realloc(fitems, fcap * sizeof(FromImportItem));
+                }
+                fitems[fcount].symbol = sym;
+                fitems[fcount].alias = alias;
+                fcount++;
+            } while (match(parser, TOK_COMMA));
+
+            if (has_paren) {
+                consume(parser, TOK_RPAREN, "Expect ')' after import list");
+            }
+
+            n->as.from_import.items = fitems;
+            n->as.from_import.count = fcount;
+        }
 
         match(parser, TOK_SEMICOLON);
         return n;

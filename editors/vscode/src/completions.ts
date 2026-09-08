@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 import { KEYWORDS, TYPES, CONSTANTS } from './data/keywords';
 import { BUILTIN_FUNCTIONS, COLLECTION_METHODS, PROPERTIES, CONTAINER_TYPE_MEMBERS } from './data/builtins';
 import {
@@ -73,28 +75,109 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             return items;
         }
 
-        // 3. Context: import mod1, mod2, ...
+        // 3. Context: from <module> import <symbols>
+        const fromImportMatch = linePrefix.match(/(?:^|\s)from\s+([a-zA-Z0-9_\.\/"']+)\s+import\s+([^;\n]*)$/);
+        if (fromImportMatch) {
+            const modName = fromImportMatch[1].trim();
+            const rawSymbols = fromImportMatch[2];
+            const symbolItems: vscode.CompletionItem[] = [];
+
+            // If user typed `symbol `, offer `as`
+            const lastPart = rawSymbols.split(',').pop()?.trim() || '';
+            if (lastPart.length > 0 && !lastPart.includes(' ') && linePrefix.endsWith(' ')) {
+                const asItem = new vscode.CompletionItem('as', vscode.CompletionItemKind.Keyword);
+                asItem.detail = 'as (Import alias)';
+                asItem.insertText = 'as ';
+                asItem.sortText = '0000_as';
+                symbolItems.push(asItem);
+            }
+
+            // Wildcard *
+            const starItem = new vscode.CompletionItem('*', vscode.CompletionItemKind.Keyword);
+            starItem.detail = 'Wildcard import all exported symbols';
+            starItem.documentation = new vscode.MarkdownString(`Import all functions, classes, and variables from \`${modName}\` into the current scope.`);
+            starItem.insertText = '*';
+            starItem.sortText = '0001_*';
+            symbolItems.push(starItem);
+
+            const modDoc = await this.resolveModuleDocument(document, modName);
+            if (modDoc) {
+                const docSymbols = this.parseDocumentSymbols(modDoc);
+                for (const sym of docSymbols) {
+                    if (
+                        sym.kind === vscode.CompletionItemKind.Function ||
+                        sym.kind === vscode.CompletionItemKind.Class ||
+                        sym.kind === vscode.CompletionItemKind.Variable
+                    ) {
+                        const item = new vscode.CompletionItem(sym.name, sym.kind);
+                        item.detail = `${sym.detail} (from ${modName})`;
+                        item.insertText = sym.name;
+                        item.sortText = `0002_${sym.name}`;
+                        symbolItems.push(item);
+                    }
+                }
+            }
+            return new vscode.CompletionList(symbolItems, false);
+        }
+
+        // 4. Context: from <module>
+        const fromModMatch = linePrefix.match(/(?:^|\s)from\s+([^;\n]*)$/);
+        if (fromModMatch) {
+            const rawText = fromModMatch[1].trim();
+            // If user typed a module name and trailing space, suggest `import`
+            if (rawText.length > 0 && !rawText.includes(' ') && linePrefix.endsWith(' ')) {
+                const importItem = new vscode.CompletionItem('import', vscode.CompletionItemKind.Keyword);
+                importItem.detail = 'import keyword';
+                importItem.insertText = 'import ';
+                importItem.sortText = '0000_import';
+                return new vscode.CompletionList([importItem], false);
+            }
+
+            const available = await this.findAvailableModules(document, token);
+            const fromItems: vscode.CompletionItem[] = [];
+            for (const mod of available) {
+                const item = new vscode.CompletionItem(mod.name, mod.isFile ? vscode.CompletionItemKind.File : vscode.CompletionItemKind.Module);
+                item.detail = mod.detail;
+                item.insertText = mod.name;
+                item.sortText = `0001_${mod.name}`;
+                fromItems.push(item);
+            }
+            return new vscode.CompletionList(fromItems, false);
+        }
+
+        // 5. Context: import mod1, mod2, ...
         const importMatch = linePrefix.match(/(?:^|\s)import\s+([^;\n]*)$/);
         if (importMatch) {
             const rawList = importMatch[1];
-            const parts = rawList.split(',').map(s => s.trim().toLowerCase());
-            const currentQuery = parts[parts.length - 1];
-            const alreadyImported = parts.slice(0, -1);
+            const parts = rawList.split(',');
+            const lastPart = parts[parts.length - 1].trim();
 
-            const allModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'];
             const importItems: vscode.CompletionItem[] = [];
-            for (const mod of allModules) {
-                if (alreadyImported.includes(mod)) continue;
-                const modDoc = STDLIB_MODULES[mod];
-                const item = new vscode.CompletionItem(mod, vscode.CompletionItemKind.Module);
-                item.detail = modDoc ? modDoc.name : `import ${mod}`;
-                item.documentation = new vscode.MarkdownString(modDoc ? modDoc.description : `Import ${mod} module.`);
-                item.insertText = mod;
-                if (currentQuery.length > 0 && mod.toLowerCase().startsWith(currentQuery)) {
-                    item.sortText = `0000_${mod}`;
+
+            // If user typed a module name and trailing space, suggest `as`
+            if (lastPart.length > 0 && !lastPart.includes(' ') && linePrefix.endsWith(' ')) {
+                const asItem = new vscode.CompletionItem('as', vscode.CompletionItemKind.Keyword);
+                asItem.detail = 'as (Import alias)';
+                asItem.insertText = 'as ';
+                asItem.sortText = '0000_as';
+                importItems.push(asItem);
+            }
+
+            const available = await this.findAvailableModules(document, token);
+            const alreadyImported = parts.slice(0, -1).map(p => p.trim().split(/\s+as\s+/)[0]);
+
+            for (const mod of available) {
+                if (alreadyImported.includes(mod.name)) continue;
+                const modDoc = STDLIB_MODULES[mod.name];
+                const item = new vscode.CompletionItem(mod.name, mod.isFile ? vscode.CompletionItemKind.File : vscode.CompletionItemKind.Module);
+                item.detail = modDoc ? modDoc.name : mod.detail;
+                item.documentation = new vscode.MarkdownString(modDoc ? modDoc.description : `Import module \`${mod.name}\`.`);
+                item.insertText = mod.name;
+                if (lastPart.length > 0 && mod.name.toLowerCase().startsWith(lastPart.toLowerCase())) {
+                    item.sortText = `0001_${mod.name}`;
                     item.preselect = true;
                 } else {
-                    item.sortText = `0001_${mod}`;
+                    item.sortText = `0002_${mod.name}`;
                 }
                 importItems.push(item);
             }
@@ -962,5 +1045,94 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
         if (insertLine > lines.length) insertLine = lines.length;
 
         return [vscode.TextEdit.insert(new vscode.Position(insertLine, 0), `import ${modName}\n`)];
+    }
+
+    private async resolveModuleDocument(
+        document: vscode.TextDocument,
+        modulePath: string
+    ): Promise<vscode.TextDocument | null> {
+        const cleanPath = modulePath.trim().replace(/^["']|["']$/g, '');
+        const relFilePath = cleanPath.endsWith('.sky') ? cleanPath : cleanPath.replace(/\./g, '/') + '.sky';
+
+        // 1. Try relative to current document folder
+        try {
+            const currentDir = path.dirname(document.uri.fsPath);
+            const resolvedPath = path.resolve(currentDir, relFilePath);
+            if (fs.existsSync(resolvedPath)) {
+                return await vscode.workspace.openTextDocument(vscode.Uri.file(resolvedPath));
+            }
+        } catch {
+            // ignore
+        }
+
+        // 2. Try workspace root / examples
+        try {
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+            if (workspaceFolder) {
+                const rootCandidate = path.resolve(workspaceFolder.uri.fsPath, relFilePath);
+                if (fs.existsSync(rootCandidate)) {
+                    return await vscode.workspace.openTextDocument(vscode.Uri.file(rootCandidate));
+                }
+                const examplesCandidate = path.resolve(workspaceFolder.uri.fsPath, 'examples', relFilePath);
+                if (fs.existsSync(examplesCandidate)) {
+                    return await vscode.workspace.openTextDocument(vscode.Uri.file(examplesCandidate));
+                }
+            }
+        } catch {
+            // ignore
+        }
+
+        return null;
+    }
+
+    private async findAvailableModules(
+        document: vscode.TextDocument,
+        token?: vscode.CancellationToken
+    ): Promise<{ name: string; isFile: boolean; detail: string }[]> {
+        const result: { name: string; isFile: boolean; detail: string }[] = [];
+        const seen = new Set<string>();
+
+        const bridges = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'];
+        for (const b of bridges) {
+            seen.add(b);
+            result.push({ name: b, isFile: false, detail: `Language bridge: ${b}` });
+        }
+
+        try {
+            const workspaceFiles = await vscode.workspace.findFiles('**/*.sky', '**/node_modules/**', 50, token);
+            const currentDir = path.dirname(document.uri.fsPath);
+            const wsFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+
+            for (const file of workspaceFiles) {
+                if (file.toString() === document.uri.toString()) continue;
+                const fsPath = file.fsPath;
+
+                // Rel to current dir
+                const relToCurrent = path.relative(currentDir, fsPath).replace(/\\/g, '/');
+                if (!relToCurrent.startsWith('../') && relToCurrent.endsWith('.sky')) {
+                    const modName = relToCurrent.slice(0, -4).replace(/\//g, '.');
+                    if (!seen.has(modName)) {
+                        seen.add(modName);
+                        result.push({ name: modName, isFile: true, detail: `Local module: ${modName}` });
+                    }
+                }
+
+                // Rel to workspace root
+                if (wsFolder) {
+                    const relToRoot = path.relative(wsFolder.uri.fsPath, fsPath).replace(/\\/g, '/');
+                    if (relToRoot.endsWith('.sky') && !relToRoot.startsWith('../')) {
+                        const modName = relToRoot.slice(0, -4).replace(/\//g, '.');
+                        if (!seen.has(modName)) {
+                            seen.add(modName);
+                            result.push({ name: modName, isFile: true, detail: `Workspace module: ${modName}` });
+                        }
+                    }
+                }
+            }
+        } catch {
+            // ignore
+        }
+
+        return result;
     }
 }

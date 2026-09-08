@@ -94,11 +94,25 @@ exports.KEYWORDS = {
         category: 'Control Flow'
     },
     'import': {
-        name: 'import (Multi-Language Interoperability)',
-        syntax: 'import python | import js | import cpp | import java | import go | import rust',
-        description: 'Imports a multi-language interoperability runtime bridge in Skylang:\n- `import python`: Python 3 embedded runtime & package loader\n- `import js`: Node.js & NPM package bridge\n- `import cpp`: On-the-fly C++ JIT compilation pipeline & .so loader\n- `import java`: JVM reflection & class loader bridge\n- `import go` / `import golang`: Go c-shared JIT compilation pipeline & loader\n- `import rust`: Rust cdylib JIT compilation pipeline & loader',
-        example: 'import python, js, cpp, java, go, rust\n\nmath := python.load("math")\nprintln("Python sqrt:", math.sqrt(256))\n\nMath_js := js.load("Math")\nprintln("JS Math:", Math_js.sqrt(625))',
-        category: 'Interop'
+        name: 'import (Module & Language Bridge Import)',
+        syntax: 'import module [as alias] | import mod1, mod2 | import python as py',
+        description: 'Imports local `.sky` modules, subpackages, or multi-language interoperability bridges:\n- **Module Import**: `import math_utils` or `import sub.helper as sh`\n- **Aliasing**: `import module as alias`\n- **Multi-Import**: `import math_utils as mu, utils`\n- **Language Bridges**: `import python`, `import js`, `import cpp`, `import java`, `import go`, `import rust`',
+        example: 'import math_utils as mu\nprintln("Square:", mu.square(10))\n\nimport python as py\nmath_py := py.load("math")',
+        category: 'Module'
+    },
+    'from': {
+        name: 'from (Selective Module Import)',
+        syntax: 'from module import symbol1, symbol2 [as alias] | from module import *',
+        description: 'Selectively imports functions, classes, and constants from a `.sky` file module or language bridge into the current scope.\n- **Specific symbols**: `from math_utils import add, multiply`\n- **Symbol aliasing**: `from math_utils import square as sq`\n- **Wildcard import**: `from math_utils import *` (imports all exported symbols)',
+        example: 'from math_utils import add, multiply as mult\nprintln("Sum:", add(10, 20))\n\nfrom math_utils import *\nprintln("PI:", PI)',
+        category: 'Module'
+    },
+    'as': {
+        name: 'as (Import Aliasing)',
+        syntax: 'import module as alias | from module import symbol as alias',
+        description: 'Assigns an alias to an imported module, language bridge, or individual imported symbol to prevent naming collisions and simplify usage.',
+        example: 'import math_utils as mu\nfrom sub.helper import greet as say_hi\nimport python as py',
+        category: 'Module'
     },
     'cimport': {
         name: 'cimport (C Foreign Function Interface)',

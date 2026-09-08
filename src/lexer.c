@@ -242,6 +242,7 @@ static TokenType check_keyword(const char* start, size_t length) {
         }
     }
     if (length == 2) {
+        if (strncmp(start, "as", 2) == 0) return TOK_KW_AS;
         if (strncmp(start, "SL", 2) == 0) return TOK_KW_SL;
         if (strncmp(start, "if", 2) == 0) return TOK_KW_IF;
         if (strncmp(start, "in", 2) == 0) return TOK_KW_IN;
@@ -255,6 +256,7 @@ static TokenType check_keyword(const char* start, size_t length) {
         if (strncmp(start, "for", 3) == 0) return TOK_KW_FOR;
     }
     if (length == 4) {
+        if (strncmp(start, "from", 4) == 0) return TOK_KW_FROM;
         if (strncmp(start, "DICT", 4) == 0) return TOK_KW_DICT;
         if (strncmp(start, "init", 4) == 0) return TOK_KW_INIT;
         if (strncmp(start, "this", 4) == 0) return TOK_KW_THIS;
@@ -492,6 +494,8 @@ const char* token_type_name(TokenType type) {
         case TOK_KW_EXTERN: return "extern";
         case TOK_KW_CIMPORT: return "cimport";
         case TOK_KW_IMPORT: return "import";
+        case TOK_KW_FROM: return "from";
+        case TOK_KW_AS: return "as";
         case TOK_PLUS: return "+";
         case TOK_MINUS: return "-";
         case TOK_STAR: return "*";

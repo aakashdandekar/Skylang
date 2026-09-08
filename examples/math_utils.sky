@@ -1,0 +1,38 @@
+// Math utils module for Skylang
+
+PI := 3.141592653589793
+E := 2.718281828459045
+
+f add {
+    takes(a, b)
+    return a + b
+}
+
+f multiply {
+    takes(a, b)
+    return a * b
+}
+
+f square {
+    takes(n)
+    return n * n
+}
+
+class Calculator {
+    this.value
+
+    init {
+        takes(initial_val)
+        this.value = initial_val
+    }
+
+    add {
+        takes(n)
+        this.value += n
+        return this.value
+    }
+
+    get_val {
+        return this.value
+    }
+}

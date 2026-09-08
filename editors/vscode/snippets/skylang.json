@@ -2,9 +2,37 @@
   "Import Module": {
     "prefix": "import",
     "body": [
-      "import ${1|python,js,cpp,java,go,golang,rust|}"
+      "import ${1:module}"
     ],
-    "description": "Import a Skylang multi-language interop bridge module"
+    "description": "Import a Skylang module or language bridge"
+  },
+  "Import Module with Alias": {
+    "prefix": "impas",
+    "body": [
+      "import ${1:module} as ${2:alias}"
+    ],
+    "description": "Import a module or language bridge with an alias"
+  },
+  "From Module Import": {
+    "prefix": "from",
+    "body": [
+      "from ${1:module} import ${2:symbols}"
+    ],
+    "description": "Selectively import symbols from a module"
+  },
+  "From Module Import with Alias": {
+    "prefix": "fromas",
+    "body": [
+      "from ${1:module} import ${2:symbol} as ${3:alias}"
+    ],
+    "description": "Import a symbol from a module with an alias"
+  },
+  "From Module Import All (Wildcard)": {
+    "prefix": "fromall",
+    "body": [
+      "from ${1:module} import *"
+    ],
+    "description": "Import all exported symbols from a module into caller scope"
   },
   "C Header Import (FFI)": {
     "prefix": "cimport",

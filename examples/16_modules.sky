@@ -1,0 +1,50 @@
+# ==============================================================================
+# Skylang Example 16: Python-style Module Imports (import, from, as, *)
+# ==============================================================================
+
+print("=== 1. Standard Module Import ===")
+import math_utils
+println("math_utils.PI:", math_utils.PI)
+println("math_utils.add(10, 20):", math_utils.add(10, 20))
+println("math_utils.multiply(6, 7):", math_utils.multiply(6, 7))
+
+calc = math_utils.Calculator(100)
+calc.add(25)
+println("Calculator value:", calc.get_val())
+
+print("\n=== 2. Module Import with Alias (`as`) ===")
+import math_utils as mu
+println("mu.PI:", mu.PI)
+println("mu.square(8):", mu.square(8))
+
+print("\n=== 3. Selective Import (`from ... import`) ===")
+from math_utils import add, multiply
+println("add(100, 200):", add(100, 200))
+println("multiply(5, 5):", multiply(5, 5))
+
+print("\n=== 4. Selective Import with Alias (`from ... import ... as ...`) ===")
+from math_utils import square as sq, Calculator as Calc
+println("sq(9):", sq(9))
+c2 = Calc(50)
+c2.add(15)
+println("c2 value:", c2.get_val())
+
+print("\n=== 5. Wildcard Import (`from ... import *`) ===")
+from math_utils import *
+println("Wildcard PI:", PI)
+println("Wildcard E:", E)
+println("Wildcard square(12):", square(12))
+
+print("\n=== 6. Subdirectory / Nested Module Import ===")
+import sub.helper as sh
+from sub.helper import greet
+println(sh.format_info("Author", "Skylang Team"))
+println(greet("Developer"))
+
+print("\n=== 7. Foreign Bridge with Alias ===")
+import python as py
+py_math = py.load("math")
+println("py_math.sqrt(1024):", py_math.sqrt(1024))
+
+
+print("\n=== Module import tests completed successfully! ===")

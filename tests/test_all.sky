@@ -166,4 +166,20 @@ pub extern \"C\" fn square(x: f64) -> f64 {
 ")
 if rust_calc.square(9.0) != 81 { panic("Test failed: rust.compile JIT") }
 
+// 14. Module Imports (Python-style import, from, as, *)
+import examples.math_utils as emu
+if emu.add(15, 35) != 50 { panic("Test failed: import with alias function call") }
+if emu.multiply(7, 8) != 56 { panic("Test failed: import with alias multiply") }
+calc_test := emu.Calculator(50)
+calc_test.add(25)
+if calc_test.get_val() != 75 { panic("Test failed: imported class instantiation") }
+
+from examples.math_utils import square as mod_square, E as MOD_E
+if mod_square(7) != 49 { panic("Test failed: from ... import ... as ...") }
+if MOD_E < 2.7 || MOD_E > 2.8 { panic("Test failed: from ... import constant") }
+
+from examples.sub.helper import greet as mod_greet
+if mod_greet("Skylang") != "Hello from sub.helper, Skylang!" { panic("Test failed: nested submodule import") }
+
 println("All Skylang tests passed successfully! [100% OK]")
+

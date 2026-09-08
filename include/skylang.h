@@ -56,6 +56,8 @@ typedef enum {
     TOK_KW_EXTERN,    /* extern */
     TOK_KW_CIMPORT,   /* cimport */
     TOK_KW_IMPORT,    /* import */
+    TOK_KW_FROM,      /* from */
+    TOK_KW_AS,        /* as */
 
     /* Operators */
     TOK_PLUS,         /* + */
@@ -162,9 +164,20 @@ typedef enum {
     AST_NAMED_ARG,
     AST_STMT_EXTERN_DECL,  /* extern f name(params) */
     AST_STMT_CIMPORT,      /* cimport "header.h" */
-    AST_STMT_IMPORT,       /* import python / js / cpp / java */
+    AST_STMT_IMPORT,       /* import module [as alias], ... */
+    AST_STMT_FROM_IMPORT,  /* from module import symbol [as alias], ... or * */
     AST_PROGRAM
 } AstNodeType;
+
+typedef struct {
+    char* path;     /* e.g. "math_utils" or "sub/helper" or "python" */
+    char* alias;    /* e.g. "mu" or "sh" or "math_utils" */
+} ImportItem;
+
+typedef struct {
+    char* symbol;   /* e.g. "add" or "MyClass" */
+    char* alias;    /* e.g. "my_add" (or same as symbol) */
+} FromImportItem;
 
 typedef struct AstNode AstNode;
 
@@ -351,10 +364,19 @@ struct AstNode {
 
         /* AST_STMT_IMPORT */
         struct {
+            ImportItem* items;
+            size_t count;
             char* module_name;
             char** module_names;
-            size_t count;
         } import_stmt;
+
+        /* AST_STMT_FROM_IMPORT */
+        struct {
+            char* module_path;
+            FromImportItem* items;
+            size_t count;
+            bool is_wildcard;
+        } from_import;
     } as;
 };
 

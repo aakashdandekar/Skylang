@@ -1,0 +1,11 @@
+// Submodule helper
+
+f greet {
+    takes(name)
+    return "Hello from sub.helper, " + name + "!"
+}
+
+f format_info {
+    takes(key, value)
+    return key + ": " + value
+}

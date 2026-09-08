@@ -15,8 +15,9 @@ This guide is designed for students learning Skylang from scratch. By the end of
 6. [Control Flow](#6-control-flow)
 7. [Functions & The takes(...) Feature](#7-functions--the-takes-feature)
 8. [Object-Oriented Programming (Classes)](#8-object-oriented-programming-classes)
-9. [Error Handling & Memory Management](#9-error-handling--memory-management)
-10. [Student Practice Exercises](#10-student-practice-exercises)
+9. [Modules & File Importing](#9-modules--file-importing)
+10. [Error Handling & Memory Management](#10-error-handling--memory-management)
+11. [Student Practice Exercises](#11-student-practice-exercises)
 
 
 ---
@@ -411,7 +412,61 @@ print("Balance:", acc.getBalance())  // 1300
 
 ---
 
-## 9. Error Handling & Memory Management
+## 9. Modules & File Importing
+
+Skylang supports modular code organization using Python-style file and package imports:
+
+### Standard Module Import (`import <module>`)
+```skylang
+import math_utils
+
+println("PI:", math_utils.PI)
+println("add(5, 10):", math_utils.add(5, 10))
+```
+
+### Module & Bridge Aliasing (`as`)
+```skylang
+import math_utils as mu
+import python as py
+
+println("mu.square(8):", mu.square(8))
+py_math := py.load("math")
+```
+
+### Selective Imports (`from <module> import <symbols>`)
+```skylang
+from math_utils import add, multiply, Calculator
+
+println("Sum:", add(10, 20))
+c := Calculator(50)
+```
+
+### Symbol Aliasing
+```skylang
+from math_utils import square as sq, Calculator as Calc
+
+println("sq(9):", sq(9))
+```
+
+### Wildcard Import (`from <module> import *`)
+```skylang
+from math_utils import *
+
+println("PI:", PI)
+println("Square of 4:", square(4))
+```
+
+### Nested Submodule Imports (`sub.helper`)
+```skylang
+import sub.helper as sh
+from sub.helper import greet
+
+println(greet("Student"))
+```
+
+---
+
+## 10. Error Handling & Memory Management
 
 ### Go-Style Error Handling (`var, err := function()`)
 In Skylang, you do **not** need to return `result, none` every time. A function's normal return statement is simply `return a`, and if no error occurs, the `err` variable is automatically set to `none` when unpacked!
@@ -537,7 +592,7 @@ println("Rust PI:", rust_math.PI)
 
 ---
 
-## 10. Student Practice Exercises
+## 11. Student Practice Exercises
 
 ### Exercise 1: Temperature Converter
 Write a program that converts Celsius to Fahrenheit using formula `F = (C * 9/5) + 32`.

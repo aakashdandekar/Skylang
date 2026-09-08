@@ -81,6 +81,295 @@ static void scope_add(const char* name) {
     }
 }
 
+/* Module Management System */
+typedef struct {
+    int mod_id;
+    char* mod_path;
+    char* mod_name;
+    char* filepath;
+    AstNode* ast;
+} LoadedModule;
+
+typedef struct {
+    LoadedModule* items;
+    size_t count;
+    size_t capacity;
+} ModuleRegistry;
+
+static ModuleRegistry registry = { NULL, 0, 0 };
+
+static void registry_init(void) {
+    registry.items = NULL;
+    registry.count = 0;
+    registry.capacity = 0;
+}
+
+static bool file_readable(const char* path) {
+    return access(path, R_OK) == 0;
+}
+
+static char* read_file_contents(const char* path) {
+    FILE* f = fopen(path, "rb");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (size < 0) { fclose(f); return NULL; }
+    char* buf = (char*)malloc(size + 1);
+    if (!buf) { fclose(f); return NULL; }
+    size_t read_bytes = fread(buf, 1, size, f);
+    buf[read_bytes] = '\0';
+    fclose(f);
+    return buf;
+}
+
+static char* sanitize_identifier(const char* str) {
+    if (!str) return strdup("mod");
+    char* s = strdup(str);
+    for (char* p = s; *p; ++p) {
+        if (*p == '/' || *p == '.' || *p == '\\' || *p == '-') {
+            *p = '_';
+        }
+    }
+    return s;
+}
+
+static bool is_foreign_module(const char* name) {
+    if (!name) return false;
+    return (strcmp(name, "python") == 0 ||
+            strcmp(name, "js") == 0 ||
+            strcmp(name, "cpp") == 0 ||
+            strcmp(name, "java") == 0 ||
+            strcmp(name, "go") == 0 ||
+            strcmp(name, "golang") == 0 ||
+            strcmp(name, "rust") == 0);
+}
+
+static bool is_stdlib_module(const char* name) {
+    if (!name) return false;
+    return (strcmp(name, "math") == 0 ||
+            strcmp(name, "str") == 0);
+}
+
+static char* resolve_module_file(const char* base_dir, const char* mod_path) {
+    char candidate[1024];
+
+    if (file_readable(mod_path)) {
+        return strdup(mod_path);
+    }
+
+    snprintf(candidate, sizeof(candidate), "%s.sky", mod_path);
+    if (file_readable(candidate)) return strdup(candidate);
+
+    if (base_dir && strlen(base_dir) > 0) {
+        snprintf(candidate, sizeof(candidate), "%s/%s.sky", base_dir, mod_path);
+        if (file_readable(candidate)) return strdup(candidate);
+
+        snprintf(candidate, sizeof(candidate), "%s/%s/init.sky", base_dir, mod_path);
+        if (file_readable(candidate)) return strdup(candidate);
+
+        snprintf(candidate, sizeof(candidate), "%s/%s/mod.sky", base_dir, mod_path);
+        if (file_readable(candidate)) return strdup(candidate);
+
+        snprintf(candidate, sizeof(candidate), "%s/%s", base_dir, mod_path);
+        if (file_readable(candidate)) return strdup(candidate);
+    }
+
+    snprintf(candidate, sizeof(candidate), "./%s.sky", mod_path);
+    if (file_readable(candidate)) return strdup(candidate);
+
+    snprintf(candidate, sizeof(candidate), "./%s/init.sky", mod_path);
+    if (file_readable(candidate)) return strdup(candidate);
+
+    snprintf(candidate, sizeof(candidate), "./%s/mod.sky", mod_path);
+    if (file_readable(candidate)) return strdup(candidate);
+
+    snprintf(candidate, sizeof(candidate), "./%s", mod_path);
+    if (file_readable(candidate)) return strdup(candidate);
+
+    snprintf(candidate, sizeof(candidate), "examples/%s.sky", mod_path);
+    if (file_readable(candidate)) return strdup(candidate);
+
+    snprintf(candidate, sizeof(candidate), "examples/%s/init.sky", mod_path);
+    if (file_readable(candidate)) return strdup(candidate);
+
+    snprintf(candidate, sizeof(candidate), "examples/%s", mod_path);
+    if (file_readable(candidate)) return strdup(candidate);
+
+    return NULL;
+}
+
+static LoadedModule* find_loaded_module(ModuleRegistry* reg, const char* filepath, const char* mod_path) {
+    for (size_t i = 0; i < reg->count; ++i) {
+        if (filepath && reg->items[i].filepath && strcmp(reg->items[i].filepath, filepath) == 0) {
+            return &reg->items[i];
+        }
+        if (mod_path && reg->items[i].mod_path && strcmp(reg->items[i].mod_path, mod_path) == 0) {
+            return &reg->items[i];
+        }
+    }
+    return NULL;
+}
+
+static void load_modules_from_ast(ModuleRegistry* reg, AstNode* node, const char* current_file_path);
+
+static LoadedModule* load_module_file(ModuleRegistry* reg, const char* mod_path, const char* current_file_path) {
+    if (!mod_path) return NULL;
+    if (is_foreign_module(mod_path) || is_stdlib_module(mod_path)) return NULL;
+
+    char base_dir[1024] = {0};
+    if (current_file_path) {
+        const char* last_slash = strrchr(current_file_path, '/');
+        if (last_slash) {
+            size_t dirlen = (size_t)(last_slash - current_file_path);
+            if (dirlen < sizeof(base_dir)) {
+                strncpy(base_dir, current_file_path, dirlen);
+                base_dir[dirlen] = '\0';
+            }
+        }
+    }
+
+    char* resolved = resolve_module_file(base_dir[0] ? base_dir : NULL, mod_path);
+    if (!resolved) {
+        return NULL;
+    }
+
+    LoadedModule* existing = find_loaded_module(reg, resolved, mod_path);
+    if (existing) {
+        free(resolved);
+        return existing;
+    }
+
+    char* source = read_file_contents(resolved);
+    if (!source) {
+        free(resolved);
+        return NULL;
+    }
+
+    Parser parser;
+    parser_init(&parser, source, resolved);
+    AstNode* mast = parse_program(&parser);
+    if (!mast || parser.had_error) {
+        free(source);
+        free(resolved);
+        return NULL;
+    }
+
+    if (reg->count >= reg->capacity) {
+        reg->capacity = reg->capacity < 8 ? 8 : reg->capacity * 2;
+        reg->items = (LoadedModule*)realloc(reg->items, reg->capacity * sizeof(LoadedModule));
+    }
+
+    int id = (int)(reg->count + 1);
+    char* mod_name = sanitize_identifier(mod_path);
+
+    LoadedModule* mod = &reg->items[reg->count++];
+    mod->mod_id = id;
+    mod->mod_path = strdup(mod_path);
+    mod->mod_name = mod_name;
+    mod->filepath = resolved;
+    mod->ast = mast;
+
+    load_modules_from_ast(reg, mast, resolved);
+    return mod;
+}
+
+static void load_modules_from_ast(ModuleRegistry* reg, AstNode* node, const char* current_file_path) {
+    if (!node) return;
+    if (node->type == AST_PROGRAM || node->type == AST_STMT_BLOCK) {
+        for (size_t i = 0; i < node->as.block.statements.count; ++i) {
+            load_modules_from_ast(reg, node->as.block.statements.items[i], current_file_path);
+        }
+    } else if (node->type == AST_STMT_IMPORT) {
+        for (size_t i = 0; i < node->as.import_stmt.count; ++i) {
+            const char* mpath = node->as.import_stmt.items ? node->as.import_stmt.items[i].path : node->as.import_stmt.module_names[i];
+            load_module_file(reg, mpath, current_file_path);
+        }
+    } else if (node->type == AST_STMT_FROM_IMPORT) {
+        load_module_file(reg, node->as.from_import.module_path, current_file_path);
+    }
+}
+
+static void add_global_id(const char* name, const char** vars, size_t* count, size_t max) {
+    if (!name || strcmp(name, "_") == 0 || strcmp(name, "this") == 0) return;
+    for (size_t i = 0; i < *count; ++i) {
+        if (strcmp(vars[i], name) == 0) return;
+    }
+    if (*count < max) {
+        vars[(*count)++] = name;
+    }
+}
+
+static void collect_global_identifiers(AstNode* node, const char** vars, size_t* count, size_t max) {
+    if (!node) return;
+    switch (node->type) {
+        case AST_PROGRAM:
+        case AST_STMT_BLOCK: {
+            for (size_t i = 0; i < node->as.block.statements.count; ++i) {
+                collect_global_identifiers(node->as.block.statements.items[i], vars, count, max);
+            }
+            break;
+        }
+        case AST_STMT_VAR_DECL:
+            add_global_id(node->as.var_decl.name, vars, count, max);
+            break;
+        case AST_STMT_ASSIGN:
+            if (node->as.assign.target && node->as.assign.target->type == AST_VARIABLE) {
+                add_global_id(node->as.assign.target->as.variable.name, vars, count, max);
+            }
+            break;
+        case AST_STMT_MULTI_VAR_DECL:
+        case AST_STMT_MULTI_ASSIGN:
+            for (size_t i = 0; i < node->as.multi_assign.count; ++i) {
+                add_global_id(node->as.multi_assign.names[i], vars, count, max);
+            }
+            break;
+        case AST_STMT_FN_DECL:
+            add_global_id(node->as.fn_decl.name, vars, count, max);
+            break;
+        case AST_STMT_CLASS_DECL:
+            add_global_id(node->as.class_decl.name, vars, count, max);
+            break;
+        case AST_STMT_EXTERN_DECL:
+            add_global_id(node->as.extern_decl.name, vars, count, max);
+            break;
+        case AST_STMT_IMPORT:
+            for (size_t i = 0; i < node->as.import_stmt.count; ++i) {
+                if (node->as.import_stmt.items) {
+                    add_global_id(node->as.import_stmt.items[i].alias, vars, count, max);
+                } else if (node->as.import_stmt.module_names) {
+                    add_global_id(node->as.import_stmt.module_names[i], vars, count, max);
+                }
+            }
+            break;
+        case AST_STMT_FROM_IMPORT:
+            if (node->as.from_import.is_wildcard) {
+                LoadedModule* mod = find_loaded_module(&registry, NULL, node->as.from_import.module_path);
+                if (mod) {
+                    for (size_t s = 0; s < mod->ast->as.block.statements.count; ++s) {
+                        AstNode* mstmt = mod->ast->as.block.statements.items[s];
+                        if (mstmt->type == AST_STMT_FN_DECL) {
+                            add_global_id(mstmt->as.fn_decl.name, vars, count, max);
+                        } else if (mstmt->type == AST_STMT_CLASS_DECL) {
+                            add_global_id(mstmt->as.class_decl.name, vars, count, max);
+                        } else if (mstmt->type == AST_STMT_VAR_DECL) {
+                            add_global_id(mstmt->as.var_decl.name, vars, count, max);
+                        } else if (mstmt->type == AST_STMT_ASSIGN && mstmt->as.assign.target->type == AST_VARIABLE) {
+                            add_global_id(mstmt->as.assign.target->as.variable.name, vars, count, max);
+                        }
+                    }
+                }
+            } else if (node->as.from_import.items) {
+                for (size_t i = 0; i < node->as.from_import.count; ++i) {
+                    add_global_id(node->as.from_import.items[i].alias ? node->as.from_import.items[i].alias : node->as.from_import.items[i].symbol, vars, count, max);
+                }
+            }
+            break;
+        default:
+            break;
+    }
+}
+
 static void emit_expr(Buffer* b, AstNode* node, const char* current_class);
 static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, int indent);
 
@@ -406,76 +695,16 @@ static void emit_expr(Buffer* b, AstNode* node, const char* current_class) {
             buf_printf(b, "_s_%d; })", t);
             break;
         }
-        case AST_STMT_ASSIGN: {
-            AstNode* tgt = node->as.assign.target;
-            TokenType op = node->as.assign.op;
-            if (tgt->type == AST_VARIABLE) {
-                if (op == TOK_ASSIGN || op == TOK_WALRUS) {
-                    buf_printf(b, "(sky_var_%s = ", tgt->as.variable.name);
-                    emit_expr(b, node->as.assign.value, current_class);
-                    buf_puts(b, ")");
-                } else if (op == TOK_PLUS_ASSIGN) {
-                    buf_printf(b, "(sky_var_%s = val_add(sky_var_%s, ", tgt->as.variable.name, tgt->as.variable.name);
-                    emit_expr(b, node->as.assign.value, current_class);
-                    buf_puts(b, "))");
-                } else if (op == TOK_MINUS_ASSIGN) {
-                    buf_printf(b, "(sky_var_%s = val_sub(sky_var_%s, ", tgt->as.variable.name, tgt->as.variable.name);
-                    emit_expr(b, node->as.assign.value, current_class);
-                    buf_puts(b, "))");
-                } else if (op == TOK_STAR_ASSIGN) {
-                    buf_printf(b, "(sky_var_%s = val_mul(sky_var_%s, ", tgt->as.variable.name, tgt->as.variable.name);
-                    emit_expr(b, node->as.assign.value, current_class);
-                    buf_puts(b, "))");
-                } else if (op == TOK_SLASH_ASSIGN) {
-                    buf_printf(b, "(sky_var_%s = val_div(sky_var_%s, ", tgt->as.variable.name, tgt->as.variable.name);
-                    emit_expr(b, node->as.assign.value, current_class);
-                    buf_puts(b, "))");
-                }
-            } else if (tgt->type == AST_THIS_VAR) {
-                if (op == TOK_ASSIGN || op == TOK_WALRUS) {
-                    buf_printf(b, "val_set_prop(sky_this, \"%s\", ", tgt->as.variable.name);
-                    emit_expr(b, node->as.assign.value, current_class);
-                    buf_puts(b, ")");
-                } else if (op == TOK_PLUS_ASSIGN) {
-                    buf_printf(b, "val_set_prop(sky_this, \"%s\", val_add(val_get_prop(sky_this, \"%s\"), ",
-                               tgt->as.variable.name, tgt->as.variable.name);
-                    emit_expr(b, node->as.assign.value, current_class);
-                    buf_puts(b, "))");
-                } else if (op == TOK_MINUS_ASSIGN) {
-                    buf_printf(b, "val_set_prop(sky_this, \"%s\", val_sub(val_get_prop(sky_this, \"%s\"), ",
-                               tgt->as.variable.name, tgt->as.variable.name);
-                    emit_expr(b, node->as.assign.value, current_class);
-                    buf_puts(b, "))");
-                } else if (op == TOK_STAR_ASSIGN) {
-                    buf_printf(b, "val_set_prop(sky_this, \"%s\", val_mul(val_get_prop(sky_this, \"%s\"), ",
-                               tgt->as.variable.name, tgt->as.variable.name);
-                    emit_expr(b, node->as.assign.value, current_class);
-                    buf_puts(b, "))");
-                } else if (op == TOK_SLASH_ASSIGN) {
-                    buf_printf(b, "val_set_prop(sky_this, \"%s\", val_div(val_get_prop(sky_this, \"%s\"), ",
-                               tgt->as.variable.name, tgt->as.variable.name);
-                    emit_expr(b, node->as.assign.value, current_class);
-                    buf_puts(b, "))");
-                }
+        case AST_SORTED_LIST_LIT: {
+            int t = temp_var_counter++;
+            size_t count = node->as.collection.items.count;
+            buf_printf(b, "({ Value _sl_%d = val_sorted_list(); ObjSortedList* _osl_%d = as_sorted_list(_sl_%d); ", t, t, t);
+            for (size_t i = 0; i < count; ++i) {
+                buf_printf(b, "sorted_list_push(_osl_%d, ", t);
+                emit_expr(b, node->as.collection.items.items[i], current_class);
+                buf_puts(b, "); ");
             }
-            break;
-        }
-        case AST_INDEX_SET: {
-            buf_puts(b, "val_set_index(");
-            emit_expr(b, node->as.index.target, current_class);
-            buf_puts(b, ", ");
-            emit_expr(b, node->as.index.index, current_class);
-            buf_puts(b, ", ");
-            emit_expr(b, node->as.index.value, current_class);
-            buf_puts(b, ")");
-            break;
-        }
-        case AST_PROP_SET: {
-            buf_puts(b, "val_set_prop(");
-            emit_expr(b, node->as.prop.target, current_class);
-            buf_printf(b, ", \"%s\", ", node->as.prop.prop_name);
-            emit_expr(b, node->as.prop.value, current_class);
-            buf_puts(b, ")");
+            buf_printf(b, "_sl_%d; })", t);
             break;
         }
         default:
@@ -488,53 +717,30 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
     if (!stmt) return;
 
     if (codegen_source_filename && stmt->line > 0) {
-        buf_printf(b, "#line %d \"%s\"\n", stmt->line, codegen_source_filename);
+        emit_indent(b, indent);
+        buf_printf(b, "sky_set_loc(\"%s\", %d, \"%s\");\n", codegen_source_filename, stmt->line, codegen_current_fn);
     }
+
     emit_indent(b, indent);
-    if (codegen_source_filename && stmt->line > 0) {
-        buf_printf(b, "sky_set_loc(\"%s\", %d, \"%s\"); ",
-                   codegen_source_filename, stmt->line, codegen_current_fn ? codegen_current_fn : "<main>");
-    }
 
     switch (stmt->type) {
         case AST_STMT_EXPR: {
-            if (stmt->as.expr_stmt.expr->type == AST_CALL &&
-                stmt->as.expr_stmt.expr->as.call.callee->type == AST_VARIABLE &&
-                strcmp(stmt->as.expr_stmt.expr->as.call.callee->as.variable.name, "takes") == 0) {
-                buf_puts(b, "\n");
-                return;
-            }
             emit_expr(b, stmt->as.expr_stmt.expr, current_class);
             buf_puts(b, ";\n");
             break;
         }
         case AST_STMT_VAR_DECL: {
-            const char* name = stmt->as.var_decl.name;
-            TokenType tt = stmt->as.var_decl.type_tok;
-            if (scope_has(name)) {
-                buf_printf(b, "sky_var_%s = ", name);
+            const char* vname = stmt->as.var_decl.name;
+            if (scope_has(vname)) {
+                buf_printf(b, "sky_var_%s = ", vname);
             } else {
-                scope_add(name);
-                buf_printf(b, "Value sky_var_%s = ", name);
+                scope_add(vname);
+                buf_printf(b, "Value sky_var_%s = ", vname);
             }
             if (stmt->as.var_decl.init_expr) {
                 emit_expr(b, stmt->as.var_decl.init_expr, current_class);
-            } else if (stmt->as.var_decl.size_expr) {
-
-                buf_puts(b, "val_array((size_t)(");
-                emit_expr(b, stmt->as.var_decl.size_expr, current_class);
-                buf_puts(b, ").as.i, ");
-                switch (tt) {
-                    case TOK_KW_I: buf_puts(b, "TYPE_INT"); break;
-                    case TOK_KW_D: buf_puts(b, "TYPE_DOUBLE"); break;
-                    case TOK_KW_B: buf_puts(b, "TYPE_BOOL"); break;
-                    case TOK_KW_C: buf_puts(b, "TYPE_CHAR"); break;
-                    case TOK_KW_S: buf_puts(b, "TYPE_STRING"); break;
-                    default: buf_puts(b, "TYPE_NIL"); break;
-                }
-                buf_puts(b, ")");
             } else {
-                switch (tt) {
+                switch (stmt->as.var_decl.type_tok) {
                     case TOK_KW_I: buf_puts(b, "val_int(0)"); break;
                     case TOK_KW_D: buf_puts(b, "val_double(0.0)"); break;
                     case TOK_KW_B: buf_puts(b, "val_bool(false)"); break;
@@ -554,29 +760,32 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
         case AST_STMT_ASSIGN: {
             AstNode* tgt = stmt->as.assign.target;
             TokenType op = stmt->as.assign.op;
+
             if (tgt->type == AST_VARIABLE) {
-                if (!scope_has(tgt->as.variable.name)) {
-                    scope_add(tgt->as.variable.name);
-                    buf_printf(b, "Value sky_var_%s = ", tgt->as.variable.name);
+                const char* vname = tgt->as.variable.name;
+                if (!scope_has(vname)) {
+                    scope_add(vname);
+                    buf_printf(b, "Value sky_var_%s = ", vname);
                 } else {
-                    buf_printf(b, "sky_var_%s = ", tgt->as.variable.name);
+                    buf_printf(b, "sky_var_%s = ", vname);
                 }
+
                 if (op == TOK_ASSIGN || op == TOK_WALRUS) {
                     emit_expr(b, stmt->as.assign.value, current_class);
                 } else if (op == TOK_PLUS_ASSIGN) {
-                    buf_printf(b, "val_add(sky_var_%s, ", tgt->as.variable.name);
+                    buf_printf(b, "val_add(sky_var_%s, ", vname);
                     emit_expr(b, stmt->as.assign.value, current_class);
                     buf_puts(b, ")");
                 } else if (op == TOK_MINUS_ASSIGN) {
-                    buf_printf(b, "val_sub(sky_var_%s, ", tgt->as.variable.name);
+                    buf_printf(b, "val_sub(sky_var_%s, ", vname);
                     emit_expr(b, stmt->as.assign.value, current_class);
                     buf_puts(b, ")");
                 } else if (op == TOK_STAR_ASSIGN) {
-                    buf_printf(b, "val_mul(sky_var_%s, ", tgt->as.variable.name);
+                    buf_printf(b, "val_mul(sky_var_%s, ", vname);
                     emit_expr(b, stmt->as.assign.value, current_class);
                     buf_puts(b, ")");
                 } else if (op == TOK_SLASH_ASSIGN) {
-                    buf_printf(b, "val_div(sky_var_%s, ", tgt->as.variable.name);
+                    buf_printf(b, "val_div(sky_var_%s, ", vname);
                     emit_expr(b, stmt->as.assign.value, current_class);
                     buf_puts(b, ")");
                 }
@@ -736,23 +945,161 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
             buf_puts(b, "}\n");
             break;
         }
+        case AST_STMT_IMPORT: {
+            for (size_t i = 0; i < stmt->as.import_stmt.count; ++i) {
+                const char* mpath = stmt->as.import_stmt.items ? stmt->as.import_stmt.items[i].path : stmt->as.import_stmt.module_names[i];
+                const char* alias = stmt->as.import_stmt.items ? stmt->as.import_stmt.items[i].alias : mpath;
+                if (!alias) alias = mpath;
+
+                if (strcmp(mpath, "python") == 0) {
+                    buf_printf(b, "sky_var_%s = sky_python_init();\n", alias);
+                } else if (strcmp(mpath, "js") == 0) {
+                    buf_printf(b, "sky_var_%s = sky_js_init();\n", alias);
+                } else if (strcmp(mpath, "cpp") == 0) {
+                    buf_printf(b, "sky_var_%s = sky_cpp_init();\n", alias);
+                } else if (strcmp(mpath, "java") == 0) {
+                    buf_printf(b, "sky_var_%s = sky_java_init();\n", alias);
+                } else if (strcmp(mpath, "go") == 0 || strcmp(mpath, "golang") == 0) {
+                    buf_printf(b, "sky_var_%s = sky_go_init();\n", alias);
+                } else if (strcmp(mpath, "rust") == 0) {
+                    buf_printf(b, "sky_var_%s = sky_rust_init();\n", alias);
+                } else if (strcmp(mpath, "math") == 0) {
+                    buf_printf(b, "sky_var_%s = sky_mod_math;\n", alias);
+                } else {
+                    LoadedModule* mod = find_loaded_module(&registry, NULL, mpath);
+                    if (mod) {
+                        buf_printf(b, "sky_var_%s = sky_m%d_init();\n", alias, mod->mod_id);
+                    }
+                }
+            }
+            break;
+        }
+        case AST_STMT_FROM_IMPORT: {
+            const char* mpath = stmt->as.from_import.module_path;
+            if (strcmp(mpath, "python") == 0) {
+                int t = temp_var_counter++;
+                buf_printf(b, "Value _mmod_%d = sky_python_init();\n", t);
+                emit_indent(b, indent);
+                buf_printf(b, "ObjDict* _mdict_%d = as_dict(_mmod_%d);\n", t, t);
+                for (size_t i = 0; i < stmt->as.from_import.count; ++i) {
+                    FromImportItem* item = &stmt->as.from_import.items[i];
+                    emit_indent(b, indent);
+                    buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                               item->alias ? item->alias : item->symbol, t, item->symbol);
+                }
+            } else if (strcmp(mpath, "js") == 0) {
+                int t = temp_var_counter++;
+                buf_printf(b, "Value _mmod_%d = sky_js_init();\n", t);
+                emit_indent(b, indent);
+                buf_printf(b, "ObjDict* _mdict_%d = as_dict(_mmod_%d);\n", t, t);
+                for (size_t i = 0; i < stmt->as.from_import.count; ++i) {
+                    FromImportItem* item = &stmt->as.from_import.items[i];
+                    emit_indent(b, indent);
+                    buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                               item->alias ? item->alias : item->symbol, t, item->symbol);
+                }
+            } else if (strcmp(mpath, "go") == 0 || strcmp(mpath, "golang") == 0) {
+                int t = temp_var_counter++;
+                buf_printf(b, "Value _mmod_%d = sky_go_init();\n", t);
+                emit_indent(b, indent);
+                buf_printf(b, "ObjDict* _mdict_%d = as_dict(_mmod_%d);\n", t, t);
+                for (size_t i = 0; i < stmt->as.from_import.count; ++i) {
+                    FromImportItem* item = &stmt->as.from_import.items[i];
+                    emit_indent(b, indent);
+                    buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                               item->alias ? item->alias : item->symbol, t, item->symbol);
+                }
+            } else if (strcmp(mpath, "rust") == 0) {
+                int t = temp_var_counter++;
+                buf_printf(b, "Value _mmod_%d = sky_rust_init();\n", t);
+                emit_indent(b, indent);
+                buf_printf(b, "ObjDict* _mdict_%d = as_dict(_mmod_%d);\n", t, t);
+                for (size_t i = 0; i < stmt->as.from_import.count; ++i) {
+                    FromImportItem* item = &stmt->as.from_import.items[i];
+                    emit_indent(b, indent);
+                    buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                               item->alias ? item->alias : item->symbol, t, item->symbol);
+                }
+            } else if (strcmp(mpath, "cpp") == 0) {
+                int t = temp_var_counter++;
+                buf_printf(b, "Value _mmod_%d = sky_cpp_init();\n", t);
+                emit_indent(b, indent);
+                buf_printf(b, "ObjDict* _mdict_%d = as_dict(_mmod_%d);\n", t, t);
+                for (size_t i = 0; i < stmt->as.from_import.count; ++i) {
+                    FromImportItem* item = &stmt->as.from_import.items[i];
+                    emit_indent(b, indent);
+                    buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                               item->alias ? item->alias : item->symbol, t, item->symbol);
+                }
+            } else if (strcmp(mpath, "java") == 0) {
+                int t = temp_var_counter++;
+                buf_printf(b, "Value _mmod_%d = sky_java_init();\n", t);
+                emit_indent(b, indent);
+                buf_printf(b, "ObjDict* _mdict_%d = as_dict(_mmod_%d);\n", t, t);
+                for (size_t i = 0; i < stmt->as.from_import.count; ++i) {
+                    FromImportItem* item = &stmt->as.from_import.items[i];
+                    emit_indent(b, indent);
+                    buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                               item->alias ? item->alias : item->symbol, t, item->symbol);
+                }
+            } else if (strcmp(mpath, "math") == 0) {
+                int t = temp_var_counter++;
+                buf_printf(b, "Value _mmod_%d = sky_mod_math;\n", t);
+                emit_indent(b, indent);
+                buf_printf(b, "ObjDict* _mdict_%d = as_dict(_mmod_%d);\n", t, t);
+                for (size_t i = 0; i < stmt->as.from_import.count; ++i) {
+                    FromImportItem* item = &stmt->as.from_import.items[i];
+                    emit_indent(b, indent);
+                    buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                               item->alias ? item->alias : item->symbol, t, item->symbol);
+                }
+            } else {
+                LoadedModule* mod = find_loaded_module(&registry, NULL, mpath);
+                if (mod) {
+                    int t = temp_var_counter++;
+                    buf_printf(b, "Value _mmod_%d = sky_m%d_init();\n", t, mod->mod_id);
+                    emit_indent(b, indent);
+                    buf_printf(b, "ObjDict* _mdict_%d = as_dict(_mmod_%d);\n", t, t);
+                    if (stmt->as.from_import.is_wildcard) {
+                        for (size_t s = 0; s < mod->ast->as.block.statements.count; ++s) {
+                            AstNode* mstmt = mod->ast->as.block.statements.items[s];
+                            if (mstmt->type == AST_STMT_FN_DECL) {
+                                emit_indent(b, indent);
+                                buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                                           mstmt->as.fn_decl.name, t, mstmt->as.fn_decl.name);
+                            } else if (mstmt->type == AST_STMT_CLASS_DECL) {
+                                emit_indent(b, indent);
+                                buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                                           mstmt->as.class_decl.name, t, mstmt->as.class_decl.name);
+                            } else if (mstmt->type == AST_STMT_VAR_DECL) {
+                                emit_indent(b, indent);
+                                buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                                           mstmt->as.var_decl.name, t, mstmt->as.var_decl.name);
+                            } else if (mstmt->type == AST_STMT_ASSIGN && mstmt->as.assign.target->type == AST_VARIABLE) {
+                                emit_indent(b, indent);
+                                buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                                           mstmt->as.assign.target->as.variable.name, t, mstmt->as.assign.target->as.variable.name);
+                            }
+                        }
+                    } else {
+                        for (size_t i = 0; i < stmt->as.from_import.count; ++i) {
+                            FromImportItem* item = &stmt->as.from_import.items[i];
+                            emit_indent(b, indent);
+                            buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                                       item->alias ? item->alias : item->symbol, t, item->symbol);
+                        }
+                    }
+                }
+            }
+            break;
+        }
         default:
             break;
     }
 }
 
-static void emit_function(Buffer* b, AstNode* fn, const char* class_prefix) {
+static void emit_function_named(Buffer* b, AstNode* fn, const char* func_c_name, const char* func_display_name, const char* class_prefix) {
     scope_clear();
-    char func_c_name[256];
-    char func_display_name[256];
-    if (class_prefix) {
-        snprintf(func_c_name, sizeof(func_c_name), "sky_method_%s_%s", class_prefix, fn->as.fn_decl.name);
-        snprintf(func_display_name, sizeof(func_display_name), "%s.%s", class_prefix, fn->as.fn_decl.name);
-    } else {
-        snprintf(func_c_name, sizeof(func_c_name), "sky_fn_%s", fn->as.fn_decl.name);
-        snprintf(func_display_name, sizeof(func_display_name), "%s", fn->as.fn_decl.name);
-    }
-
     const char* prev_fn = codegen_current_fn;
     codegen_current_fn = func_display_name;
 
@@ -788,9 +1135,14 @@ static void emit_function(Buffer* b, AstNode* fn, const char* class_prefix) {
     codegen_current_fn = prev_fn;
 }
 
+
 char* codegen_emit_c(AstNode* root, const char* filename) {
     codegen_source_filename = filename;
     codegen_current_fn = "<main>";
+    registry_init();
+
+    load_modules_from_ast(&registry, root, filename);
+
     Buffer b;
     buf_init(&b);
 
@@ -837,6 +1189,26 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
             buf_puts(&b, ");\n");
             buf_puts(&b, "    return val_double(_result);\n");
             buf_puts(&b, "}\n\n");
+        }
+    }
+
+    for (size_t m = 0; m < registry.count; ++m) {
+        LoadedModule* mod = &registry.items[m];
+        buf_printf(&b, "static Value sky_m%d_module_val = { .type = VAL_NIL };\n", mod->mod_id);
+        buf_printf(&b, "static bool sky_m%d_module_initialized = false;\n", mod->mod_id);
+        buf_printf(&b, "static Value sky_m%d_init(void);\n", mod->mod_id);
+
+        for (size_t s = 0; s < mod->ast->as.block.statements.count; ++s) {
+            AstNode* stmt = mod->ast->as.block.statements.items[s];
+            if (stmt->type == AST_STMT_FN_DECL) {
+                buf_printf(&b, "static Value sky_m%d_fn_%s(int argc, Value* argv);\n", mod->mod_id, stmt->as.fn_decl.name);
+            } else if (stmt->type == AST_STMT_CLASS_DECL) {
+                for (size_t k = 0; k < stmt->as.class_decl.methods.count; ++k) {
+                    AstNode* mfn = stmt->as.class_decl.methods.items[k];
+                    buf_printf(&b, "static Value sky_m%d_method_%s_%s(int argc, Value* argv);\n",
+                               mod->mod_id, stmt->as.class_decl.name, mfn->as.fn_decl.name);
+                }
+            }
         }
     }
 
@@ -892,20 +1264,18 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "static Value sky_var_golang;\n");
     buf_puts(&b, "static Value sky_var_rust;\n");
 
-    for (size_t i = 0; i < root->as.block.statements.count; ++i) {
-        AstNode* stmt = root->as.block.statements.items[i];
-        if (stmt->type == AST_STMT_EXTERN_DECL) {
-            buf_printf(&b, "static Value sky_var_%s;\n", stmt->as.extern_decl.name);
-        }
-    }
+    const char* all_global_vars[4096];
+    size_t global_vars_count = 0;
 
-    for (size_t i = 0; i < root->as.block.statements.count; ++i) {
-        AstNode* stmt = root->as.block.statements.items[i];
-        if (stmt->type == AST_STMT_FN_DECL) {
-            buf_printf(&b, "static Value sky_var_%s;\n", stmt->as.fn_decl.name);
-        } else if (stmt->type == AST_STMT_CLASS_DECL) {
-            buf_printf(&b, "static Value sky_var_%s;\n", stmt->as.class_decl.name);
-        }
+    for (size_t m = 0; m < registry.count; ++m) {
+        LoadedModule* mod = &registry.items[m];
+        add_global_id(mod->mod_name, all_global_vars, &global_vars_count, 4096);
+        collect_global_identifiers(mod->ast, all_global_vars, &global_vars_count, 4096);
+    }
+    collect_global_identifiers(root, all_global_vars, &global_vars_count, 4096);
+
+    for (size_t i = 0; i < global_vars_count; ++i) {
+        buf_printf(&b, "static Value sky_var_%s;\n", all_global_vars[i]);
     }
     buf_puts(&b, "\n");
 
@@ -978,13 +1348,139 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "    return val_error(\"error\");\n");
     buf_puts(&b, "}\n\n");
 
+    /* Emit function & class method definitions for all loaded modules */
+    for (size_t m = 0; m < registry.count; ++m) {
+        LoadedModule* mod = &registry.items[m];
+        codegen_source_filename = mod->filepath;
+        for (size_t s = 0; s < mod->ast->as.block.statements.count; ++s) {
+            AstNode* stmt = mod->ast->as.block.statements.items[s];
+            if (stmt->type == AST_STMT_FN_DECL) {
+                char cname[256], dname[256];
+                snprintf(cname, sizeof(cname), "sky_m%d_fn_%s", mod->mod_id, stmt->as.fn_decl.name);
+                snprintf(dname, sizeof(dname), "%s.%s", mod->mod_name, stmt->as.fn_decl.name);
+                emit_function_named(&b, stmt, cname, dname, NULL);
+            } else if (stmt->type == AST_STMT_CLASS_DECL) {
+                for (size_t k = 0; k < stmt->as.class_decl.methods.count; ++k) {
+                    AstNode* mfn = stmt->as.class_decl.methods.items[k];
+                    char cname[256], dname[256];
+                    snprintf(cname, sizeof(cname), "sky_m%d_method_%s_%s", mod->mod_id, stmt->as.class_decl.name, mfn->as.fn_decl.name);
+                    snprintf(dname, sizeof(dname), "%s.%s.%s", mod->mod_name, stmt->as.class_decl.name, mfn->as.fn_decl.name);
+                    emit_function_named(&b, mfn, cname, dname, stmt->as.class_decl.name);
+                }
+            }
+        }
+    }
+
+    /* Emit module initializer functions */
+    for (size_t m = 0; m < registry.count; ++m) {
+        LoadedModule* mod = &registry.items[m];
+        codegen_source_filename = mod->filepath;
+        buf_printf(&b, "static Value sky_m%d_init(void) {\n", mod->mod_id);
+        buf_printf(&b, "    if (sky_m%d_module_initialized) return sky_m%d_module_val;\n", mod->mod_id, mod->mod_id);
+        buf_printf(&b, "    sky_m%d_module_initialized = true;\n", mod->mod_id);
+        if (mod->filepath) {
+            buf_printf(&b, "    sky_push_frame(\"%s\", 1, \"<%s>\");\n", mod->filepath, mod->mod_name);
+        }
+        buf_puts(&b, "    Value mod_val = val_dict();\n");
+        buf_puts(&b, "    ObjDict* _mod_dict = as_dict(mod_val);\n");
+        buf_printf(&b, "    sky_m%d_module_val = mod_val;\n\n", mod->mod_id);
+
+        /* 1. Process module-level imports */
+        for (size_t s = 0; s < mod->ast->as.block.statements.count; ++s) {
+            AstNode* stmt = mod->ast->as.block.statements.items[s];
+            if (stmt->type == AST_STMT_IMPORT || stmt->type == AST_STMT_FROM_IMPORT) {
+                emit_statement(&b, stmt, NULL, 1);
+            }
+        }
+
+        /* 2. Bind functions and classes to module dict and local globals */
+        for (size_t s = 0; s < mod->ast->as.block.statements.count; ++s) {
+            AstNode* stmt = mod->ast->as.block.statements.items[s];
+            if (stmt->type == AST_STMT_FN_DECL) {
+                const char* fname = stmt->as.fn_decl.name;
+                if (stmt->as.fn_decl.param_count > 0) {
+                    buf_printf(&b, "    static const char* _params_m%d_%s[] = {", mod->mod_id, fname);
+                    for (size_t p = 0; p < stmt->as.fn_decl.param_count; ++p) {
+                        buf_printf(&b, "\"%s\"%s", stmt->as.fn_decl.params[p], (p + 1 < stmt->as.fn_decl.param_count) ? ", " : "");
+                    }
+                    buf_puts(&b, "};\n");
+                    buf_printf(&b, "    Value _fn_m%d_%s = val_function_with_params(\"%s\", sky_m%d_fn_%s, %zu, %zu, _params_m%d_%s);\n",
+                               mod->mod_id, fname, fname, mod->mod_id, fname, stmt->as.fn_decl.param_count, stmt->as.fn_decl.param_count, mod->mod_id, fname);
+                } else {
+                    buf_printf(&b, "    Value _fn_m%d_%s = val_function(\"%s\", sky_m%d_fn_%s, 0);\n",
+                               mod->mod_id, fname, fname, mod->mod_id, fname);
+                }
+                buf_printf(&b, "    sky_var_%s = _fn_m%d_%s;\n", fname, mod->mod_id, fname);
+                buf_printf(&b, "    dict_set(_mod_dict, val_string(\"%s\"), _fn_m%d_%s);\n", fname, mod->mod_id, fname);
+            } else if (stmt->type == AST_STMT_CLASS_DECL) {
+                const char* cname = stmt->as.class_decl.name;
+                buf_printf(&b, "    Value _cls_val_m%d_%s = val_class(\"%s\");\n", mod->mod_id, cname, cname);
+                buf_printf(&b, "    ObjClass* _cls_obj_m%d_%s = as_class(_cls_val_m%d_%s);\n", mod->mod_id, cname, mod->mod_id, cname);
+                for (size_t k = 0; k < stmt->as.class_decl.methods.count; ++k) {
+                    AstNode* mfn = stmt->as.class_decl.methods.items[k];
+                    buf_puts(&b, "    {\n");
+                    buf_puts(&b, "        MethodEntry* me = (MethodEntry*)GC_MALLOC(sizeof(MethodEntry));\n");
+                    buf_printf(&b, "        me->name = \"%s\";\n", mfn->as.fn_decl.name);
+                    if (mfn->as.fn_decl.param_count > 0) {
+                        buf_printf(&b, "        static const char* _mparams_m%d_%s_%s[] = {", mod->mod_id, cname, mfn->as.fn_decl.name);
+                        for (size_t p = 0; p < mfn->as.fn_decl.param_count; ++p) {
+                            buf_printf(&b, "\"%s\"%s", mfn->as.fn_decl.params[p], (p + 1 < mfn->as.fn_decl.param_count) ? ", " : "");
+                        }
+                        buf_puts(&b, "};\n");
+                        buf_printf(&b, "        me->fn = val_function_with_params(\"%s\", sky_m%d_method_%s_%s, %zu, %zu, _mparams_m%d_%s_%s);\n",
+                                   mfn->as.fn_decl.name, mod->mod_id, cname, mfn->as.fn_decl.name, mfn->as.fn_decl.param_count + 1,
+                                   mfn->as.fn_decl.param_count, mod->mod_id, cname, mfn->as.fn_decl.name);
+                    } else {
+                        buf_printf(&b, "        me->fn = val_function(\"%s\", sky_m%d_method_%s_%s, 0);\n",
+                                   mfn->as.fn_decl.name, mod->mod_id, cname, mfn->as.fn_decl.name);
+                    }
+                    buf_printf(&b, "        me->next = _cls_obj_m%d_%s->methods;\n", mod->mod_id, cname);
+                    buf_printf(&b, "        _cls_obj_m%d_%s->methods = me;\n", mod->mod_id, cname);
+                    buf_puts(&b, "    }\n");
+                }
+                buf_printf(&b, "    sky_var_%s = _cls_val_m%d_%s;\n", cname, mod->mod_id, cname);
+                buf_printf(&b, "    dict_set(_mod_dict, val_string(\"%s\"), _cls_val_m%d_%s);\n", cname, mod->mod_id, cname);
+            }
+        }
+
+        /* 3. Execute non-decl statements and record exported module variables */
+        scope_clear();
+        for (size_t s = 0; s < mod->ast->as.block.statements.count; ++s) {
+            AstNode* stmt = mod->ast->as.block.statements.items[s];
+            if (stmt->type != AST_STMT_FN_DECL && stmt->type != AST_STMT_CLASS_DECL &&
+                stmt->type != AST_STMT_EXTERN_DECL && stmt->type != AST_STMT_IMPORT &&
+                stmt->type != AST_STMT_FROM_IMPORT) {
+                emit_statement(&b, stmt, NULL, 1);
+                if (stmt->type == AST_STMT_VAR_DECL) {
+                    buf_printf(&b, "    dict_set(_mod_dict, val_string(\"%s\"), sky_var_%s);\n",
+                               stmt->as.var_decl.name, stmt->as.var_decl.name);
+                } else if (stmt->type == AST_STMT_ASSIGN && stmt->as.assign.target->type == AST_VARIABLE) {
+                    buf_printf(&b, "    dict_set(_mod_dict, val_string(\"%s\"), sky_var_%s);\n",
+                               stmt->as.assign.target->as.variable.name, stmt->as.assign.target->as.variable.name);
+                }
+            }
+        }
+
+        buf_puts(&b, "    sky_pop_frame();\n");
+        buf_puts(&b, "    return mod_val;\n");
+        buf_puts(&b, "}\n\n");
+    }
+
+    codegen_source_filename = filename;
     for (size_t i = 0; i < root->as.block.statements.count; ++i) {
         AstNode* stmt = root->as.block.statements.items[i];
         if (stmt->type == AST_STMT_FN_DECL) {
-            emit_function(&b, stmt, NULL);
+            char cname[256], dname[256];
+            snprintf(cname, sizeof(cname), "sky_fn_%s", stmt->as.fn_decl.name);
+            snprintf(dname, sizeof(dname), "%s", stmt->as.fn_decl.name);
+            emit_function_named(&b, stmt, cname, dname, NULL);
         } else if (stmt->type == AST_STMT_CLASS_DECL) {
             for (size_t m = 0; m < stmt->as.class_decl.methods.count; ++m) {
-                emit_function(&b, stmt->as.class_decl.methods.items[m], stmt->as.class_decl.name);
+                AstNode* mfn = stmt->as.class_decl.methods.items[m];
+                char cname[256], dname[256];
+                snprintf(cname, sizeof(cname), "sky_method_%s_%s", stmt->as.class_decl.name, mfn->as.fn_decl.name);
+                snprintf(dname, sizeof(dname), "%s.%s", stmt->as.class_decl.name, mfn->as.fn_decl.name);
+                emit_function_named(&b, mfn, cname, dname, stmt->as.class_decl.name);
             }
         }
     }
@@ -1037,6 +1533,11 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "    sky_var_go = sky_go_init();\n");
     buf_puts(&b, "    sky_var_golang = sky_go_init();\n");
     buf_puts(&b, "    sky_var_rust = sky_rust_init();\n\n");
+
+    for (size_t m = 0; m < registry.count; ++m) {
+        LoadedModule* mod = &registry.items[m];
+        buf_printf(&b, "    sky_var_%s = sky_m%d_init();\n", mod->mod_name, mod->mod_id);
+    }
 
     for (size_t i = 0; i < root->as.block.statements.count; ++i) {
         AstNode* stmt = root->as.block.statements.items[i];
@@ -1097,8 +1598,7 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     for (size_t i = 0; i < root->as.block.statements.count; ++i) {
         AstNode* stmt = root->as.block.statements.items[i];
         if (stmt->type != AST_STMT_FN_DECL && stmt->type != AST_STMT_CLASS_DECL &&
-            stmt->type != AST_STMT_EXTERN_DECL && stmt->type != AST_STMT_CIMPORT &&
-            stmt->type != AST_STMT_IMPORT) {
+            stmt->type != AST_STMT_EXTERN_DECL && stmt->type != AST_STMT_CIMPORT) {
             emit_statement(&b, stmt, NULL, 1);
         }
     }
@@ -1108,4 +1608,3 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
 
     return b.data;
 }
-
