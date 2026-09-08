@@ -2,10 +2,10 @@
   <img src="assets/skylang_logo.jpg" alt="Skylang Logo" width="220" style="border-radius: 16px;" />
 </p>
 
-<h1 align="center">Skylang Programming Language</h1>
+<h1 align="center">Skylang Reference Manual & Specification</h1>
 
 <p align="center">
-  <strong>A modern, friendly, and high-performance programming language designed for everyone — from complete beginners to systems engineers.</strong>
+  <strong>Comprehensive language specification, formal syntax grammar, and complete API reference for every built-in function, method, property, and module in Skylang.</strong>
 </p>
 
 <p align="center">
@@ -18,1078 +18,633 @@
 
 ---
 
-## 🌟 What is Skylang? (A Quick Introduction)
-
-If you have never written a line of code in your life, think of a **programming language** as a way to give clear, step-by-step instructions to your computer. 
-
-Usually, programming languages fall into two extremes:
-1. **Easy to learn, but slow**: Languages like Python are wonderful to read and write, but they can be slower when crunching big data or doing heavy calculations.
-2. **Extremely fast, but hard to learn**: Languages like C or C++ run at blistering speeds, but they require dealing with complex memory management, pointers, and verbose syntax.
-
-**Skylang brings the best of both worlds together**:
-- **Reads like plain English**: Write clean, expressive code without confusing boilerplate or messy brackets.
-- **Runs with native C speed**: Behind the scenes, Skylang converts your code into optimized **C11** and compiles it into a blazing-fast standalone executable.
-- **Zero memory worries**: Automatic Garbage Collection takes care of cleaning up memory for you.
-- **Universal Multi-Language Bridge**: Want to use a Python library, an NPM JavaScript package, a Java class, a Go module, or high-speed Rust code? Skylang can call them all natively in the exact same program!
-
----
-
-## 📖 First Look: Your Very First Skylang Program
-
-Let's look at a simple Skylang program:
-
-```skylang
-// 1. Storing information in a variable
-name := "Alex"
-age := 20
-
-// 2. Printing a greeting using an f-string (formatted text)
-println(f"Hello, {name}! In 5 years, you will be {age + 5} years old.")
-
-// 3. Making decisions
-if age >= 18 {
-    println("Status: You are an adult!")
-} else {
-    println("Status: You are a minor.")
-}
-
-// 4. Storing a list of favorite hobbies
-hobbies := ["Coding", "Music", "Gaming"]
-println(f"You have {hobbies.size} hobbies:")
-
-// 5. Repeating an action with a loop
-for hobby in hobbies {
-    println(f"- I love {hobby}")
-}
-```
-
-**Output when you run this:**
-```text
-Hello, Alex! In 5 years, you will be 25 years old.
-Status: You are an adult!
-You have 3 hobbies:
-- I love Coding
-- I love Music
-- I love Gaming
-```
-
----
-
 ## 📑 Table of Contents
 
-1. [Installation & Setup](#1-installation--setup)
-2. [Running Your First Program (CLI Usage)](#2-running-your-first-program-cli-usage)
-3. [Variables & Data Types (Storing Information)](#3-variables--data-types-storing-information)
-   - [What is a Variable?](#what-is-a-variable)
-   - [The Walrus Operator `:=` (Automatic Type Inference)](#the-walrus-operator---automatic-type-inference)
-   - [Explicit Type Prefixes (`I`, `D`, `B`, `C`, `S`)](#explicit-type-prefixes-i-d-b-c-s)
-   - [Default Values](#default-values-automatic-initialization)
-   - [Checking Types with `.T`](#checking-types-with-t)
-4. [Operators (Doing Math & Logic)](#4-operators-doing-math--logic)
-   - [Arithmetic Operators (Math)](#arithmetic-operators-math)
-   - [Comparison Operators (Checking True or False)](#comparison-operators-checking-true-or-false)
-   - [Logical Operators (`and`, `or`, `!`)](#logical-operators-and-or-)
-   - [Shortcut Assignment Operators (`+=`, `-=`, etc.)](#shortcut-assignment-operators--)
-5. [Strings & Text Manipulation](#5-strings--text-manipulation)
-   - [String Indexing (Accessing Letters)](#string-indexing-accessing-letters)
-   - [String Slicing `[start:end]`](#string-slicing-startend)
-   - [Built-in String Methods & Properties](#built-in-string-methods--properties)
-   - [Python-Style F-Strings (Formatted Text Interpolation)](#python-style-f-strings-formatted-text-interpolation)
-6. [Collections (Storing Multiple Items)](#6-collections-storing-multiple-items)
-   - [Fixed-Size Arrays (`<1, 2, 3>`)](#fixed-size-arrays-1-2-3)
-   - [Dynamic Lists (`[1, 2, 3]`)](#dynamic-lists-1-2-3)
-   - [Tuples (`(1, "A", true)`)](#tuples-1-a-true)
-   - [Dictionaries (`{"key": "value"}`)](#dictionaries-key-value)
-   - [Sets (`{1, 2, 3}`)](#sets-1-2-3)
-   - [Sorted Lists (`sortedList(...)`)](#sorted-lists-sortedlist)
-7. [Control Flow (Making Decisions & Repeating Steps)](#7-control-flow-making-decisions--repeating-steps)
-   - [Conditional Decisions (`if`, `elif`, `else`)](#conditional-decisions-if-elif-else)
-   - [Loops with `for ... in`](#loops-with-for--in)
-   - [Loops with `while`](#loops-with-while)
-   - [Loop Controls: `break` and `continue`](#loop-controls-break-and-continue)
-8. [Functions (Reusable Code Recipes)](#8-functions-reusable-code-recipes)
-   - [Bracketless Function Declarations (`f name { ... }`)](#bracketless-function-declarations-f-name----)
-   - [The `takes(...)` Parameter Gateway](#the-takes-parameter-gateway)
-   - [Variadic Functions (`args`)](#variadic-functions-args)
-   - [Returning Values (`return`)](#returning-values-return)
-   - [Global Built-in Functions](#global-built-in-functions)
-9. [Object-Oriented Programming (Classes & Objects)](#9-object-oriented-programming-classes--objects)
-   - [What is a Class?](#what-is-a-class)
-   - [Fields & `this`](#fields--this)
-   - [The Constructor (`init`)](#the-constructor-init)
-   - [Class Methods](#class-methods)
-   - [Creating & Using Instances](#creating--using-instances)
-10. [Modules & Imports (Python-Style File Organization)](#10-modules--imports-python-style-file-organization)
-    - [Basic Module Import (`import my_module`)](#basic-module-import-import-my_module)
-    - [Import with Alias (`as`)](#import-with-alias-as)
-    - [Selective Import (`from mod import item`)](#selective-import-from-mod-import-item)
-    - [Wildcard Import (`from mod import *`)](#wildcard-import-from-mod-import-)
-    - [Subfolders & Nested Modules (`sub.helper`)](#subfolders--nested-modules-subhelper)
-11. [Standard Library (Built-In Modules)](#11-standard-library-built-in-modules)
-    - [The `math` Module](#the-math-module)
-    - [Python-Style File I/O (`open()`, `.read()`, `.write()`)](#python-style-file-io-open-read-write)
-12. [Multi-Language Interoperability (Python, JS, C++, Java, Go, Rust)](#12-multi-language-interoperability)
-13. [Foreign Function Interface (C FFI & `cimport`)](#13-foreign-function-interface-c-ffi--cimport)
-14. [Dual Execution Architecture (How Skylang Runs Code)](#14-dual-execution-architecture)
-15. [Error Handling & Python-Style Tracebacks](#15-error-handling--python-style-tracebacks)
-16. [Automatic Garbage Collection](#16-automatic-garbage-collection)
-17. [Comments (Writing Notes in Code)](#17-comments-writing-notes-in-code)
-18. [VS Code Extension & Editor Superpowers](#18-vs-code-extension--editor-superpowers)
-19. [License](#19-license)
+1. [Language Grammar & Core Syntax Specification](#1-language-grammar--core-syntax-specification)
+   - [Lexical Structure & Keywords](#lexical-structure--keywords)
+   - [Variable Declarations & Assignment](#variable-declarations--assignment)
+   - [Operators & Precedence](#operators--precedence)
+   - [Control Flow Statements](#control-flow-statements)
+   - [Function Declarations & Parameter Gateway](#function-declarations--parameter-gateway)
+   - [Class & Object-Oriented Syntax](#class--object-oriented-syntax)
+   - [Module Imports & Export Resolution](#module-imports--export-resolution)
+   - [Foreign Function Interface (C FFI) Syntax](#foreign-function-interface-c-ffi-syntax)
+   - [F-String Interpolation Syntax](#f-string-interpolation-syntax)
+   - [Comments](#comments)
+2. [Data Types & Memory Model](#2-data-types--memory-model)
+   - [Type Overview](#type-overview)
+   - [Default Initial Values](#default-initial-values)
+   - [The `.T` Type Property](#the-t-type-property)
+3. [Global Built-in Functions](#3-global-built-in-functions)
+4. [String Methods & Properties](#4-string-methods--properties)
+5. [Collection Methods & Properties](#5-collection-methods--properties)
+   - [Array (`array`)](#array-methods--properties)
+   - [List (`list`)](#list-methods--properties)
+   - [Tuple (`tuple`)](#tuple-methods--properties)
+   - [Dictionary (`dict`)](#dictionary-methods--properties)
+   - [Set (`set`)](#set-methods--properties)
+   - [Sorted List (`sortedList`)](#sorted-list-methods--properties)
+6. [File Object Methods & Properties](#6-file-object-methods--properties)
+7. [Standard Library Modules](#7-standard-library-modules)
+   - [The `math` Module](#the-math-module)
+   - [The `str` Module](#the-str-module)
+8. [Multi-Language Interoperability Bridges](#8-multi-language-interoperability-bridges)
+   - [Python Bridge (`python`)](#python-bridge)
+   - [JavaScript / NPM Bridge (`js`)](#javascript--npm-bridge)
+   - [C++ JIT Bridge (`cpp`)](#c-jit-bridge)
+   - [Java Bridge (`java`)](#java-bridge)
+   - [Golang Bridge (`go`, `golang`)](#golang-bridge)
+   - [Rust Bridge (`rust`)](#rust-bridge)
+9. [Error Handling & Runtime Exceptions](#9-error-handling--runtime-exceptions)
+10. [CLI Toolchain Commands](#10-cli-toolchain-commands)
+11. [VS Code Extension Reference](#11-vs-code-extension-reference)
+12. [License](#12-license)
 
 ---
 
-## 1. Installation & Setup
+## 1. Language Grammar & Core Syntax Specification
 
-### Prerequisites
-Skylang compiles your code using native C tools. You only need standard development utilities:
-- **GCC** (C11 compiler)
-- **Make** (Build automation tool)
-- **Boehm GC** (`libgc` / `bdw-gc` automatic memory library)
-- **pkg-config**
+### Lexical Structure & Keywords
 
-### 🚀 One-Command Automatic Installation
+Skylang reserves the following keywords:
 
-Open your terminal and run:
-
-```bash
-git clone https://github.com/aakashdandekar/Skylang.git skylang_dev
-cd skylang_dev
-chmod +x install.sh
-./install.sh
+```
+async       await       break       cimport     class       continue    
+DICT        elif        else        extern      f           false       
+for         from        go          golang      if          import      
+in          init        js          L           new         nil         
+none        None        panic       python      return      rust        
+SET         SL          spawn       T           takes       this        
+true        while       I           D           B           C           S
 ```
 
-**What the installer does automatically for you:**
-1. Detects your operating system (Ubuntu, Debian, Fedora, Arch Linux, macOS, etc.).
-2. Installs any missing packages and compilers.
-3. Builds the Skylang compiler and runtime library (`make clean all`).
-4. Creates global terminal commands `sky` and `skylang` in `~/.local/bin`.
-5. Installs the VS Code extension for full editor autocomplete and syntax highlighting.
-6. Runs the test suite to ensure 100% functionality.
+### Variable Declarations & Assignment
 
-To uninstall at any time:
-```bash
-./delete.sh
-```
+#### 1. Inferred Declaration (Walrus Operator)
+`identifier := expression`
+- Automatically allocates storage and infers data type from the evaluated expression.
+
+#### 2. Explicit Scalar Declarations
+- `I <identifier> [= <expr>]`: Signed 64-bit integer.
+- `D <identifier> [= <expr>]`: 64-bit double precision float.
+- `B <identifier> [= <expr>]`: Boolean (`true` or `false`).
+- `C <identifier> [= <expr>]`: 8-bit character literal.
+- `S <identifier> [= <expr>]`: Heap-allocated UTF-8 string.
+
+#### 3. Explicit Collection Declarations
+- `<identifier> <TYPE> <SIZE>`: Fixed contiguous array of fixed size.
+- `<identifier> L`: Resizable dynamic list.
+- `<identifier> T`: Fixed tuple sequence.
+- `<identifier> DICT`: Key-value hash map.
+- `<identifier> SET`: Hash set of unique values.
+- `<identifier> SL`: Self-balancing sorted list.
+
+#### 4. Assignment & Compound Mutators
+- `=` : Direct assignment (`x = 10`)
+- `+=` : Addition / concatenation assignment
+- `-=` : Subtraction assignment
+- `*=` : Multiplication assignment
+- `/=` : Division assignment
 
 ---
 
-## 2. Running Your First Program (CLI Usage)
+### Operators & Precedence
 
-Once installed, you can run Skylang programs using the `sky` command from any directory on your computer!
+Listed from highest to lowest precedence:
 
-| Command | What it does | When to use it |
-|---|---|---|
-| `sky run <file.sky>` | Transpiles, compiles, and runs your program immediately in memory. | While writing and testing code day-to-day. |
-| `sky build <file.sky> [-o <binary>]` | Compiles your program into a standalone, native executable file that runs anywhere without Skylang installed! | When you want to ship or distribute your final application. |
-| `sky <file.sky>` | Short shortcut for `sky run <file.sky>`. | Quick runs. |
-
-### Example: Running vs Building
-
-Create a file named `hello.sky`:
-```skylang
-println("Welcome to the world of Skylang!")
-```
-
-**Run it instantly:**
-```bash
-sky run hello.sky
-# Output: Welcome to the world of Skylang!
-```
-
-**Build a standalone binary:**
-```bash
-sky build hello.sky -o my_program
-./my_program
-# Output: Welcome to the world of Skylang!
-```
-
----
-
-## 3. Variables & Data Types (Storing Information)
-
-### What is a Variable?
-A **variable** is like a labeled storage box inside your computer's memory. You give the box a name, put some data inside it, and whenever you reference that name later, the computer looks inside the box and retrieves your data.
-
-Skylang supports **12 fundamental types**:
-- **Scalar (Single Value) Types**:
-  - `int`: Whole numbers (`10`, `-42`, `1000`)
-  - `double`: Decimal numbers (`3.14`, `-0.5`, `99.99`)
-  - `bool`: True or False switches (`true`, `false`)
-  - `char`: Single text characters (`'A'`, `'z'`, `'9'`)
-  - `string`: Text passages (`"Hello, world!"`)
-  - `type`: Data type descriptors
-- **Collection (Group) Types**:
-  - `array`: Fixed-size, super-fast list of items of the same type (`<1, 2, 3>`)
-  - `list`: Dynamic, growing list of items of any type (`[1, "two", 3.0]`)
-  - `tuple`: Fixed, unchangeable record (`(10, 20, "Alex")`)
-  - `dict`: Key-value lookup dictionary (`{"name": "Alice", "age": 25}`)
-  - `set`: Unique collection with no duplicates (`{1, 2, 3}`)
-  - `sortedList`: Automatically sorted list (`sortedList([3, 1, 2])`)
-
----
-
-### The Walrus Operator `:=` (Automatic Type Inference)
-
-In Skylang, you don't have to manually tell the computer what type of data you are storing. By using the **walrus operator (`:=`)**, Skylang automatically detects what kind of information you are providing and sets up the storage box for you!
-
-```skylang
-score := 100              // Skylang knows this is an integer (int)
-price := 19.99            // Skylang knows this is a decimal (double)
-is_logged_in := true      // Skylang knows this is a boolean (bool)
-initial := 'A'            // Skylang knows this is a character (char)
-user_name := "Alice"      // Skylang knows this is a string (string)
-numbers := [1, 2, 3, 4]   // Skylang knows this is a dynamic list (list)
-```
-
----
-
-### Explicit Type Prefixes (`I`, `D`, `B`, `C`, `S`)
-
-If you prefer to be explicit, Skylang allows single-letter uppercase type prefixes:
-
-| Prefix | Type | Example |
-|---|---|---|
-| `I` | Integer (Whole number) | `I age = 25` |
-| `D` | Double (Decimal number) | `D temperature = 98.6` |
-| `B` | Boolean (True/False) | `B is_active = true` |
-| `C` | Character (Single letter) | `C grade = 'A'` |
-| `S` | String (Text) | `S greeting = "Good morning"` |
-
----
-
-### Default Values (Automatic Initialization)
-
-In many languages (like C), if you declare a variable without giving it a value, it contains random garbage memory that causes bugs. In Skylang, **every uninitialized variable automatically receives a safe, sensible default value**:
-
-```skylang
-I total_count    // Automatically set to 0
-D balance        // Automatically set to 0.0
-B verified       // Automatically set to false
-C first_letter   // Automatically set to 'a'
-S user_bio       // Automatically set to "" (empty string)
-
-println(total_count)  // Prints: 0
-println(verified)     // Prints: false
-```
-
----
-
-### Checking Types with `.T`
-
-Every single value and variable in Skylang has a special `.T` property. This allows you to inspect what type of data is inside at any time:
-
-```skylang
-x := 42
-println(x.T)           // Prints: <type int>
-
-name := "Skylang"
-println(name.T)        // Prints: <type string>
-
-// You can check types directly in if-conditions:
-if x.T == "int" {
-    println("x is indeed an integer!")
-}
-```
-
----
-
-## 4. Operators (Doing Math & Logic)
-
-Operators are special symbols that allow you to calculate, compare, or modify data.
-
-### Arithmetic Operators (Math)
-
-| Operator | Name | Example | Result | Explanation |
-|---|---|---|---|---|
-| `+` | Addition | `10 + 5` | `15` | Adds two numbers (or joins text) |
-| `-` | Subtraction | `10 - 3` | `7` | Subtracts right number from left number |
-| `*` | Multiplication | `4 * 6` | `24` | Multiplies two numbers |
-| `/` | Division | `7.0 / 2.0` | `3.5` | Precise decimal division |
-| `//` | Floor Division | `7 // 2` | `3` | Divides and rounds down to nearest whole number |
-| `^` | Power (Exponent) | `2 ^ 8` | `256` | Raises 2 to the power of 8 ($2^8$) |
-| `%` | Modulo (Remainder) | `10 % 3` | `1` | Calculates the leftover remainder after division |
-
-```skylang
-println(10 + 5)    // 15
-println(10 // 3)   // 3 (10 divided by 3 is 3 with 1 left over)
-println(10 % 3)    // 1 (the remainder)
-println(2 ^ 4)     // 16 (2 * 2 * 2 * 2)
-```
-
----
-
-### Comparison Operators (Checking True or False)
-
-Comparison operators compare two values and produce a boolean result (`true` or `false`):
-
-| Operator | Meaning | Example | Result |
+| Precedence | Operator | Description | Associativity |
 |---|---|---|---|
-| `==` | Is equal to? | `5 == 5` | `true` |
-| `!=` | Is NOT equal to? | `5 != 3` | `true` |
-| `<` | Less than | `3 < 10` | `true` |
-| `<=` | Less than or equal to | `5 <= 5` | `true` |
-| `>` | Greater than | `10 > 20` | `false` |
-| `>=` | Greater than or equal to | `8 >= 8` | `true` |
+| 1 | `.` `[]` `()` | Member access, Indexing / Slicing, Function call | Left-to-right |
+| 2 | `^` | Exponentiation / Power | Right-to-left |
+| 3 | `!` `-` `+` `await` `spawn` | Logical NOT, Unary negation, Unary positive, Async operators | Right-to-left |
+| 4 | `*` `/` `//` `%` | Multiplication, Division, Floor division, Modulo | Left-to-right |
+| 5 | `+` `-` | Addition / Concatenation, Subtraction | Left-to-right |
+| 6 | `<` `<=` `>` `>=` | Relational ordering comparisons | Left-to-right |
+| 7 | `==` `!=` | Equality and inequality | Left-to-right |
+| 8 | `and` `&&` | Logical conjunction (short-circuiting) | Left-to-right |
+| 9 | `or` `\|\|` | Logical disjunction (short-circuiting) | Left-to-right |
+| 10 | `:=` `=` `+=` `-=` `*=` `/=` | Variable binding and assignment mutators | Right-to-left |
 
 ---
 
-### Logical Operators (`and`, `or`, `!`)
+### Control Flow Statements
 
-Logical operators let you combine multiple true/false checks together:
-
-- **`and` (or `&&`)**: Both conditions must be `true`.
-- **`or` (or `||`)**: At least one condition must be `true`.
-- **`!`**: Reverses the condition (`!true` becomes `false`).
-
-```skylang
-age := 22
-has_id := true
-
-if age >= 18 and has_id {
-    println("Entry allowed!")
-}
-
-if age < 12 or age >= 65 {
-    println("You qualify for a ticket discount!")
-}
+#### `if` / `elif` / `else`
 ```
-
----
-
-### Shortcut Assignment Operators (`+=`, `-=`, `*=`, `/=`)
-
-Instead of writing `x = x + 5`, you can use handy shortcuts:
-
-```skylang
-I score = 10
-score += 5    // Same as score = score + 5  (score is now 15)
-score *= 2    // Same as score = score * 2  (score is now 30)
-score -= 10   // Same as score = score - 10 (score is now 20)
-println(score) // 20
-```
-
----
-
-## 5. Strings & Text Manipulation
-
-A **string** is any sequence of text wrapped in double quotes (`"..."`) or single quotes (`'...'`).
-
-```skylang
-message := "Welcome to Skylang"
-```
-
----
-
-### String Indexing (Accessing Letters)
-
-Computers start counting from `0`. In Skylang, you can access any character in a string using its 0-based index:
-
-```skylang
-lang := "Skylang"
-
-println(lang[0])        // 'S' (The 1st character)
-println(lang[1])        // 'k' (The 2nd character)
-println(lang.value(2))  // 'y' (Using .value() method)
-```
-
----
-
-### String Slicing `[start:end]`
-
-You can extract a slice of a string just like in Python!
-- `[start:end]`: From index `start` up to (but not including) `end`.
-- `[start:]`: From `start` all the way to the end.
-- `[:end]`: From the beginning up to `end`.
-- Negative indices count backwards from the end (`-1` is the last character).
-
-```skylang
-word := "Programming"
-
-println(word[0:4])   // "Prog"
-println(word[4:])    // "ramming"
-println(word[-4:])   // "ming" (The last 4 characters)
-```
-
----
-
-### Built-in String Methods & Properties
-
-Skylang comes equipped with an extensive suite of built-in string methods:
-
-```skylang
-text := "  Hello, Skylang World!  "
-
-println(text.size)                 // 25 (Length of the string)
-println(text.trim())               // "Hello, Skylang World!" (Removes extra spaces)
-println(text.upper())              // "  HELLO, SKYLANG WORLD!  "
-println(text.lower())              // "  hello, skylang world!  "
-println(text.contains("Skylang"))  // true
-println(text.startswith("  Hello"))// true
-println(text.endswith("!  "))      // true
-println(text.replace("World", "All")) // "  Hello, Skylang All!  "
-
-// Splitting text into a list
-fruits := "apple,banana,orange".split(",")
-println(fruits)                    // ["apple", "banana", "orange"]
-
-// Joining a list into text
-joined := ", ".join(["Cat", "Dog", "Bird"])
-println(joined)                    // "Cat, Dog, Bird"
-
-// Reversing text
-println("Skylang".reverse())       // "gnalykS"
-```
-
----
-
-### Python-Style F-Strings (Formatted Text Interpolation)
-
-In many languages, combining text and variables looks messy:
-`"Hello, " + name + "! You have " + count + " items."` (lots of plus signs and type conversions).
-
-In Skylang, you can use **F-Strings** by prefixing your string with `f` (or `F`):
-Inside `{...}`, you can write any variable, calculation, or function call!
-
-```skylang
-name := "Alice"
-score := 95.5
-items := ["Notebook", "Pen"]
-
-// 1. Basic interpolation
-println(f"Hello {name}, your score is {score}!")
-// Output: Hello Alice, your score is 95.5!
-
-// 2. Doing math calculations directly inside { ... }
-println(f"Next level requires: {score + 10} points.")
-// Output: Next level requires: 105.5 points.
-
-// 3. Accessing collections and methods
-println(f"Student {name.upper()} has {items.size} supplies: {items[0]} and {items[1]}.")
-// Output: Student ALICE has 2 supplies: Notebook and Pen.
-
-// 4. Escaped literal braces {{ and }}
-println(f"To write a brace literally, use {{ and }}: {10 * 10}")
-// Output: To write a brace literally, use { and }: 100
-```
-
----
-
-## 6. Collections (Storing Multiple Items)
-
-When you need to store a list of names, coordinates, or user profiles, Skylang provides 6 specialized collection types.
-
-### Fixed-Size Arrays (`<1, 2, 3>`)
-
-An **Array** is a fixed-size, contiguous block of memory where every element has the **same type**. Because its size never changes, accessing it is lightning fast.
-
-```skylang
-// Declare an array of 4 integers (defaults to 0)
-numbers I 4
-numbers[0] = 10
-numbers[1] = 20
-numbers[2] = 30
-numbers[3] = 40
-println(numbers)      // <10, 20, 30, 40>
-
-// Array literal using angle brackets <...>
-primes I = <2, 3, 5, 7, 11>
-println(primes.size)  // 5
-```
-
----
-
-### Dynamic Lists (`[1, 2, 3]`)
-
-A **List** is a dynamic, resizable sequence that can grow, shrink, and hold **mixed types of data** (integers, strings, booleans, objects):
-
-```skylang
-// Create a dynamic list
-shopping_list := ["Milk", "Bread", "Eggs"]
-
-// Adding items with .push()
-shopping_list.push("Butter")
-println(shopping_list.size)   // 4
-
-// Removing the last item with .pop()
-last_item := shopping_list.pop()
-println(last_item)            // "Butter"
-
-// Slicing works on lists just like strings!
-println(shopping_list[0:2])   // ["Milk", "Bread"]
-```
-
----
-
-### Tuples (`(1, "A", true)`)
-
-A **Tuple** is an immutable (unchangeable) fixed sequence. Once created, its items cannot be modified, making it ideal for fixed coordinates or data records:
-
-```skylang
-point := (10, 20, "CenterPoint")
-
-println(point[0])     // 10
-println(point[1])     // 20
-println(point[2])     // "CenterPoint"
-println(point.size)   // 3
-```
-
----
-
-### Dictionaries (`{"key": "value"}`)
-
-A **Dictionary** (or Hash Map) is like a real dictionary or phonebook: it maps unique **keys** to **values**:
-
-```skylang
-user := {
-    "name": "Alice",
-    "role": "Administrator",
-    "score": 98.5,
-    "active": true
-}
-
-// Accessing values by key
-println(user["name"])        // "Alice"
-println(user["role"])        // "Administrator"
-
-// Adding or updating keys
-user["city"] = "San Francisco"
-
-// Checking if a key exists with .has()
-if user.has("score") {
-    println(f"Score is: {user[\"score\"]}")
-}
-```
-
----
-
-### Sets (`{1, 2, 3}`)
-
-A **Set** stores unique elements. If you try to add a duplicate item, the set automatically ignores it:
-
-```skylang
-unique_ids SET
-unique_ids.add(101)
-unique_ids.add(102)
-unique_ids.add(101) // Duplicate!
-
-println(unique_ids.size)     // 2 (only 101 and 102 exist)
-println(unique_ids.has(102)) // true
-```
-
----
-
-### Sorted Lists (`sortedList(...)`)
-
-A **Sorted List** automatically sorts its items whenever you insert new elements:
-
-```skylang
-scores SL
-scores.add(50)
-scores.add(10)
-scores.add(90)
-scores.add(30)
-
-println(scores) // [10, 30, 50, 90] (Automatically in ascending order!)
-```
-
----
-
-## 7. Control Flow (Making Decisions & Repeating Steps)
-
-### Conditional Decisions (`if`, `elif`, `else`)
-
-Conditionals allow your program to take different paths depending on whether something is true or false:
-
-```skylang
-grade := 85
-
-if grade >= 90 {
-    println("Grade: A - Excellent!")
-} elif grade >= 80 {
-    println("Grade: B - Very Good!")
-} elif grade >= 70 {
-    println("Grade: C - Good")
+if <condition> {
+    <statements>
+} elif <condition> {
+    <statements>
 } else {
-    println("Grade: Needs Improvement")
+    <statements>
+}
+```
+- Condition expression does not require enclosing parentheses.
+- Curly braces `{}` are mandatory.
+
+#### `for ... in` Loop
+```
+for <identifier> in <iterable_expression> {
+    <statements>
+}
+```
+- Iterates across lists, arrays, tuples, sets, sorted lists, string characters, or `range(...)` sequences.
+
+#### `while` Loop
+```
+while <condition> {
+    <statements>
+}
+```
+- Executes repeatedly while `<condition>` evaluates to truthy.
+
+#### Loop Jumps
+- `break`: Terminates innermost loop execution immediately.
+- `continue`: Skips remainder of current iteration and proceeds to next loop cycle.
+
+---
+
+### Function Declarations & Parameter Gateway
+
+#### Bracketless Function Syntax
+```
+f <function_name> {
+    [takes(<param1>, <param2>, ...)]
+    <statements>
+    [return <expr1>, <expr2>, ...]
 }
 ```
 
+#### Parameter Gateway (`takes`)
+- `takes(p1, p2, ...)`: Validates positional arguments and enables named argument dispatch (`func(p2=val2, p1=val1)`).
+- Omission of `takes(...)` makes the function variadic by default via implicit `args` list identifier.
+
+#### Multiple Return Values & Unpacking
+- Functions can return multiple expressions separated by commas: `return val1, val2`.
+- Caller unbinds with comma-separated assignment: `a, b := fn()`.
+- Blank identifier `_` discards unwanted return slots: `val, _ := fn()`.
+
 ---
 
-### Loops with `for ... in`
+### Class & Object-Oriented Syntax
 
-A `for ... in` loop repeats a block of code for every item in a collection or range:
-
-```skylang
-// 1. Looping over a list
-animals := ["Dog", "Cat", "Parrot"]
-for animal in animals {
-    println(f"Animal: {animal}")
-}
-
-// 2. Looping over a range of numbers (from 0 up to 5)
-for i in range(5) {
-    println(f"Step {i}")
-}
 ```
+class <ClassName> {
+    this.<field1>
+    this.<field2>
 
----
-
-### Loops with `while`
-
-A `while` loop continues running as long as its condition remains `true`:
-
-```skylang
-countdown := 5
-
-while countdown > 0 {
-    println(f"T-minus {countdown}...")
-    countdown -= 1
-}
-println("Liftoff! 🚀")
-```
-
----
-
-### Loop Controls: `break` and `continue`
-
-- **`break`**: Immediately exits and terminates the entire loop.
-- **`continue`**: Skips the rest of the current turn and jumps directly to the next item.
-
-```skylang
-for n in [1, 2, 3, 4, 5, 6, 7, 8] {
-    if n == 3 {
-        continue // Skip number 3
-    }
-    if n == 6 {
-        break    // Stop the loop completely when we hit 6
-    }
-    println(n)
-}
-// Prints: 1, 2, 4, 5
-```
-
----
-
-## 8. Functions (Reusable Code Recipes)
-
-A **function** is a reusable named block of instructions. Instead of writing the same 10 lines of code in multiple places, you write a function once and call it whenever you need it.
-
----
-
-### Bracketless Function Declarations (`f name { ... }`)
-
-In Skylang, function definitions are clean and **bracketless** — you do not need empty parentheses `()` in the definition header!
-
-```skylang
-f say_hello {
-    println("Hello from a Skylang function!")
-}
-
-// Call the function:
-say_hello()
-```
-
----
-
-### The `takes(...)` Parameter Gateway
-
-When your function needs inputs (called **parameters**), place the `takes(...)` gateway at the very top of your function. This gives you automatic parameter validation and named argument support!
-
-```skylang
-f calculate_rectangle_area {
-    takes(width, height)
-    return width * height
-}
-
-// Call with regular positional arguments:
-area1 := calculate_rectangle_area(10, 5)
-println(area1) // 50
-
-// Or call with crystal-clear named arguments in any order!
-area2 := calculate_rectangle_area(height=20, width=5)
-println(area2) // 100
-```
-
----
-
-### Variadic Functions (`args`)
-
-If you don't know how many arguments someone will pass, omit `takes(...)`. Skylang automatically places all incoming arguments into a built-in `args` list:
-
-```skylang
-f sum_all {
-    total := 0
-    for num in args {
-        total += num
-    }
-    return total
-}
-
-println(sum_all(1, 2, 3))          // 6
-println(sum_all(10, 20, 30, 40))   // 100
-```
-
----
-
-### Returning Values (`return`)
-
-A function can return a result (or multiple results) back to the caller:
-
-```skylang
-f min_max {
-    takes(a, b)
-    if a < b {
-        return a, b
-    } else {
-        return b, a
-    }
-}
-
-// Unpack multiple returned values:
-smallest, largest := min_max(45, 12)
-println(f"Smallest: {smallest}, Largest: {largest}")
-// Output: Smallest: 12, Largest: 45
-```
-
----
-
-### Global Built-in Functions
-
-Skylang comes with helpful global functions ready out of the box:
-
-| Function | Description | Example |
-|---|---|---|
-| `print(...)` | Prints values to terminal without a newline at the end | `print("Hello ")` |
-| `println(...)` | Prints values to terminal with an automatic newline | `println("Hello World")` |
-| `input(prompt)` | Asks the user for text input in the terminal | `name := input("Enter name: ")` |
-| `range(stop)` | Generates a sequence of numbers from 0 up to `stop - 1` | `for i in range(5)` |
-| `len(x)` | Returns the size/length of any container or string | `len([1, 2, 3])` |
-| `type(x)` | Returns the type object of any value | `type("text")` |
-| `hex(num)` | Converts an integer to a hexadecimal string | `hex(255)` &rarr; `"ff"` |
-| `bin(num)` | Converts an integer to a binary string | `bin(10)` &rarr; `"1010"` |
-| `oct(num)` | Converts an integer to an octal string | `oct(64)` &rarr; `"100"` |
-| `panic(msg)` | Halts the program immediately with an error message | `panic("Fatal error!")` |
-| `eval(code)` | Dynamically evaluates and calculates Skylang code at runtime | `res := eval("10 + 20")` |
-
----
-
-## 9. Object-Oriented Programming (Classes & Objects)
-
-### What is a Class?
-Think of a **Class** as a blueprint (like the blueprint for a House or a User Account). An **Object** (or instance) is the actual house built from that blueprint.
-
-### Complete Class Example:
-
-```skylang
-class BankAccount {
-    // 1. Declare instance fields (private by default)
-    this.owner
-    this.balance
-
-    // 2. The constructor (called when creating a new account)
     init {
-        takes(owner, initial_deposit)
-        this.owner = owner
-        this.balance = initial_deposit
+        takes(<param1>, <param2>, ...)
+        this.<field1> = <param1>
     }
 
-    // 3. Methods (actions this object can perform)
-    deposit {
-        takes(amount)
-        this.balance += amount
-        println(f"Deposited ${amount}. New balance: ${this.balance}")
-    }
-
-    withdraw {
-        takes(amount)
-        if amount > this.balance {
-            println("Insufficient funds!")
-            return false
-        }
-        this.balance -= amount
-        println(f"Withdrew ${amount}. Remaining balance: ${this.balance}")
-        return true
-    }
-
-    get_balance {
-        return this.balance
+    <method_name> {
+        [takes(<param1>, ...)]
+        <statements>
     }
 }
-
-// Create an instance of the class:
-account := BankAccount("Alice", 100)
-
-// Call methods on the object:
-account.deposit(50)     // Deposited $50. New balance: $150
-account.withdraw(70)    // Withdrew $70. Remaining balance: $80
-println(f"Final Balance: ${account.get_balance()}") // Final Balance: $80
 ```
+- `this.<field>`: Declares instance fields (encapsulated and private by default).
+- `init`: Mandatory constructor entry point invoked upon instantiation `ClassName(...)` or `new ClassName(...)`.
+- Methods are declared bracketless inside class body without the `f` keyword prefix.
 
 ---
 
-## 10. Modules & Imports (Python-Style File Organization)
+### Module Imports & Export Resolution
 
-As your program grows, you'll want to split your code into multiple files. Skylang uses **Python-style import syntax**.
-
-Imagine you have a file named `math_utils.sky`:
-```skylang
-// math_utils.sky
-f square {
-    takes(x)
-    return x * x
-}
-
-PI := 3.14159
-```
-
-Here are the 4 ways you can import and use it in your `main.sky`:
-
-### 1. Basic Module Import (`import my_module`)
-```skylang
-import math_utils
-
-println(math_utils.square(5))  // 25
-println(math_utils.PI)         // 3.14159
-```
-
-### 2. Import with Alias (`as`)
-```skylang
-import math_utils as mu
-
-println(mu.square(8))          // 64
-```
-
-### 3. Selective Import (`from mod import item`)
-```skylang
-from math_utils import square, PI
-
-println(square(6))             // 36
-println(PI)                    // 3.14159
-```
-
-### 4. Wildcard Import (`from mod import *`)
-```skylang
-from math_utils import *
-
-println(square(10))            // 100
-```
-
-### Subfolders & Nested Modules (`sub.helper`)
-If your helper file is inside a subfolder `sub/helper.sky`:
-```skylang
-from sub.helper import greet_user
-
-greet_user("Skylang Explorer")
-```
+| Syntax | Description |
+|---|---|
+| `import <module_name>` | Imports module into current namespace accessible via `<module_name>.<symbol>` |
+| `import <module_name> as <alias>` | Imports module with renamed namespace prefix `<alias>` |
+| `import <mod1>, <mod2>, <mod3>` | Multi-module single-line import statement |
+| `from <module_name> import <sym1>, <sym2>` | Selectively imports specific functions, classes, or constants directly into local scope |
+| `from <module_name> import <sym> as <alias>` | Selectively imports symbol with a local alias name |
+| `from <module_name> import *` | Imports all top-level public definitions into local scope |
+| `from <dir>.<submod> import <sym>` | Resolves nested directory submodules (`dir/submod.sky`) |
 
 ---
 
-## 11. Standard Library (Built-In Modules)
+### Foreign Function Interface (C FFI) Syntax
+
+- `cimport "<header_name.h>"`: Injects native C preprocessor `#include <header_name.h>` into transpilation unit.
+- `extern f <function_name>(<param_types>)`: Declares direct linkable C symbol signature.
+
+---
+
+### F-String Interpolation Syntax
+
+- Delimiters: `f"..."`, `f'...'`, `F"..."`, `F'...'`
+- Embedded expressions: `{<expression>}` (evaluates any valid Skylang expression, collection access, or function call).
+- Literal brace escapes: `{{` outputs `{`, `}}` outputs `}`.
+- Escaped quotes within embedded expressions: supports both `\"` and `\'`.
+
+---
+
+### Comments
+
+- `// <comment>` : Single-line C-style comment
+- `# <comment>` : Single-line Python-style comment
+- `/* <comment> */` : Multi-line block comment
+
+---
+
+## 2. Data Types & Memory Model
+
+### Type Overview
+
+| Type Identifier | Description | Internal Structure |
+|---|---|---|
+| `int` | Signed 64-bit integer | `int64_t` |
+| `double` | 64-bit IEEE 754 floating point | `double` |
+| `bool` | Boolean flag (`true` or `false`) | `bool` (`1` / `0`) |
+| `char` | 8-bit character | `char` |
+| `string` | Immutable UTF-8 string | `char*` with cached length |
+| `type` | Type reflection descriptor | `const char*` type tag |
+| `array` | Contiguous homogeneous fixed memory | `ValueArray` |
+| `list` | Resizable dynamic heterogeneous sequence | `ValueList` |
+| `tuple` | Immutable fixed sequence | `ValueTuple` |
+| `dict` | Key-value open-addressing hash table | `ValueDict` |
+| `set` | Unique element hash set | `ValueSet` |
+| `sortedList` | Auto-sorting insertion sequence | `ValueSortedList` |
+
+### Default Initial Values
+
+| Uninitialized Declaration | Auto-Assigned Default Value |
+|---|---|
+| `I var` | `0` |
+| `D var` | `0.0` |
+| `B var` | `false` |
+| `C var` | `'a'` |
+| `S var` | `""` (empty string) |
+| `arr I 5` | `<0, 0, 0, 0, 0>` |
+| `lst L` | `[]` (empty list) |
+| `dict DICT` | `{}` (empty dictionary) |
+| `st SET` | `{}` (empty set) |
+| `sl SL` | `[]` (empty sorted list) |
+
+### The `.T` Type Property
+
+- `<value>.T`: Returns the `type` representation of the target value.
+- Supported string comparison values: `"int"`, `"double"`, `"bool"`, `"char"`, `"string"`, `"array"`, `"list"`, `"tuple"`, `"dict"`, `"set"`, `"sortedList"`, `"type"`, `"file"`, `"foreign"`.
+
+---
+
+## 3. Global Built-in Functions
+
+| Function Signature | Return Type | Description |
+|---|---|---|
+| `print(...args)` | `none` | Outputs stringified arguments to standard output without trailing newline. |
+| `println(...args)` | `none` | Outputs stringified arguments to standard output followed by a newline. |
+| `input([prompt: string])` | `string` | Displays optional prompt and reads a single line from standard input. |
+| `open(path: string, [mode: string])` | `file` | Opens file handle with mode (`"r"`, `"w"`, `"a"`, `"r+"`, `"w+"`, `"a+"`). |
+| `range(stop: int)` | `list` | Generates integer list `[0, 1, ..., stop - 1]`. |
+| `range(start: int, stop: int, [step: int])` | `list` | Generates integer list from `start` up to `stop` with stride `step`. |
+| `len(container)` | `int` | Returns number of elements in string, list, array, tuple, dict, or set. |
+| `type(value)` | `type` | Returns reflection type object descriptor of target value. |
+| `hex(number: int)` | `string` | Converts integer to lowercase hexadecimal string representation. |
+| `bin(number: int)` | `string` | Converts integer to binary string representation. |
+| `oct(number: int)` | `string` | Converts integer to octal string representation. |
+| `format(template: string, ...args)` | `string` | Interpolates `{}` positional placeholders in template with arguments. |
+| `upper(s: string)` | `string` | Converts all characters in string to uppercase. |
+| `lower(s: string)` | `string` | Converts all characters in string to lowercase. |
+| `trim(s: string)` | `string` | Strips leading and trailing whitespace characters. |
+| `trimleft(s: string)` | `string` | Strips leading whitespace characters. |
+| `trimright(s: string)` | `string` | Strips trailing whitespace characters. |
+| `split(s: string, [delimiter: string])` | `list` | Splits string by delimiter into a list of strings (splits by chars if omitted). |
+| `join(items: list, delimiter: string)` | `string` | Concatenates list elements using delimiter separator. |
+| `replace(s: string, old: string, new: string)`| `string` | Replaces all occurrences of `old` substring with `new` substring. |
+| `startswith(s: string, prefix: string)` | `bool` | Returns `true` if string begins with `prefix`, else `false`. |
+| `endswith(s: string, suffix: string)` | `bool` | Returns `true` if string terminates with `suffix`, else `false`. |
+| `contains(s: string, substring: string)` | `bool` | Returns `true` if `substring` exists within target string. |
+| `find(s: string, substring: string)` | `int` | Returns 0-based start index of first occurrence of `substring`, or `-1`. |
+| `count(s: string, substring: string)` | `int` | Returns frequency count of occurrences of `substring` in string. |
+| `reverse(s: string)` | `string` | Returns a reversed copy of the string. |
+| `chars(s: string)` | `list` | Returns list of single-character strings extracted from target string. |
+| `bytes(s: string)` | `list` | Returns list of integer ASCII byte values for each character. |
+| `sorted(container: list)` | `list` | Returns a new ascending-sorted copy of input list. |
+| `reversed(container: list)` | `list` | Returns a new reversed copy of input list. |
+| `min(...args)` | `scalar` | Evaluates arguments or list and returns smallest value. |
+| `max(...args)` | `scalar` | Evaluates arguments or list and returns largest value. |
+| `sum(items: list)` | `number` | Calculates total arithmetic sum of all numeric items in list. |
+| `abs(n: number)` | `number` | Returns absolute non-negative numeric value. |
+| `sqrt(n: number)` | `double` | Calculates square root ($\sqrt{n}$). |
+| `error(message: string)` | `error` | Constructs an explicit error value for Go-style error returns. |
+| `panic(message: string)` | `void` | Halts execution immediately and displays runtime stack traceback. |
+| `eval(code: string)` | `Value` | Compiles and evaluates dynamic Skylang expression/statement at runtime. |
+| `gc()` | `void` | Triggers an immediate full cycle of Boehm Garbage Collector. |
+| `free(obj: Object)` | `void` | Explicitly deallocates heap-allocated object instance. |
+
+---
+
+## 4. String Methods & Properties
+
+### String Properties
+- `s.size`: Returns integer character count.
+- `s.length`: Alias for `s.size`.
+- `s.chars`: Returns dynamic list of single-character strings.
+- `s.bytes`: Returns dynamic list of ASCII integer values.
+- `s.T`: Returns `<type string>`.
+
+### String Indexing & Slicing
+- `s[i]`: Accesses 0-based character at index `i`.
+- `s[start:end]`: Returns substring slice from index `start` up to `end - 1`.
+- `s[start:]`: Substring slice from `start` through end of string.
+- `s[:end]`: Substring slice from index `0` up to `end - 1`.
+- `s[-k]`: Negative indexing accessing $k$-th character from end.
+
+### String Methods
+
+| Method Signature | Return Type | Description |
+|---|---|---|
+| `s.value(index: int)` | `char` | Retrieves character value at 0-based index. |
+| `s.upper()` | `string` | Returns copy with all characters converted to uppercase. |
+| `s.lower()` | `string` | Returns copy with all characters converted to lowercase. |
+| `s.trim()` | `string` | Returns copy with leading/trailing whitespace removed. |
+| `s.trimleft()` | `string` | Returns copy with leading whitespace removed. |
+| `s.trimright()` | `string` | Returns copy with trailing whitespace removed. |
+| `s.split([delimiter: string])` | `list` | Splits string by delimiter (or characters if omitted). |
+| `s.join(items: list)` | `string` | Joins list elements using `s` as delimiter. |
+| `s.replace(old: string, new: string)`| `string` | Replaces occurrences of `old` with `new`. |
+| `s.startswith(prefix: string)` | `bool` | Checks prefix matching. |
+| `s.endswith(suffix: string)` | `bool` | Checks suffix matching. |
+| `s.contains(substr: string)` | `bool` | Tests substring existence. |
+| `s.has(substr: string)` | `bool` | Alias for `.contains()`. |
+| `s.find(substr: string)` | `int` | Returns index of first match or `-1`. |
+| `s.count(substr: string)` | `int` | Counts total non-overlapping occurrences of substring. |
+| `s.reverse()` | `string` | Returns reversed string. |
+| `s.format(...args)` | `string` | Interpolates `{}` placeholders with arguments. |
+| `s.rjust(width: int, [fill: string])`| `string` | Right-justifies string in field of minimum `width`. |
+| `s.ljust(width: int, [fill: string])`| `string` | Left-justifies string in field of minimum `width`. |
+| `s.center(width: int, [fill: string])`| `string`| Centers string in field of minimum `width`. |
+| `s.zfill(width: int)` | `string` | Pads numeric string with leading zeros to match `width`. |
+
+---
+
+## 5. Collection Methods & Properties
+
+### Array Methods & Properties (`array`)
+- `arr.size`: Integer element count ($O(1)$ header lookup).
+- `arr.length`: Alias for `arr.size`.
+- `arr.T`: Returns `<type array>`.
+- `arr[i]`: Accesses/mutates element at index `i`.
+- `arr[start:end]`: Returns sub-array slice.
+
+---
+
+### List Methods & Properties (`list`)
+- `l.size`: Integer count of elements ($O(1)$).
+- `l.length`: Alias for `l.size`.
+- `l.T`: Returns `<type list>`.
+- `l[i]`: Accesses/mutates element at index `i`.
+- `l[start:end]`: Returns sub-list slice.
+
+| List Method Signature | Return Type | Description |
+|---|---|---|
+| `l.push(value)` | `void` | Appends `value` to tail of list ($O(1)$ amortized). |
+| `l.pop([index: int])` | `Value` | Removes and returns element at `index` (defaults to last element). |
+| `l.insert(index: int, value)` | `void` | Inserts `value` at specified `index`. |
+| `l.remove(value)` | `bool` | Removes first occurrence of `value` from list. |
+| `l.clear()` | `void` | Empties all elements from list. |
+| `l.contains(value)` / `l.has(value)` | `bool` | Returns `true` if `value` exists in list. |
+| `l.index(value)` | `int` | Returns 0-based index of first occurrence of `value` or `-1`. |
+| `l.count(value)` | `int` | Returns total occurrences of `value` in list. |
+| `l.reverse()` | `void` | Inverts list elements in-place. |
+| `l.sort()` | `void` | Sorts list elements in ascending order in-place. |
+| `l.join(delimiter: string)` | `string` | Concatenates list elements into string separated by `delimiter`. |
+| `l.copy()` | `list` | Returns a shallow clone of list. |
+
+---
+
+### Tuple Methods & Properties (`tuple`)
+- `t.size`: Integer element count.
+- `t.length`: Alias for `t.size`.
+- `t.T`: Returns `<type tuple>`.
+- `t[i]`: Accesses element at index `i` (immutable, cannot assign).
+- `t[start:end]`: Sub-tuple slice.
+
+---
+
+### Dictionary Methods & Properties (`dict`)
+- `d.size`: Integer key-value pair count.
+- `d.length`: Alias for `d.size`.
+- `d.T`: Returns `<type dict>`.
+- `d[key]`: Accesses value associated with `key` (panics if missing).
+- `d[key] = val`: Inserts or updates entry.
+
+| Dict Method Signature | Return Type | Description |
+|---|---|---|
+| `d.has(key)` / `d.contains(key)` | `bool` | Returns `true` if `key` exists in dictionary. |
+| `d.get(key, [default_val])` | `Value` | Returns value for `key`, or `default_val` (`none` if omitted). |
+| `d.remove(key)` / `d.pop(key)` | `Value` | Deletes key and returns associated value. |
+| `d.keys()` | `list` | Returns dynamic list of all keys. |
+| `d.values()` | `list` | Returns dynamic list of all values. |
+| `d.items()` | `list` | Returns list of `(key, value)` tuple pairs. |
+| `d.clear()` | `void` | Removes all key-value entries. |
+| `d.copy()` | `dict` | Returns a shallow copy of dictionary. |
+| `d.update(other_dict)` | `void` | Merges entries from `other_dict` into `d`. |
+
+---
+
+### Set Methods & Properties (`set`)
+- `s.size`: Unique element count.
+- `s.length`: Alias for `s.size`.
+- `s.T`: Returns `<type set>`.
+
+| Set Method Signature | Return Type | Description |
+|---|---|---|
+| `s.add(value)` | `void` | Inserts `value` into set (no-op if duplicate). |
+| `s.remove(value)` | `bool` | Removes `value` from set. |
+| `s.has(value)` / `s.contains(value)` | `bool` | Tests element membership. |
+| `s.clear()` | `void` | Removes all elements from set. |
+| `s.union(other_set)` | `set` | Returns new set with elements from both sets ($A \cup B$). |
+| `s.intersect(other_set)` | `set` | Returns new set with shared elements ($A \cap B$). |
+| `s.diff(other_set)` | `set` | Returns new set with elements in `s` but not `other_set` ($A \setminus B$). |
+
+---
+
+### Sorted List Methods & Properties (`sortedList`)
+- `sl.size`: Element count.
+- `sl.length`: Alias for `sl.size`.
+- `sl.T`: Returns `<type sortedList>`.
+
+| SortedList Method Signature | Return Type | Description |
+|---|---|---|
+| `sl.add(value)` | `void` | Inserts `value` into maintaining sorted order ($O(\log N)$). |
+| `sl.remove(value)` | `bool` | Removes first occurrence of `value`. |
+| `sl.pop()` | `Value` | Removes and returns highest element. |
+| `sl.has(value)` | `bool` | Tests membership via binary search. |
+| `sl.clear()` | `void` | Empties sorted list. |
+
+---
+
+## 6. File Object Methods & Properties
+
+Returned by `open(filepath, mode)`:
+
+### File Properties
+- `f.is_open`: Boolean flag indicating if stream is active.
+- `f.mode`: Mode string (`"r"`, `"w"`, `"a"`, etc.).
+- `f.path`: Absolute or relative file path string.
+- `f.T`: Returns `<type file>`.
+
+### File Methods
+| File Method Signature | Return Type | Description |
+|---|---|---|
+| `f.read([bytes_count: int])` | `string` | Reads entire file content (or up to `bytes_count`). |
+| `f.write(data: string)` | `int` | Writes string data to file buffer. |
+| `f.readline()` | `string` | Reads next line including newline delimiter. |
+| `f.readlines()` | `list` | Reads all remaining lines into a list of strings. |
+| `f.flush()` | `void` | Flushes stream write buffer to disk. |
+| `f.close()` | `void` | Flushes buffer and closes underlying OS file descriptor. |
+
+---
+
+## 7. Standard Library Modules
 
 ### The `math` Module
-Skylang includes a built-in mathematical engine:
 
-```skylang
-println(math.sqrt(64))      // 8.0 (Square root)
-println(math.pow(2, 8))     // 256.0 (2 to the power 8)
-println(math.abs(-42))      // 42.0 (Absolute positive value)
-println(math.min(10, 5))    // 5.0 (Minimum)
-println(math.max(10, 5))    // 10.0 (Maximum)
-println(math.floor(3.9))    // 3.0 (Round down)
-println(math.ceil(3.1))     // 4.0 (Round up)
-println(math.sin(0))        // 0.0 (Trigonometry)
-println(math.pi)            // 3.141592653589793
-println(math.e)             // 2.718281828459045
-```
+#### Functions
+- `math.sqrt(x: number)` : Square root ($\sqrt{x}$)
+- `math.sin(x: number)` : Trigonometric sine of radians
+- `math.cos(x: number)` : Trigonometric cosine of radians
+- `math.tan(x: number)` : Trigonometric tangent of radians
+- `math.asin(x: number)` : Arc sine
+- `math.acos(x: number)` : Arc cosine
+- `math.atan(x: number)` : Arc tangent
+- `math.atan2(y: number, x: number)` : Two-argument arc tangent
+- `math.abs(x: number)` : Absolute value
+- `math.ceil(x: number)` : Ceiling rounding
+- `math.floor(x: number)` : Floor rounding
+- `math.round(x: number)` : Nearest integer rounding
+- `math.log(x: number)` : Natural logarithm ($\ln x$)
+- `math.log10(x: number)` : Base-10 logarithm
+- `math.log2(x: number)` : Base-2 logarithm
+- `math.exp(x: number)` : Exponential function ($e^x$)
+- `math.pow(base: number, exp: number)` : Power ($base^{exp}$)
+- `math.min(a: number, b: number)` : Minimum of two numbers
+- `math.max(a: number, b: number)` : Maximum of two numbers
+- `math.hypot(x: number, y: number)` : Hypotenuse length ($\sqrt{x^2 + y^2}$)
+- `math.clamp(val: number, min: number, max: number)` : Clamps value within bounds
+- `math.deg2rad(degrees: number)` : Converts degrees to radians
+- `math.rad2deg(radians: number)` : Converts radians to degrees
 
----
-
-### Python-Style File I/O (`open()`, `.read()`, `.write()`)
-
-Reading and writing files on your computer is simple and clean:
-
-```skylang
-// 1. Writing to a file
-file := open("notes.txt", "w")
-file.write("Line 1: Skylang is fun!\n")
-file.write("Line 2: High performance and clean syntax.\n")
-file.close()
-
-// 2. Reading the entire file
-reader := open("notes.txt", "r")
-content := reader.read()
-println("File Content:\n" + content)
-reader.close()
-
-// 3. Reading line by line
-reader2 := open("notes.txt", "r")
-lines := reader2.readlines()
-reader2.close()
-
-for line in lines {
-    println(f"Read line: {line.trim()}")
-}
-```
+#### Constants
+- `math.pi`: Mathematical constant $\pi \approx 3.141592653589793$
+- `math.e`: Euler's number $e \approx 2.718281828459045$
+- `math.inf`: Positive infinity ($+\infty$)
+- `math.nan`: IEEE Not-a-Number representation
 
 ---
 
-## 12. Multi-Language Interoperability
+### The `str` Module
 
-Skylang's ultimate superpower is that it can **directly load and execute libraries written in Python, JavaScript/NPM, C++, Java, Go, and Rust without any messy setup**!
-
-```skylang
-import python, js, cpp, java, go, rust
-
-// 1. Call Python's built-in math module
-py_math := python.load("math")
-println(py_math.sqrt(144))  // 12.0
-
-// 2. Call JavaScript Math object
-js_math := js.load("Math")
-println(js_math.pow(3, 4))  // 81
-
-// 3. JIT-Compile C++ code on the fly
-cpp_calc := cpp.compile("
-    #include <cmath>
-    extern \"C\" double hypotenuse(double a, double b) {
-        return std::sqrt(a*a + b*b);
-    }
-")
-println(cpp_calc.hypotenuse(3.0, 4.0)) // 5.0
-
-// 4. Call Java standard classes
-java_math := java.load("java.lang.Math")
-println(java_math.max(50, 99)) // 99
-
-// 5. Call Go packages
-go_math := go.load("math")
-println(go_math.Sqrt(625.0))   // 25.0
-
-// 6. JIT-Compile and call Rust functions
-rust_calc := rust.compile("
-    #[no_mangle]
-    pub extern \"C\" fn cube(x: f64) -> f64 {
-        x * x * x
-    }
-")
-println(rust_calc.cube(4.0))   // 64.0
-```
+- `str.upper(s)`: Uppercase transform
+- `str.lower(s)`: Lowercase transform
+- `str.trim(s)`: Leading/trailing whitespace strip
+- `str.trimleft(s)`: Leading whitespace strip
+- `str.trimright(s)`: Trailing whitespace strip
+- `str.split(s, [delim])`: String split
+- `str.join(delim, list)`: List join
+- `str.replace(s, old, new)`: Substring replace
+- `str.startswith(s, prefix)`: Prefix test
+- `str.endswith(s, suffix)`: Suffix test
+- `str.contains(s, sub)`: Substring test
+- `str.find(s, sub)`: Substring search index
+- `str.count(s, sub)`: Substring frequency
+- `str.reverse(s)`: String reversal
+- `str.chars(s)`: Character list extraction
+- `str.bytes(s)`: Byte value list extraction
+- `str.format(fmt, ...args)`: Formatted placeholder template
 
 ---
 
-## 13. Foreign Function Interface (C FFI & `cimport`)
+## 8. Multi-Language Interoperability Bridges
 
-Because Skylang compiles to native C11, you can directly import native C headers and call C standard library functions with zero wrapper overhead!
+### Python Bridge (`python`)
+- `python.load(module_name: string)`: Loads Python C-API module into Skylang object.
+- `python.exec(python_code: string)`: Executes arbitrary Python code block.
+- `python.eval(python_expression: string)`: Evaluates Python expression and marshals result.
 
-```skylang
-// Import standard C math header
-cimport "math.h"
+### JavaScript / NPM Bridge (`js`)
+- `js.load(module_or_package: string)`: Loads Node.js / NPM package.
+- `js.exec(js_code: string)`: Executes JavaScript code via Node runtime.
+- `js.eval(js_expression: string)`: Evaluates JS expression and returns value.
 
-// Declare the external C function
-extern f cos(x)
-extern f sin(x)
+### C++ JIT Bridge (`cpp`)
+- `cpp.compile(cpp_source: string)`: JIT compiles C++ source with GCC into shared object.
+- `cpp.load(shared_library_path: string)`: Loads native C++ dynamic library.
+- `cpp.eval(cpp_expression: string)`: Evaluates inline C++ code snippet.
 
-println(cos(0.0)) // 1.0 (Direct C performance!)
-```
+### Java Bridge (`java`)
+- `java.load(class_name: string)`: Loads Java class via reflection.
+- `java.exec(method_call: string)`: Dispatches static/instance JVM method.
+- `java.eval(java_snippet: string)`: Evaluates dynamic Java block.
 
----
+### Golang Bridge (`go`, `golang`)
+- `go.load(package_name: string)`: Loads Go runtime package.
+- `go.compile(go_source: string)`: JIT compiles Go code into `c-shared` binary bridge.
+- `go.exec(function_call: string)`: Dispatches Go exported function.
 
-## 14. Dual Execution Architecture
-
-Skylang gives you two ways to run your code:
-
-```
-                  ┌───► AOT Codegen ───► C11 Code ───► GCC Compiler ───► Blazing Fast Native Binary
- .sky Source Code ┤
-                  └───► Bytecode VM ───► Opcodes ───► Virtual Machine ──► Instant Run & Dynamic eval()
-```
-
-1. **AOT (Ahead-of-Time) Native Compilation (`sky build`)**:
-   - Transpiles your code directly to optimized C11.
-   - Compiles with GCC `-O2`.
-   - Produces a single, standalone binary file with no runtime overhead.
-
-2. **Bytecode Virtual Machine (`sky run`)**:
-   - Compiles into memory-efficient bytecode opcodes.
-   - Executes immediately with stack-based profiling and powers dynamic `eval("...")`.
+### Rust Bridge (`rust`)
+- `rust.load(crate_name: string)`: Loads Rust crate library.
+- `rust.compile(rust_source: string)`: JIT compiles Rust code into `cdylib` bridge.
+- `rust.exec(function_call: string)`: Dispatches Rust `extern "C"` function.
 
 ---
 
-## 15. Error Handling & Python-Style Tracebacks
+## 9. Error Handling & Runtime Exceptions
 
-Skylang uses **Go-style explicit error handling**:
+### Error Protocol
+- `error(msg: string)`: Constructs Go-style error object.
+- Functions returning single values set `err` slot to `none` automatically upon multi-unpacking: `res, err := fn()`.
+- `panic(msg: string)`: Halts execution immediately and unwinds runtime call stack.
 
-```skylang
-f divide {
-    takes(a, b)
-    if b == 0 {
-        return error("Cannot divide by zero!")
-    }
-    return a / b
-}
-
-// Unpack result and error
-result, err := divide(10, 0)
-
-if err != none {
-    println(f"Handled error safely: {err}")
-} else {
-    println(f"Success: {result}")
-}
-```
-
-### Python-Style Call Stack Traceback
-If an unexpected runtime crash happens (or `panic()` is triggered), Skylang prints a detailed traceback pointing to the exact file, line number, and function:
-
-```text
-Traceback (most recent call last):
-  File "main.sky", line 14, in calculate_data
-  File "main.sky", line 6, in divide
-ZeroDivisionError: division by zero
-```
+### Runtime Exceptions Hierarchy
+- `SyntaxError`: Parser encountered unexpected tokens or malformed constructs.
+- `NameError`: Reference to an undeclared identifier or symbol.
+- `TypeError`: Incompatible operands for operator or mismatched parameter arity.
+- `ZeroDivisionError`: Division or floor division by zero (`/`, `//`, `%`).
+- `IndexError`: Array, list, tuple, or slice index outside container bounds.
+- `AttributeError`: Member field or method does not exist on target object.
+- `ModuleNotFoundError`: Import resolution failed to locate `.sky` file or native bridge.
+- `FileNotFoundError`: File path does not exist during I/O operation.
+- `PermissionError`: Operating system access permission denied.
 
 ---
 
-## 16. Automatic Garbage Collection
+## 10. CLI Toolchain Commands
 
-In low-level languages like C or C++, you have to manually allocate and free every piece of memory (`malloc` / `free`). If you forget, your computer runs out of RAM (memory leak); if you free too early, your program crashes.
-
-In Skylang, memory management is **100% automatic**. 
-- Powered by the industrial-grade **Boehm-Demers-Weiser Garbage Collector** (`libgc`).
-- As soon as your lists, strings, dictionaries, or objects are no longer in use, Skylang quietly recycles their memory in the background.
-
----
-
-## 17. Comments (Writing Notes in Code)
-
-Comments are notes written for humans that the computer completely ignores when running code:
-
-```skylang
-// This is a single-line comment
-
-# This is also a single-line comment (Python style)
-
-/* This is a 
-   multi-line comment 
-   spanning several lines */
-```
+| Command Signature | Function |
+|---|---|
+| `sky run <file.sky>` | Transpiles, compiles to C, and executes program immediately. |
+| `sky build <file.sky> [-o <bin>]` | Compiles into a standalone native C11 executable binary. |
+| `sky <file.sky>` | Alias for `sky run <file.sky>`. |
+| `make clean all` | Rebuilds compiler, VM, runtime library, and binaries from source. |
+| `make test` | Executes comprehensive automated test suite. |
+| `make vscode` | Recompiles and updates local VS Code extension installation. |
 
 ---
 
-## 18. VS Code Extension & Editor Superpowers
+## 11. VS Code Extension Reference
 
-Skylang includes a first-class **Visual Studio Code Extension** designed to make writing code effortless:
-
-- **One-Click Run**: Click the `$(play) Run` button in the top-right corner of any `.sky` file to execute instantly.
-- **IntelliSense & Autocompletion**: Type `.` on any list, string, dictionary, or module (like `math.` or `python.`) to see all available methods with documentation.
-- **Live Diagnostics**: Real-time red squiggly underlines catch syntax errors before you even run your program.
-- **Smart Snippets**: Type `f`, `class`, `forin`, `fstr`, or `openread` and press `Tab` to generate complete code skeletons.
+- **File Associations**: `.sky`, `.skylang`
+- **Grammar Scopes**: TextMate grammar covering bracketless functions, `takes(...)`, walrus `:=`, scalar prefixes, f-strings, and multi-language bridges.
+- **Snippets Catalog**:
+  - `f` / `fn`: Function declaration with `takes(...)`
+  - `fvar`: Variadic function declaration with `args`
+  - `takes`: Parameter filtering gateway
+  - `class`: OOP Class declaration with `this.` fields and `init`
+  - `import` / `impas` / `from` / `fromas` / `fromall`: Module imports
+  - `fstr`: Formatted string literal interpolation
+  - `cimport` / `extern`: C FFI bindings
+  - `forin` / `while`: Loop structures
+  - `imppy` / `impjs` / `impcpp` / `impjava` / `goload` / `rustload`: Multi-language imports
+  - `openread` / `openwrite` / `openlines`: File operations
+  - `errhandle`: Go-style error handling check
 
 ---
 
-## 19. License
+## 12. License
 
 This project is licensed under the [Apache License, Version 2.0](LICENSE) - see the [LICENSE](LICENSE) file for details.
 
