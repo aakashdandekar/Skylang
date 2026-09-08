@@ -2,7 +2,7 @@
 set -e
 
 SKYLANG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-info "Repository Directory: ${SKYLANG_DIR}"
+echo "Repository Directory: ${SKYLANG_DIR}"
 
 OS="$(uname -s)"
 ARCH="$(uname -m)"
@@ -15,9 +15,9 @@ case "$OS" in
         if [ -f /etc/os-release ]; then
             . /etc/os-release
             DISTRO="$ID"
-            info "Operating System: Linux ($PRETTY_NAME, $ARCH)"
+            echo "Operating System: Linux ($PRETTY_NAME, $ARCH)"
         else
-            info "Operating System: Linux ($ARCH)"
+            echo "Operating System: Linux ($ARCH)"
         fi
 
         if command -v apt-get &>/dev/null; then
@@ -66,11 +66,11 @@ case "$OS" in
             PKGS_RUST="rust cargo"
             PKGS_JAVA="openjdk17-jdk"
         else
-            warn "No supported Linux package manager detected."
+            echo "No supported Linux package manager detected."
         fi
         ;;
     Darwin)
-        info "Operating System: macOS ($ARCH)"
+        echo "Operating System: macOS ($ARCH)"
         if command -v brew &>/dev/null; then
             PKG_MGR="brew"
             INSTALL_CMD="brew install"
@@ -81,11 +81,11 @@ case "$OS" in
             PKGS_RUST="rust"
             PKGS_JAVA="openjdk"
         else
-            warn "Homebrew not found. Please install Homebrew from https://brew.sh"
+            echo "Homebrew not found. Please install Homebrew from https://brew.sh"
         fi
         ;;
     MINGW*|MSYS*|CYGWIN*)
-        info "Operating System: Windows ($OS, $ARCH)"
+        echo "Operating System: Windows ($OS, $ARCH)"
         if command -v pacman &>/dev/null; then
             PKG_MGR="pacman"
             INSTALL_CMD="pacman -S --noconfirm --needed"
@@ -98,7 +98,7 @@ case "$OS" in
         fi
         ;;
     *)
-        error "Unsupported operating system: $OS"
+        echo "Unsupported operating system: $OS"
         exit 1
         ;;
 esac
@@ -130,34 +130,34 @@ if ! command -v java &>/dev/null || ! command -v javac &>/dev/null; then
 fi
 
 if [ ${#INSTALL_LIST[@]} -gt 0 ]; then
-    info "Packages to install: ${INSTALL_LIST[*]}"
+    echo "Packages to install: ${INSTALL_LIST[*]}"
     if [ -n "$PKG_MGR" ]; then
         if [ "$PKG_MGR" = "apt" ]; then
             sudo apt-get update -qq || true
         fi
-        $INSTALL_CMD "${INSTALL_LIST[@]}" || warn "Some packages could not be installed automatically."
+        $INSTALL_CMD "${INSTALL_LIST[@]}" || echo "Some packages could not be installed automatically."
     else
-        warn "Could not automatically install packages. Please ensure gcc, python3, nodejs, go, rustc/cargo, and java are installed."
+        echo "Could not automatically install packages. Please ensure gcc, python3, nodejs, go, rustc/cargo, and java are installed."
     fi
 else
-    success "All language runtimes and build dependencies are satisfied"
+    echo "All language runtimes and build dependencies are satisfied"
 fi
 
-if command -v gcc &>/dev/null; then success "C/C++ Compiler: $(gcc --version | head -n1)"; fi
-if command -v python3 &>/dev/null; then success "Python Runtime: $(python3 --version)"; fi
-if command -v node &>/dev/null; then success "Node.js Runtime: $(node --version)"; fi
-if command -v go &>/dev/null; then success "Go Runtime: $(go version)"; fi
-if command -v rustc &>/dev/null; then success "Rust Runtime: $(rustc --version)"; fi
-if command -v javac &>/dev/null; then success "Java Compiler: $(javac --version 2>&1 | head -n1)"; fi
+if command -v gcc &>/dev/null; then echo "C/C++ Compiler: $(gcc --version | head -n1)"; fi
+if command -v python3 &>/dev/null; then echo "Python Runtime: $(python3 --version)"; fi
+if command -v node &>/dev/null; then echo "Node.js Runtime: $(node --version)"; fi
+if command -v go &>/dev/null; then echo "Go Runtime: $(go version)"; fi
+if command -v rustc &>/dev/null; then echo "Rust Runtime: $(rustc --version)"; fi
+if command -v javac &>/dev/null; then echo "Java Compiler: $(javac --version 2>&1 | head -n1)"; fi
 
-info "Building bin/skylang, bin/sky, and lib/libskylang_rt.a..."
+echo "Building bin/skylang, bin/sky, and lib/libskylang_rt.a..."
 make -C "$SKYLANG_DIR" clean all
 
 LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN"
 ln -sf "$SKYLANG_DIR/bin/skylang" "$LOCAL_BIN/skylang"
 ln -sf "$SKYLANG_DIR/bin/skylang" "$LOCAL_BIN/sky"
-success "Installed binaries to ${LOCAL_BIN}"
+echo "Installed binaries to ${LOCAL_BIN}"
 
 NEEDS_PATH_UPDATE=false
 if ! echo "$PATH" | tr ':' '\n' | grep -qx "$LOCAL_BIN"; then
@@ -185,7 +185,7 @@ if ! echo "$PATH" | tr ':' '\n' | grep -qx "$LOCAL_BIN"; then
         if ! grep -qF '.local/bin' "$config_file" 2>/dev/null; then
             echo "" >> "$config_file"
             echo "$PATH_EXPORT" >> "$config_file"
-            success "Added PATH to $config_file"
+            echo "Added PATH to $config_file"
         fi
     done
 
@@ -195,7 +195,7 @@ if ! echo "$PATH" | tr ':' '\n' | grep -qx "$LOCAL_BIN"; then
         if ! grep -qF '.local/bin' "$FISH_CONFIG" 2>/dev/null; then
             echo "" >> "$FISH_CONFIG"
             echo 'set -gx PATH $HOME/.local/bin $PATH' >> "$FISH_CONFIG"
-            success "Added PATH to $FISH_CONFIG"
+            echo "Added PATH to $FISH_CONFIG"
         fi
     fi
     export PATH="$LOCAL_BIN:$PATH"
@@ -203,27 +203,26 @@ fi
 
 make -C "$SKYLANG_DIR" vscode 2>/dev/null || true
 
-step "Step 6/6: Verifying Installation with Test Suite"
-
+echo "Verifying Installation with Test Suite..."
 make -C "$SKYLANG_DIR" test
 
 echo ""
-echo -e "${GREEN}${BOLD}  ✓ Skylang has been successfully installed!${NC}"
+echo "  Skylang has been successfully installed!"
 echo ""
-echo -e "  ${BOLD}Usage:${NC}"
-echo -e "    ${CYAN}sky run ${NC}<file.sky>           Compile and run a Skylang program"
-echo -e "    ${CYAN}sky build ${NC}<file.sky> -o app   Compile to a standalone binary"
+echo "  Usage:"
+echo "    sky run <file.sky>           Compile and run a Skylang program"
+echo "    sky build <file.sky> -o app   Compile to a standalone binary"
 echo ""
-echo -e "  ${BOLD}Multi-Language Interop Available:${NC}"
-echo -e "    - Python 3     (import python)"
-echo -e "    - JavaScript   (import js)"
-echo -e "    - C++ JIT      (import cpp)"
-echo -e "    - Java JVM     (import java)"
-echo -e "    - Golang JIT   (import go)"
-echo -e "    - Rust cdylib  (import rust)"
+echo "  Multi-Language Interop Available:"
+echo "    - Python 3     (import python)"
+echo "    - JavaScript   (import js)"
+echo "    - C++ JIT      (import cpp)"
+echo "    - Java JVM     (import java)"
+echo "    - Golang JIT   (import go)"
+echo "    - Rust cdylib  (import rust)"
 echo ""
 
 if [ "$NEEDS_PATH_UPDATE" = true ]; then
-    echo -e "  ${YELLOW}${BOLD}Note:${NC} Restart your terminal or run ${CYAN}source ~/.bashrc${NC} to use 'sky' anywhere."
+    echo "  Note: Restart your terminal or run source ~/.bashrc to use 'sky' anywhere."
     echo ""
 fi

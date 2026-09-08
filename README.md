@@ -96,24 +96,30 @@ println("Rust math PI:", rust_math.PI)
 
 ### One-Command Setup
 
-Clone the repo and run the setup script — it handles everything:
+Clone the repo and run the installation script — it handles everything:
 
 ```bash
 git clone <repo-url> skylang
 cd skylang
-chmod +x setup.sh
-./setup.sh
+chmod +x install.sh
+./install.sh
 ```
 
-**What `setup.sh` does:**
+**What `install.sh` does:**
 
 1. **Detects your OS** and package manager (apt, dnf, pacman, zypper, apk, brew)
-2. **Checks for dependencies** — gcc, make, pkg-config, and libgc
-3. **Installs missing packages** (asks for confirmation before using sudo)
-4. **Builds the compiler** by running `make clean && make`
-5. **Creates global commands** — symlinks `skylang` and `sky` into `~/.local/bin` so you can run them from any directory
-6. **Updates your PATH** — appends `~/.local/bin` to your `.bashrc` / `.zshrc` if not already present
-7. **Runs the test suite** to verify everything works
+2. **Checks for dependencies** — gcc, make, pkg-config, libgc, Python 3, Node.js, Go, Rust, Java
+3. **Installs missing packages**
+4. **Builds the compiler & runtime** by running `make clean all`
+5. **Creates global commands** — symlinks `skylang` and `sky` into `~/.local/bin`
+6. **Updates your PATH** — appends `~/.local/bin` to your shell profile if not present
+7. **Installs VS Code extension** — automatic syntax highlighting and autocomplete
+8. **Runs the test suite** to verify everything works
+
+To uninstall Skylang completely, run:
+```bash
+./delete.sh
+```
 
 After setup completes, restart your terminal (or `source ~/.bashrc`), then:
 
@@ -1296,7 +1302,7 @@ Skylang includes a full-featured, rich Visual Studio Code extension designed for
 
 ### Installing the VS Code Extension
 
-The extension is installed automatically when running `./setup.sh`. You can also install or update it at any time with:
+The extension is installed automatically when running `./install.sh`. You can also install or update it at any time with:
 
 ```bash
 make vscode
@@ -1308,8 +1314,9 @@ make vscode
 
 ```
 skylang/
-├── setup.sh              # One-command install script
-├── Makefile               # Build system (includes `make vscode`)
+├── install.sh            # One-command install & environment setup script
+├── delete.sh             # Uninstaller script
+├── Makefile              # Build system (includes `make vscode`)
 ├── README.md              # Complete guide & documentation
 ├── .vscode/               # Workspace settings & build tasks
 ├── editors/
