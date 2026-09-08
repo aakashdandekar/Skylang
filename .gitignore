@@ -16,4 +16,5 @@ lib/
 .vscode/
 node_modules/
 *.vsix
+*.pdf
 .DS_Store
