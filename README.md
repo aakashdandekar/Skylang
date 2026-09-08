@@ -563,22 +563,18 @@ Returned by `open(filepath, mode)`:
 ### Python Bridge (`python`)
 - `python.load(module_name: string)`: Loads Python C-API module into Skylang object.
 - `python.exec(python_code: string)`: Executes arbitrary Python code block.
-- `python.eval(python_expression: string)`: Evaluates Python expression and marshals result.
 
 ### JavaScript / NPM Bridge (`js`)
 - `js.load(module_or_package: string)`: Loads Node.js / NPM package.
 - `js.exec(js_code: string)`: Executes JavaScript code via Node runtime.
-- `js.eval(js_expression: string)`: Evaluates JS expression and returns value.
 
 ### C++ JIT Bridge (`cpp`)
 - `cpp.compile(cpp_source: string)`: JIT compiles C++ source with GCC into shared object.
 - `cpp.load(shared_library_path: string)`: Loads native C++ dynamic library.
-- `cpp.eval(cpp_expression: string)`: Evaluates inline C++ code snippet.
 
 ### Java Bridge (`java`)
 - `java.load(class_name: string)`: Loads Java class via reflection.
 - `java.exec(method_call: string)`: Dispatches static/instance JVM method.
-- `java.eval(java_snippet: string)`: Evaluates dynamic Java block.
 
 ### Golang Bridge (`go`, `golang`)
 - `go.load(package_name: string)`: Loads Go runtime package.
