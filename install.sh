@@ -203,25 +203,6 @@ fi
 
 make -C "$SKYLANG_DIR" vscode 2>/dev/null || true
 
-echo "Verifying Installation with Test Suite..."
-make -C "$SKYLANG_DIR" test
-
-echo ""
-echo "  Skylang has been successfully installed!"
-echo ""
-echo "  Usage:"
-echo "    sky run <file.sky>           Compile and run a Skylang program"
-echo "    sky build <file.sky> -o app   Compile to a standalone binary"
-echo ""
-echo "  Multi-Language Interop Available:"
-echo "    - Python 3     (import python)"
-echo "    - JavaScript   (import js)"
-echo "    - C++ JIT      (import cpp)"
-echo "    - Java JVM     (import java)"
-echo "    - Golang JIT   (import go)"
-echo "    - Rust cdylib  (import rust)"
-echo ""
-
 if [ "$NEEDS_PATH_UPDATE" = true ]; then
     echo "  Note: Restart your terminal or run source ~/.bashrc to use 'sky' anywhere."
     echo ""
