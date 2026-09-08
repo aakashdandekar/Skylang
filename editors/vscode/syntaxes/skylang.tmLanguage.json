@@ -119,7 +119,7 @@
                 },
                 {
                     "name": "keyword.control.import.sky",
-                    "match": "\\b(import|cimport|extern)\\b"
+                    "match": "\\b(import|extern)\\b"
                 },
                 {
                     "name": "keyword.operator.logical.sky",

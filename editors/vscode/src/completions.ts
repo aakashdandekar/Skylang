@@ -40,26 +40,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
 
         const items: vscode.CompletionItem[] = [];
 
-        // 1. Context: cimport "..."
-        const cimportMatch = linePrefix.match(/(?:^|\s)cimport\s+([^;\n]*)$/);
-        if (cimportMatch) {
-            const rawList = cimportMatch[1];
-            const parts = rawList.split(',').map(s => s.trim().replace(/^["']|["']$/g, '').toLowerCase());
-            const alreadyImported = parts.slice(0, -1);
-
-            for (const header of COMMON_C_HEADERS) {
-                if (alreadyImported.includes(header.toLowerCase())) continue;
-                const item = new vscode.CompletionItem(header, vscode.CompletionItemKind.File);
-                item.detail = `C standard header <${header}>`;
-                item.documentation = new vscode.MarkdownString(`Import C standard library header \`${header}\` for native FFI binding.`);
-                item.insertText = header;
-                item.sortText = `0_${header}`;
-                items.push(item);
-            }
-            return items;
-        }
-
-        // 2. Context: extern f ...
+        // 1. Context: extern f ...
         const externMatch = linePrefix.match(/extern\s+f\s+([a-zA-Z0-9_]*)$/);
         if (externMatch) {
             for (const [fnName, fnInfo] of Object.entries(COMMON_EXTERN_C_FUNCTIONS)) {
@@ -942,7 +923,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
 
         for (let i = 0; i < lines.length; i++) {
             const l = lines[i].trim();
-            if (l.startsWith('import ') || l.startsWith('cimport ')) {
+            if (l.startsWith('import ')) {
                 insertLine = i + 1;
                 foundExistingImport = true;
             } else if (!foundExistingImport && (l.startsWith('//') || l.startsWith('#') || l === '')) {

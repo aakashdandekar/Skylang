@@ -5,17 +5,16 @@
 <h1 align="center">Skylang</h1>
 
 <p align="center">
-  <strong>A high-performance compiled, dynamic, object-oriented programming language built upon C.</strong>
+  <strong>A high-performance compiled, dynamic, object-oriented programming language.</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/build%20%26%20test-passing%20(24%2F24)-brightgreen.svg" alt="Build & Test" />
-  <img src="https://img.shields.io/badge/target-C11%20%7C%20GCC%20--O2-blue.svg" alt="C11 & GCC" />
+  <img src="https://img.shields.io/badge/build%20%26%20test-passing-brightgreen.svg" alt="Build & Test" />
   <img src="https://img.shields.io/badge/GC-Boehm--Demers--Weiser-orange.svg" alt="Memory Management" />
   <img src="https://img.shields.io/badge/interop-Python%20%7C%20JS%20%7C%20C%2B%2B%20%7C%20Java%20%7C%20Go%20%7C%20Rust-purple.svg" alt="Multi-Language" />
 </p>
 
-Skylang blends **Python's readability & dynamic ergonomics**, **Go's clean control flow & error patterns**, and **C's native speed** into a cohesive modern language. Programs can be transpiled directly to optimized C11 or executed on an integrated stack-based Bytecode Virtual Machine with profiling.
+Skylang blends **Python's readability & dynamic ergonomics**, **Go's clean control flow & error patterns**, and **native execution performance** into a cohesive modern language with full multi-module support and polyglot runtimes.
 
 ```skylang
 // Hello World & Multi-Language Interop in Skylang
@@ -63,10 +62,11 @@ println("Rust math PI:", rust_math.PI)
   - [Named Parameters (`takes`)](#named-parameters-with-takes)
   - [Built-in Functions](#built-in-functions)
 - [Classes & OOP](#classes--oop)
+- [Modules & File Imports](#modules--file-imports)
 - [Standard Library](#standard-library)
 - [Multi-Language Interoperability (Python, JS/NPM, C++, Java, Go, Rust)](#multi-language-interoperability)
 - [Foreign Function Interface (FFI)](#foreign-function-interface-ffi)
-- [Dual Execution Architecture (AOT & Bytecode VM)](#dual-execution-architecture)
+- [Execution & Compilation](#execution--compilation)
 - [Error Handling & Traceback Engine](#error-handling--traceback-engine)
   - [Go-Style Error Returns](#1-go-style-error-handling)
   - [Unpacking Results & Blank Identifier](#unpacking-results)
@@ -75,8 +75,6 @@ println("Rust math PI:", rust_math.PI)
 - [Memory Management](#memory-management)
 - [Comments](#comments)
 - [VS Code Extension & Editor Support](#vs-code-extension--editor-support)
-- [Project Structure](#project-structure)
-- [Running Tests](#running-tests)
 - [Roadmap](#roadmap)
 - [License](#license)
 
@@ -88,10 +86,9 @@ println("Rust math PI:", rust_math.PI)
 
 | Tool | Purpose |
 |------|---------|
-| **GCC** (C11+) | C compiler used to compile transpiled output |
-| **Make** | Build system |
+| **C Compiler** | System compiler for native binary generation |
 | **Boehm GC** (`libgc` / `bdw-gc`) | Automatic garbage collection library |
-| **pkg-config** | Helps locate the GC library during build |
+| **pkg-config** | Helps locate system runtime dependencies |
 | **Go / Rust / Python / Node / Java** (Optional) | Required when using respective multi-language interop bridges |
 
 ### One-Command Setup
@@ -108,9 +105,9 @@ chmod +x install.sh
 **What `install.sh` does:**
 
 1. **Detects your OS** and package manager (apt, dnf, pacman, zypper, apk, brew)
-2. **Checks for dependencies** — gcc, make, pkg-config, libgc, Python 3, Node.js, Go, Rust, Java
+2. **Checks for dependencies** — C compiler, pkg-config, libgc, Python 3, Node.js, Go, Rust, Java
 3. **Installs missing packages**
-4. **Builds the compiler & runtime** by running `make clean all`
+4. **Builds the compiler & toolchain**
 5. **Creates global commands** — symlinks `skylang` and `sky` into `~/.local/bin`
 6. **Updates your PATH** — appends `~/.local/bin` to your shell profile if not present
 7. **Installs VS Code extension** — automatic syntax highlighting and autocomplete
@@ -127,13 +124,6 @@ After setup completes, restart your terminal (or `source ~/.bashrc`), then:
 sky run examples/01_basics.sky    # works from any directory
 ```
 
-### Manual Build (if you prefer)
-
-```bash
-make clean && make
-./bin/sky run examples/01_basics.sky
-```
-
 ---
 
 ## CLI Usage
@@ -142,8 +132,8 @@ After installation, two commands are available globally: `skylang` and `sky` (an
 
 | Command | What it does |
 |---|---|
-| `sky run <file.sky>` | Transpiles to C, compiles, and executes immediately |
-| `sky build <file.sky> [-o <output>]` | Transpiles to C and compiles into a standalone native binary (defaults to `./<basename>`, silent on success) |
+| `sky run <file.sky>` | Compiles and executes immediately |
+| `sky build <file.sky> [-o <output>]` | Compiles into a standalone native binary (defaults to `./<basename>`, silent on success) |
 | `sky <file.sky>` | Shorthand for `sky run <file.sky>` |
 
 ### Examples
@@ -837,6 +827,36 @@ print("Balance:", acc.getBalance())   // 1300
 
 Skylang includes built-in standard library modules available out of the box without any import required:
 
+## Modules & File Imports
+
+Skylang supports importing other `.sky` files located in the same directory or in sub-directories. Imported functions and classes are accessible both through the module namespace and directly in scope:
+
+```skylang
+// 1. Import module from same directory
+import "math_utils.sky"
+
+// 2. Import module from subdirectory
+import "utils/helper.sky"
+
+// Use functions via module namespace
+println("math_utils.add:", math_utils.add(10, 20))
+h := helper.Greeter("Welcome")
+println(h.greet("Alice"))
+
+// Or use them directly in scope
+println("Direct add:", add(10, 20))
+```
+
+---
+
+## Standard Library
+
+Skylang includes built-in standard library modules available out of the box or via `import`:
+
+```skylang
+import math, random, time, io, fmt
+```
+
 ### 1. `math` Module
 
 ```skylang
@@ -852,7 +872,33 @@ print(math.clamp(15, 0, 10))    // 10
 print(math.hypot(3, 4))         // 5.0
 ```
 
-### 2. `fmt` Module
+### 2. `random` Module
+
+```skylang
+import random
+
+print(random.random())               // Random float in [0.0, 1.0)
+print(random.randint(1, 100))        // Random integer between 1 and 100
+print(random.uniform(10.0, 20.0))    // Random float between 10.0 and 20.0
+print(random.choice(["a", "b", "c"])) // Random item from collection
+
+items := [1, 2, 3, 4, 5]
+random.shuffle(items)                // Shuffles elements
+```
+
+### 3. `time` Module
+
+```skylang
+import time
+
+t0 := time.time()                    // Current Unix timestamp (seconds as double)
+time.sleep(0.5)                      // Sleep for 0.5 seconds
+t1 := time.time()
+print("Elapsed:", t1 - t0)
+print("CPU Clock:", time.clock())
+```
+
+### 4. `fmt` Module
 
 ```skylang
 msg := fmt.format("Hello {}! Score: {}", "Alice", 95)
@@ -863,7 +909,7 @@ print(fmt.oct(64))             // 100
 print(fmt.repeat("*-", 5))     // *-*-*-*-*-
 ```
 
-### 3. `io` Module
+### 5. `io` Module
 
 ```skylang
 io.writefile("data.txt", "Line 1\nLine 2\n")
@@ -886,7 +932,7 @@ Skylang provides first-class, bidirectional interoperability bridges with **Pyth
 
 ### 1. Python Interoperability (`import python`)
 
-Skylang embeds the Python 3 runtime C API directly with automatic bidirectional type marshalling:
+Skylang embeds the Python 3 runtime directly with automatic bidirectional type marshalling:
 
 ```skylang
 import python
@@ -938,7 +984,7 @@ js.exec("console.log('Hello from Node.js runtime inside Skylang!');")
 
 ### 3. C++ Interoperability & JIT (`import cpp`)
 
-Skylang features an on-the-fly C++ JIT compilation pipeline with dynamic linking:
+Skylang features an on-the-fly C++ compilation pipeline with dynamic linking:
 
 ```skylang
 import cpp
@@ -988,7 +1034,7 @@ java.exec("System.out.println(\"Java code execution works!\");")
 
 ### 5. Golang Interoperability (`import go` / `import golang`)
 
-Skylang seamlessly interfaces with the Go runtime and supports on-the-fly `c-shared` binary compilation and standard package dispatch:
+Skylang seamlessly interfaces with the Go runtime and supports on-the-fly binary compilation and standard package dispatch:
 
 ```skylang
 import go
@@ -1001,7 +1047,7 @@ println("Go math.Pi:", math_go.Pi)          // 3.14159...
 // 2. Multi-package loading
 pkgs := go.load("math", "strings")
 
-// 3. On-the-fly Go JIT compilation with exported functions
+// 3. On-the-fly Go compilation with exported functions
 go_calc := go.compile("
 //export Add
 func Add(a, b float64) float64 {
@@ -1027,7 +1073,7 @@ go.exec("fmt.Println(\"Hello from Go runtime!\")")
 
 ### 6. Rust Interoperability & JIT (`import rust`)
 
-Skylang interfaces directly with `rustc` via `cdylib` dynamic linking with support for on-the-fly compiled `extern "C"` functions:
+Skylang interfaces directly with `rustc` via dynamic linking with support for on-the-fly compiled `extern "C"` functions:
 
 ```skylang
 import rust
@@ -1040,7 +1086,7 @@ println("Rust math E:", math_rs.E)          // 2.71828...
 // 2. Multi-module loading
 mods := rust.load("std::f64::consts", "std::cmp")
 
-// 3. On-the-fly Rust Dynamic JIT Compilation
+// 3. On-the-fly Rust Compilation
 rust_calc := rust.compile("
 #[no_mangle]
 pub extern \"C\" fn add(a: f64, b: f64) -> f64 {
@@ -1070,11 +1116,9 @@ rust.exec("println!(\"Hello from Rust runtime!\");")
 
 ## Foreign Function Interface (FFI)
 
-Skylang can directly import C headers with `cimport` and declare `extern` C functions. Multiple header files can also be imported in a single statement:
+Skylang allows declaring and calling `extern` C functions directly:
 
 ```skylang
-cimport "math.h", "stdio.h"
-
 extern f cos(x)
 extern f sin(x)
 extern f sqrt(x)
@@ -1086,46 +1130,25 @@ print("C sqrt(625):", sqrt(625.0))   // 25.0
 
 ---
 
-## Dual Execution Architecture
+## Execution & Compilation
 
-Skylang features two complementary execution engines designed for development flexibility and production performance:
+Skylang provides fast JIT execution for rapid development and native binary compilation for standalone distribution:
 
+### 1. Instant Execution (`sky run`)
+Compiles and executes Skylang programs immediately:
+```bash
+sky run app.sky
 ```
-                               ┌──→ AST Codegen ──→ Clean C11 ──→ GCC -O2 ──→ Standalone Native Binary
- .sky Source ──→ Lexer ──→ Parser
-                               └──→ AST Compiler ─→ Bytecode ───→ Stack VM ─→ Instant Execution & Profiler
-```
 
-### 1. Ahead-of-Time (AOT) C Transpiler
-- **How it works**: Transpiles the high-level AST into optimized C11 code, and invokes GCC with `-O2`, linking against `libskylang_rt.a`, `libgc`, and multi-language interop shared objects.
-- **When to use**: For maximum runtime speed, zero-overhead deployments, and distributing standalone binaries.
-- **Commands**:
-  ```bash
-  sky run app.sky               # JIT compile & execute immediately
-  sky build app.sky             # Produce standalone native binary `./app` silently
-  sky build app.sky -o app_bin  # Produce standalone native binary with custom name
-  ```
+### 2. Standalone Binary Compilation (`sky build`)
+Produces an optimized native executable with zero runtime dependencies:
+```bash
+# Produce standalone binary `./app` silently
+sky build app.sky
 
-### 2. Stack-Based Bytecode Virtual Machine & Profiler
-- **How it works**: Compiles the AST into compact 8-bit bytecode chunks containing opcodes (`OP_CONST`, `OP_CALL`, `OP_GET_LOCAL`, etc.) and executes on a lightweight virtual machine.
-- **When to use**: For instant startup, scripting, debugging, and instruction-level performance inspection.
-- **Commands**:
-  ```bash
-  sky vm app.sky                # Execute directly on the Bytecode VM
-  sky profile app.sky           # Run with execution profiler enabled
-  ```
-
-#### Profiler Output Example
-```text
-======================= SKYLANG PERFORMANCE PROFILE =======================
-Total Execution Time:   0.412 ms
-Total Instructions:     1024
-Bytecode Opcodes Executed:
-  OP_GET_LOCAL    : 312
-  OP_ADD          : 128
-  OP_CALL         : 64
-  ...
-==========================================================================
+# Produce standalone binary with custom output name
+sky build app.sky -o my_app
+./my_app
 ```
 
 ---
@@ -1295,129 +1318,21 @@ Skylang includes a full-featured, rich Visual Studio Code extension designed for
   - Auto-completion with intelligent argument placeholders for `.load("")`, `.exec("")`, and `.compile("")` with cursor placed inside the quotes.
   - Global `eval("...")` built-in code completion and evaluation snippets.
   - Dynamic module suggestions for unimported packages (e.g. typing `go.`, `rust.`, `python.` automatically suggests imports).
-  - Snippets for functions (`f`), variadic functions (`fvar`), classes (`class`), loops (`forin`, `forcond`), error handling (`errhandle`), and multi-language interop (`cimport`, `imppy`, `impjs`, `impcpp`, `impjava`, `goload`, `rustload`).
+  - Snippets for functions (`f`), variadic functions (`fvar`), classes (`class`), loops (`forin`, `forcond`), error handling (`errhandle`), and multi-language interop (`imppy`, `impjs`, `impcpp`, `impjava`, `goload`, `rustload`).
 - **Real-Time Diagnostics & Linter**: Direct inline squiggly error diagnostics mapped directly to `.sky` lines in the editor.
 - **Rich Syntax Highlighting**: Comprehensive TextMate grammar covering keywords, scalar and collection types, bracketless functions, `takes(...)`, multi-module single-line imports (`import python, js, cpp, java, go, rust`), and FFI declarations.
-- **Workspace Build Tasks**: Run (`sky run`), build (`sky build`), or VM test directly inside VS Code via `Ctrl+Shift+B` or Command Palette (`Tasks: Run Task`).
+- **Workspace Build Tasks**: Run (`sky run`) or build (`sky build`) directly inside VS Code via `Ctrl+Shift+B` or Command Palette (`Tasks: Run Task`).
 
 ### Installing the VS Code Extension
 
-The extension is installed automatically when running `./install.sh`. You can also install or update it at any time with:
-
-```bash
-make vscode
-```
-
----
-
-## Project Structure
-
-```
-skylang/
-├── install.sh            # One-command install & environment setup script
-├── delete.sh             # Uninstaller script
-├── Makefile              # Build system (includes `make vscode`)
-├── README.md              # Complete guide & documentation
-├── .vscode/               # Workspace settings & build tasks
-├── editors/
-│   └── vscode/            # VS Code extension (grammar, snippets, manifest)
-├── bin/                   # Compiled binaries (skylang, sky)
-├── examples/              # Example programs
-│   ├── 01_basics.sky      #   Variables, operators, walrus, .T
-│   ├── 02_collections.sky #   Strings, arrays, lists, tuples, dicts, sets
-│   ├── 03_control_flow.sky#   If/elif/else, for loops
-│   ├── 04_functions.sky   #   Functions, takes(), recursion
-│   ├── 05_classes.sky     #   Classes, init, methods, instances
-│   ├── 06_error_handling.sky # Error handling, multiple returns, blank _
-│   ├── 07_stdlib.sky      #   Standard library (math, fmt, io)
-│   ├── 08_ffi.sky         #   C header cimport and extern declarations
-│   ├── 09_vm_profile.sky  #   Bytecode VM execution and profiling
-│   ├── 10_python.sky      #   Python interop and package loading
-│   ├── 11_js.sky          #   JavaScript & NPM package interop
-│   ├── 12_cpp.sky         #   C++ interop and dynamic JIT compilation
-│   ├── 13_java.sky        #   Java interop and reflection
-│   ├── 14_go.sky          #   Golang interop and c-shared JIT compilation
-│   └── 15_rust.sky        #   Rust interop and cdylib JIT compilation
-├── include/               # Header files
-│   ├── skylang.h          #   Compiler internals (lexer, parser, codegen)
-│   ├── skylang_rt.h       #   Runtime API (Value, GC, collections, OBJ_FOREIGN)
-│   ├── sky_stdlib.h       #   Standard library API (math, fmt, io)
-│   ├── sky_vm.h           #   Bytecode VM, chunk format, profiler
-│   ├── sky_python.h       #   Python C API bridge
-│   ├── sky_js.h           #   Node.js / NPM interop bridge
-│   ├── sky_cpp.h          #   C++ JIT compilation bridge
-│   ├── sky_java.h         #   Java reflection interop bridge
-│   ├── sky_go.h           #   Golang interop bridge
-│   └── sky_rust.h         #   Rust interop bridge
-├── lib/                   # Static runtime library (libskylang_rt.a)
-├── tests/                 # Test suite
-│   ├── test_all.sky       #   Comprehensive automated test suite
-│   └── test_eval.sky      #   Dynamic eval() test suite
-└── src/                   # Source code
-    ├── main.c             #   CLI driver (run, build)
-    ├── lexer.c            #   Tokenizer
-    ├── parser.c           #   Recursive descent parser → AST
-    ├── codegen.c          #   AST → C code transpiler
-    ├── compiler.c         #   AST → Bytecode compiler
-    ├── vm.c               #   Stack-based VM interpreter & dynamic eval engine
-    ├── runtime.c          #   Runtime: Value system, GC, collections, dynamic dispatch, traceback engine
-    ├── sky_stdlib.c       #   Standard library implementation
-    ├── sky_python.c       #   Python interop bridge
-    ├── sky_js.c           #   Node.js / NPM interop bridge
-    ├── sky_cpp.c          #   C++ JIT bridge
-    ├── sky_java.c         #   Java interop bridge
-    ├── sky_go.c           #   Golang interop bridge
-    └── sky_rust.c         #   Rust interop bridge
-```
-
-### How Compilation Works
-
-```
- .sky file → Lexer → Tokens → Parser → AST ──┬──→ Codegen ──→ C code ──→ GCC ──→ Native Binary
-                                            └──→ Compiler ─→ Bytecode ────────→ Bytecode VM (eval)
-```
-
----
-
-## Running Tests
-
-```bash
-make test
-```
-
-The test suite (`tests/test_all.sky`) covers **24 categories** — all passing:
-
-1. Default initializations (`I=0`, `D=0.0`, `B=false`, `C='a'`, `S=""`)
-2. Walrus operator `:=`
-3. Arithmetic operators (`+`, `-`, `*`, `/`, `//`, `^`, `%`)
-4. Comparisons and boolean logic (`and`, `or`, `!`)
-5. String indexing, slicing, built-in methods, and properties (`.size`, `.chars`, `.bytes`)
-6. Fixed-size arrays (`<val1, val2>` and `arr I 5`)
-7. Dynamic lists (`push`, `pop`, `clear`, slicing)
-8. Tuples
-9. Dictionaries (`has`, `size`, property access)
-10. Sets (`add`, `has`, deduplication)
-11. Sorted lists (auto-sorted insertion)
-12. Type system and `.T` property
-13. Functions, `takes(...)`, and recursion
-14. Control flow (`if`, `elif`, `else`, unified `for` loops)
-15. Classes, constructors, fields, and methods
-16. Standard Library modules (`math`, `fmt`, `io`)
-17. Foreign Function Interface (`cimport`, `extern f`)
-18. Go-style error handling, multiple returns, and blank `_`
-19. Python Interoperability (`import python`, embedded C API)
-20. JavaScript / NPM Interoperability (`import js`)
-21. C++ Interoperability & Dynamic JIT (`import cpp`)
-22. Java Interoperability (`import java`, reflection bridge)
-23. Golang Interoperability & c-shared JIT (`import go`, `import golang`)
-24. Rust Interoperability & cdylib JIT (`import rust`)
+The extension is installed automatically when running `./install.sh`. You can also manually package or install it from the `editors/vscode` directory.
 
 ---
 
 ## Roadmap
 
-- [x] **FFI (Foreign Function Interface)** — Direct C header `cimport` and `extern f` function bindings
-- [x] **Standard Library** — `math`, `fmt`, and `io` modules built-in
+- [x] **FFI (Foreign Function Interface)** — Direct C library header integration and `extern f` function bindings
+- [x] **Standard Library & Modules** — Multi-file imports, `math`, `random`, `time`, `fmt`, and `io` modules built-in
 - [x] **Built-in String Operations** — Full suite of built-in string methods, properties, and functions
 - [x] **Dynamic eval(...) Engine** — Built-in dynamic expression and statement evaluation
 - [x] **Multi-Language Interoperability** — Native language bridges for Python, JavaScript/NPM, C++, Java, Golang, and Rust
@@ -1428,4 +1343,4 @@ The test suite (`tests/test_all.sky`) covers **24 categories** — all passing:
 
 ## License
 
-This project is currently unlicensed. All rights reserved.
+This project is licensed under Apache 2.O. All rights reserved.

@@ -58,7 +58,7 @@ export class SkylangCodeActionProvider implements vscode.CodeActionProvider {
                 let foundImport = false;
                 for (let i = 0; i < lines.length; i++) {
                     const l = lines[i].trim();
-                    if (l.startsWith('import ') || l.startsWith('cimport ')) {
+                    if (l.startsWith('import ')) {
                         insertLine = i + 1;
                         foundImport = true;
                     } else if (!foundImport && (l.startsWith('//') || l.startsWith('#') || l === '')) {
@@ -112,7 +112,7 @@ export class SkylangCodeActionProvider implements vscode.CodeActionProvider {
 
         for (let i = 0; i < lines.length; i++) {
             const l = lines[i].trim();
-            if (l.startsWith('import ') || l.startsWith('cimport ')) {
+            if (l.startsWith('import ')) {
                 insertLine = i + 1;
                 foundExistingImport = true;
             } else if (!foundExistingImport && (l.startsWith('//') || l.startsWith('#') || l === '')) {

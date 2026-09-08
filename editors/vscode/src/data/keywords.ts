@@ -97,25 +97,17 @@ export const KEYWORDS: Record<string, KeywordDoc> = {
         description: 'Skips the remaining statements in the current iteration of the innermost enclosing `for` loop and begins the next iteration.',
         example: 'if item == 0 { continue }',
         category: 'Control Flow'
-    },
     'import': {
-        name: 'import (Multi-Language Interoperability)',
-        syntax: 'import python | import js | import cpp | import java | import go | import rust',
-        description: 'Imports a multi-language interoperability runtime bridge in Skylang:\n- `import python`: Python 3 embedded runtime & package loader\n- `import js`: Node.js & NPM package bridge\n- `import cpp`: On-the-fly C++ JIT compilation pipeline & .so loader\n- `import java`: JVM reflection & class loader bridge\n- `import go` / `import golang`: Go c-shared JIT compilation pipeline & loader\n- `import rust`: Rust cdylib JIT compilation pipeline & loader',
-        example: 'import python, js, cpp, java, go, rust\n\nmath := python.load("math")\nprintln("Python sqrt:", math.sqrt(256))\n\nMath_js := js.load("Math")\nprintln("JS Math:", Math_js.sqrt(625))',
-        category: 'Interop'
-    },
-    'cimport': {
-        name: 'cimport (C Foreign Function Interface)',
-        syntax: 'cimport "header.h"',
-        description: 'Imports a C header file for direct C interoperability via Foreign Function Interface (FFI). Declared functions can be called directly as native C code.',
-        example: 'cimport "math.h"\n\nextern f cos(x)\nextern f sin(x)\nextern f sqrt(x)\n\nprintln("C cos(0):", cos(0.0))',
-        category: 'FFI'
+        name: 'import (Modules & Interoperability)',
+        syntax: 'import "file.sky" | import math, random, time, io, fmt | import python, js, cpp, java, go, rust',
+        description: 'Imports a Skylang module file, standard library, or multi-language runtime in Skylang:\n- `.sky` files: `import "math_utils.sky"`, `import "sub/helper.sky"`, `import helper`\n- Standard Libraries: `import math, random, time, io, fmt`\n- Multi-language Bridges: `python`, `js`, `cpp`, `java`, `go`, `rust`',
+        example: 'import "math_utils.sky"\nimport random, time\n\nprintln("Random:", random.randint(1, 100))\nprintln("Math Util Add:", math_utils.add(10, 20))',
+        category: 'Module'
     },
     'extern': {
         name: 'extern (C External Function Declaration)',
         syntax: 'extern f function_name(param1, ...)',
-        description: 'Declares an external C function signature imported via `cimport` for native binding in Skylang.',
+        description: 'Declares an external C function signature for native C binding in Skylang.',
         example: 'extern f atan2(y, x)\nextern f pow(base, exp)',
         category: 'FFI'
     },

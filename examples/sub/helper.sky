@@ -1,0 +1,20 @@
+// helper.sky - Helper module in a sub-directory
+
+f formatGreeting {
+    takes(title, name)
+    return "Hello, " + title + " " + name + "!"
+}
+
+class Greeter {
+    this.prefix
+
+    init {
+        takes(prefix)
+        this.prefix = prefix
+    }
+
+    greet {
+        takes(name)
+        return this.prefix + " " + name
+    }
+}

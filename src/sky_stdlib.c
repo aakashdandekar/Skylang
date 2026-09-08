@@ -6,11 +6,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
+#include <sys/time.h>
 #include <gc.h>
 
 Value sky_mod_math;
 Value sky_mod_io;
 Value sky_mod_fmt;
+Value sky_mod_random;
+Value sky_mod_time;
 
 static double to_num(Value v) {
     if (v.type == VAL_INT) return (double)v.as.i;
@@ -363,9 +367,125 @@ Value sky_stdlib_fmt_init(void) {
     return mod;
 }
 
-void sky_stdlib_init_all(void) {
-    sky_mod_math = sky_stdlib_math_init();
-    sky_mod_io   = sky_stdlib_io_init();
-    sky_mod_fmt  = sky_stdlib_fmt_init();
+static Value rnd_random_fn(int argc, Value* argv) {
+    (void)argc; (void)argv;
+    return val_double(((double)rand()) / ((double)RAND_MAX + 1.0));
 }
+
+static Value rnd_randint_fn(int argc, Value* argv) {
+    if (argc < 2) return val_int(0);
+    int64_t a = (argv[0].type == VAL_INT) ? argv[0].as.i : (int64_t)to_num(argv[0]);
+    int64_t b = (argv[1].type == VAL_INT) ? argv[1].as.i : (int64_t)to_num(argv[1]);
+    if (b < a) { int64_t t = a; a = b; b = t; }
+    uint64_t range = (uint64_t)(b - a + 1);
+    if (range == 0) return val_int(a);
+    uint64_t r_val = ((uint64_t)(unsigned int)rand() << 32) | (uint64_t)(unsigned int)rand();
+    int64_t res = a + (int64_t)(r_val % range);
+    return val_int(res);
+}
+
+static Value rnd_uniform_fn(int argc, Value* argv) {
+    if (argc < 2) return val_double(0.0);
+    double a = to_num(argv[0]);
+    double b = to_num(argv[1]);
+    double r = a + (b - a) * (((double)rand()) / ((double)RAND_MAX + 1.0));
+    return val_double(r);
+}
+
+static Value rnd_choice_fn(int argc, Value* argv) {
+    if (argc < 1 || argv[0].type != VAL_OBJ || argv[0].as.obj == NULL) return val_nil();
+    if (argv[0].as.obj->type == OBJ_LIST) {
+        ObjList* l = as_list(argv[0]);
+        if (l->count == 0) return val_nil();
+        return l->items[rand() % l->count];
+    }
+    if (argv[0].as.obj->type == OBJ_ARRAY) {
+        ObjArray* a = as_array(argv[0]);
+        if (a->capacity == 0) return val_nil();
+        return val_get_index(argv[0], val_int(rand() % a->capacity));
+    }
+    if (argv[0].as.obj->type == OBJ_STRING) {
+        ObjString* s = (ObjString*)argv[0].as.obj;
+        if (s->length == 0) return val_nil();
+        char c[2] = { s->chars[rand() % s->length], '\0' };
+        return val_string(c);
+    }
+    return val_nil();
+}
+
+static Value rnd_shuffle_fn(int argc, Value* argv) {
+    if (argc < 1 || argv[0].type != VAL_OBJ || argv[0].as.obj == NULL || argv[0].as.obj->type != OBJ_LIST) {
+        return (argc >= 1) ? argv[0] : val_nil();
+    }
+    ObjList* l = as_list(argv[0]);
+    if (l->count > 1) {
+        for (size_t i = l->count - 1; i > 0; --i) {
+            size_t j = (size_t)rand() % (i + 1);
+            Value temp = l->items[i];
+            l->items[i] = l->items[j];
+            l->items[j] = temp;
+        }
+    }
+    return argv[0];
+}
+
+static Value rnd_seed_fn(int argc, Value* argv) {
+    unsigned int s = (argc >= 1 && argv[0].type == VAL_INT) ? (unsigned int)argv[0].as.i : (unsigned int)time(NULL);
+    srand(s);
+    return val_nil();
+}
+
+Value sky_stdlib_random_init(void) {
+    srand((unsigned int)time(NULL) ^ (unsigned int)getpid());
+    Value mod = val_dict();
+    ObjDict* d = as_dict(mod);
+    dict_set(d, val_string("random"),  val_function("random",  rnd_random_fn,   0));
+    dict_set(d, val_string("randint"), val_function("randint", rnd_randint_fn,  2));
+    dict_set(d, val_string("uniform"), val_function("uniform", rnd_uniform_fn,  2));
+    dict_set(d, val_string("choice"),  val_function("choice",  rnd_choice_fn,   1));
+    dict_set(d, val_string("shuffle"), val_function("shuffle", rnd_shuffle_fn,  1));
+    dict_set(d, val_string("seed"),    val_function("seed",    rnd_seed_fn,     1));
+    return mod;
+}
+
+static Value time_time_fn(int argc, Value* argv) {
+    (void)argc; (void)argv;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return val_double((double)tv.tv_sec + (double)tv.tv_usec / 1000000.0);
+}
+
+static Value time_sleep_fn(int argc, Value* argv) {
+    if (argc >= 1) {
+        double s = to_num(argv[0]);
+        if (s > 0) {
+            usleep((useconds_t)(s * 1000000.0));
+        }
+    }
+    return val_nil();
+}
+
+static Value time_clock_fn(int argc, Value* argv) {
+    (void)argc; (void)argv;
+    return val_double((double)clock() / (double)CLOCKS_PER_SEC);
+}
+
+Value sky_stdlib_time_init(void) {
+    Value mod = val_dict();
+    ObjDict* d = as_dict(mod);
+    dict_set(d, val_string("time"),  val_function("time",  time_time_fn,  0));
+    dict_set(d, val_string("now"),   val_function("now",   time_time_fn,  0));
+    dict_set(d, val_string("sleep"), val_function("sleep", time_sleep_fn, 1));
+    dict_set(d, val_string("clock"), val_function("clock", time_clock_fn, 0));
+    return mod;
+}
+
+void sky_stdlib_init_all(void) {
+    sky_mod_math   = sky_stdlib_math_init();
+    sky_mod_io     = sky_stdlib_io_init();
+    sky_mod_fmt    = sky_stdlib_fmt_init();
+    sky_mod_random = sky_stdlib_random_init();
+    sky_mod_time   = sky_stdlib_time_init();
+}
+
 

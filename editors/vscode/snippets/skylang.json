@@ -2,16 +2,9 @@
   "Import Module": {
     "prefix": "import",
     "body": [
-      "import ${1|python,js,cpp,java,go,rust,math,fmt,io|}"
+      "import ${1|math,random,time,io,fmt,python,js,cpp,java,go,rust|}"
     ],
-    "description": "Import a Skylang standard library or interop module"
-  },
-  "C Header Import (FFI)": {
-    "prefix": "cimport",
-    "body": [
-      "cimport \"${1:math.h}\""
-    ],
-    "description": "Import a C header file for native C FFI"
+    "description": "Import a Skylang module or file"
   },
   "Extern Function Declaration": {
     "prefix": "extern",

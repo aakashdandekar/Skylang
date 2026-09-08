@@ -844,7 +844,6 @@ static void compile_stmt(Compiler* c, AstNode* stmt) {
         }
 
         case AST_STMT_EXTERN_DECL:
-        case AST_STMT_CIMPORT:
         case AST_STMT_IMPORT:
             break;
 

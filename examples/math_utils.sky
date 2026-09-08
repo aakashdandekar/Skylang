@@ -1,0 +1,42 @@
+// math_utils.sky - Math utility functions and Calculator class
+
+PI := 3.1415926535
+
+f add {
+    takes(a, b)
+    return a + b
+}
+
+f multiply {
+    takes(a, b)
+    return a * b
+}
+
+class Calculator {
+    this.name
+    this.history
+
+    init {
+        takes(name)
+        this.name = name
+        this.history = []
+    }
+
+    computeSum {
+        takes(x, y)
+        res := x + y
+        this.history.push(res)
+        return res
+    }
+
+    computeProduct {
+        takes(x, y)
+        res := x * y
+        this.history.push(res)
+        return res
+    }
+
+    getHistory {
+        return this.history
+    }
+}
