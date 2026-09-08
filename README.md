@@ -155,15 +155,6 @@ sky build my_app.sky
 # Compile with a custom output binary name
 sky build my_app.sky -o custom_bin
 ./custom_bin
-
-# Execute on the Bytecode VM
-sky vm my_app.sky
-
-# Inspect opcode performance metrics
-sky profile my_app.sky
-
-# Interactive REPL for experimenting
-sky repl
 ```
 
 ---
