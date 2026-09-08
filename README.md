@@ -75,7 +75,6 @@ println("Rust math PI:", rust_math.PI)
 - [Memory Management](#memory-management)
 - [Comments](#comments)
 - [VS Code Extension & Editor Support](#vs-code-extension--editor-support)
-- [Roadmap](#roadmap)
 - [License](#license)
 
 ---
@@ -1326,18 +1325,6 @@ Skylang includes a full-featured, rich Visual Studio Code extension designed for
 ### Installing the VS Code Extension
 
 The extension is installed automatically when running `./install.sh`. You can also manually package or install it from the `editors/vscode` directory.
-
----
-
-## Roadmap
-
-- [x] **FFI (Foreign Function Interface)** — Direct C library header integration and `extern f` function bindings
-- [x] **Standard Library & Modules** — Multi-file imports, `math`, `random`, `time`, `fmt`, and `io` modules built-in
-- [x] **Built-in String Operations** — Full suite of built-in string methods, properties, and functions
-- [x] **Dynamic eval(...) Engine** — Built-in dynamic expression and statement evaluation
-- [x] **Multi-Language Interoperability** — Native language bridges for Python, JavaScript/NPM, C++, Java, Golang, and Rust
-- [x] **Python-Style Traceback Engine** — Clean compile-time and runtime error tracebacks with call stack unwinding
-- [ ] **Package Manager** — Import and share Skylang packages
 
 ---
 
