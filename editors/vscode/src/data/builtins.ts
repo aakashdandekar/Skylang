@@ -25,6 +25,60 @@ export const BUILTIN_FUNCTIONS: Record<string, BuiltinDoc> = {
         returns: 'none',
         example: 'println("Hello, Skylang!")'
     },
+    'open': {
+        name: 'open',
+        signature: 'open(filepath, [mode])',
+        description: 'Opens a file and returns a file object (Python-style). Modes: "r" (read), "w" (write), "a" (append), "rb", "wb".',
+        params: [
+            { name: 'filepath', doc: 'Path to the target file on disk' },
+            { name: 'mode', doc: 'Optional access mode string: "r", "w", "a" (default is "r")' }
+        ],
+        returns: 'file',
+        example: 'f := open("data.txt", "r")\ncontent := f.read()\nf.close()'
+    },
+    'input': {
+        name: 'input',
+        signature: 'input([prompt])',
+        description: 'Displays an optional prompt message and reads a single line of input from standard input.',
+        params: [{ name: 'prompt', doc: 'Optional prompt text to display' }],
+        returns: 'string',
+        example: 'name := input("Enter your name: ")'
+    },
+    'hex': {
+        name: 'hex',
+        signature: 'hex(integer)',
+        description: 'Converts an integer number to its hexadecimal string representation (e.g. "ff" or "0xff").',
+        params: [{ name: 'integer', doc: 'Integer number to convert' }],
+        returns: 'string',
+        example: 's := hex(255) // "ff"'
+    },
+    'bin': {
+        name: 'bin',
+        signature: 'bin(integer)',
+        description: 'Converts an integer number to its binary string representation (e.g. "101010").',
+        params: [{ name: 'integer', doc: 'Integer number to convert' }],
+        returns: 'string',
+        example: 's := bin(42) // "101010"'
+    },
+    'oct': {
+        name: 'oct',
+        signature: 'oct(integer)',
+        description: 'Converts an integer number to its octal string representation (e.g. "100").',
+        params: [{ name: 'integer', doc: 'Integer number to convert' }],
+        returns: 'string',
+        example: 's := oct(64) // "100"'
+    },
+    'format': {
+        name: 'format',
+        signature: 'format(value, [format_spec])',
+        description: 'Converts a value to a formatted representation as controlled by format_spec.',
+        params: [
+            { name: 'value', doc: 'Value to format' },
+            { name: 'format_spec', doc: 'Optional format specification string' }
+        ],
+        returns: 'string',
+        example: 's := format(123.456, ".2f")'
+    },
     'eval': {
         name: 'eval',
         signature: 'eval(code_str)',
@@ -404,6 +458,93 @@ export const COLLECTION_METHODS: Record<string, BuiltinDoc> = {
         example: '"hello".reverse() // "olleh"',
         container: 'string | list'
     },
+    'format': {
+        name: 'format',
+        signature: 'str.format(...args)',
+        description: 'Formats the string template by replacing each `{}` placeholder with the string representations of the arguments.',
+        params: [{ name: '...args', doc: 'Values to interpolate into {} placeholders' }],
+        returns: 'string',
+        example: 'msg := "User: {}, Score: {}".format("Alice", 95)',
+        container: 'string'
+    },
+    'rjust': {
+        name: 'rjust',
+        signature: 'str.rjust(width, [fillchar])',
+        description: 'Right-justifies the string in a field of given width, padded with spaces or fillchar.',
+        params: [{ name: 'width', doc: 'Target total width' }, { name: 'fillchar', doc: 'Optional padding character (default space)' }],
+        returns: 'string',
+        example: '"42".rjust(5) // "   42"',
+        container: 'string'
+    },
+    'ljust': {
+        name: 'ljust',
+        signature: 'str.ljust(width, [fillchar])',
+        description: 'Left-justifies the string in a field of given width, padded with spaces or fillchar.',
+        params: [{ name: 'width', doc: 'Target total width' }, { name: 'fillchar', doc: 'Optional padding character (default space)' }],
+        returns: 'string',
+        example: '"Sky".ljust(6) // "Sky   "',
+        container: 'string'
+    },
+    'center': {
+        name: 'center',
+        signature: 'str.center(width, [fillchar])',
+        description: 'Centers the string in a field of given width, padded with spaces or fillchar.',
+        params: [{ name: 'width', doc: 'Target total width' }, { name: 'fillchar', doc: 'Optional padding character (default space)' }],
+        returns: 'string',
+        example: '"Sky".center(7) // "  Sky  "',
+        container: 'string'
+    },
+    'zfill': {
+        name: 'zfill',
+        signature: 'str.zfill(width)',
+        description: 'Pads the string with leading zeros until it reaches the specified width.',
+        params: [{ name: 'width', doc: 'Target total character width' }],
+        returns: 'string',
+        example: '"42".zfill(5) // "00042"',
+        container: 'string'
+    },
+    'read': {
+        name: 'read',
+        signature: 'file.read([size])',
+        description: 'Reads at most size bytes/chars from the open file, or the entire file if size is omitted.',
+        params: [{ name: 'size', doc: 'Optional byte/character count limit' }],
+        returns: 'string',
+        example: 'content := f.read()',
+        container: 'file'
+    },
+    'write': {
+        name: 'write',
+        signature: 'file.write(content)',
+        description: 'Writes string content to the open file.',
+        params: [{ name: 'content', doc: 'String content to write' }],
+        returns: 'int',
+        example: 'f.write("Hello Skylang\\n")',
+        container: 'file'
+    },
+    'readline': {
+        name: 'readline',
+        signature: 'file.readline()',
+        description: 'Reads a single line from the open file stream.',
+        returns: 'string',
+        example: 'line := f.readline()',
+        container: 'file'
+    },
+    'readlines': {
+        name: 'readlines',
+        signature: 'file.readlines()',
+        description: 'Reads all remaining lines from the open file and returns them as a list of strings.',
+        returns: 'list',
+        example: 'lines := f.readlines()',
+        container: 'file'
+    },
+    'close': {
+        name: 'close',
+        signature: 'file.close()',
+        description: 'Flushes and closes the open file stream.',
+        returns: 'none',
+        example: 'f.close()',
+        container: 'file'
+    },
     'chars': {
         name: 'chars',
         signature: 'str.chars()',
@@ -478,8 +619,12 @@ export const CONTAINER_TYPE_MEMBERS: Record<string, { methods: string[]; propert
         properties: ['size', 'length', 'T']
     },
     'string': {
-        methods: ['value', 'split', 'join', 'upper', 'lower', 'trim', 'trimleft', 'trimright', 'contains', 'has', 'startswith', 'endswith', 'replace', 'find', 'count', 'reverse', 'chars', 'bytes'],
+        methods: ['value', 'split', 'join', 'format', 'upper', 'lower', 'trim', 'trimleft', 'trimright', 'contains', 'has', 'startswith', 'endswith', 'replace', 'find', 'count', 'reverse', 'rjust', 'ljust', 'center', 'zfill', 'chars', 'bytes'],
         properties: ['size', 'length', 'chars', 'bytes', 'T']
+    },
+    'file': {
+        methods: ['read', 'write', 'readline', 'readlines', 'close'],
+        properties: ['T']
     },
     'array': {
         methods: [],

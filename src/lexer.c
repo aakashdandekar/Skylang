@@ -275,6 +275,9 @@ static TokenType check_keyword(const char* start, size_t length) {
         if (strncmp(start, "extern", 6) == 0) return TOK_KW_EXTERN;
         if (strncmp(start, "import", 6) == 0) return TOK_KW_IMPORT;
     }
+    if (length == 7) {
+        if (strncmp(start, "cimport", 7) == 0) return TOK_KW_CIMPORT;
+    }
     if (length == 8) {
         if (strncmp(start, "continue", 8) == 0) return TOK_KW_CONTINUE;
     }
@@ -487,6 +490,7 @@ const char* token_type_name(TokenType type) {
         case TOK_KW_NIL: return "none";
         case TOK_KW_NEW: return "new";
         case TOK_KW_EXTERN: return "extern";
+        case TOK_KW_CIMPORT: return "cimport";
         case TOK_KW_IMPORT: return "import";
         case TOK_PLUS: return "+";
         case TOK_MINUS: return "-";

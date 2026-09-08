@@ -58,8 +58,8 @@ export class SkylangDocumentFormattingProvider implements vscode.DocumentFormatt
         // Normalize spaces around commas
         let res = line.replace(/\s*,\s*/g, ', ');
 
-        // Normalize space after keywords: if, elif, for, class, f, import, extern
-        res = res.replace(/\b(if|elif|for|class|f|import|extern|return)\s+/g, '$1 ');
+        // Normalize space after keywords: if, elif, for, class, f, import, cimport, extern
+        res = res.replace(/\b(if|elif|for|class|f|import|cimport|extern|return)\s+/g, '$1 ');
 
         // Normalize space before opening brace `{`
         res = res.replace(/\s*\{/g, ' {');

@@ -40,7 +40,26 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
 
         const items: vscode.CompletionItem[] = [];
 
-        // 1. Context: extern f ...
+        // 1. Context: cimport "..."
+        const cimportMatch = linePrefix.match(/(?:^|\s)cimport\s+([^;\n]*)$/);
+        if (cimportMatch) {
+            const rawList = cimportMatch[1];
+            const parts = rawList.split(',').map(s => s.trim().replace(/^["']|["']$/g, '').toLowerCase());
+            const alreadyImported = parts.slice(0, -1);
+
+            for (const header of COMMON_C_HEADERS) {
+                if (alreadyImported.includes(header.toLowerCase())) continue;
+                const item = new vscode.CompletionItem(header, vscode.CompletionItemKind.File);
+                item.detail = `C standard header <${header}>`;
+                item.documentation = new vscode.MarkdownString(`Import C standard library header \`${header}\` for native FFI binding.`);
+                item.insertText = header;
+                item.sortText = `0_${header}`;
+                items.push(item);
+            }
+            return items;
+        }
+
+        // 2. Context: extern f ...
         const externMatch = linePrefix.match(/extern\s+f\s+([a-zA-Z0-9_]*)$/);
         if (externMatch) {
             for (const [fnName, fnInfo] of Object.entries(COMMON_EXTERN_C_FUNCTIONS)) {
@@ -62,7 +81,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             const currentQuery = parts[parts.length - 1];
             const alreadyImported = parts.slice(0, -1);
 
-            const allModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust', 'math', 'fmt', 'io'];
+            const allModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'];
             const importItems: vscode.CompletionItem[] = [];
             for (const mod of allModules) {
                 if (alreadyImported.includes(mod)) continue;
@@ -412,12 +431,15 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             items.push(item);
         }
 
-        // 11. Standard Library & Interop Modules (math, io, fmt, str, python, js, cpp, java)
+        // 11. Standard Library & Interop Modules (math, io, fmt, python, js, cpp, java, go, rust)
+        const interopModuleSet = new Set(['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust']);
         for (const [modName, modDoc] of Object.entries(STDLIB_MODULES)) {
             const item = new vscode.CompletionItem(modName, vscode.CompletionItemKind.Module);
             item.detail = modDoc.name;
             item.documentation = new vscode.MarkdownString(modDoc.description);
-            item.additionalTextEdits = this.getAutoImportEdits(document, modName);
+            if (interopModuleSet.has(modName)) {
+                item.additionalTextEdits = this.getAutoImportEdits(document, modName);
+            }
             item.sortText = `00_${modName}`;
             items.push(item);
         }
@@ -494,8 +516,11 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             return `${name}("\${1}")`;
         }
 
-        if (name === 'readfile' || name === 'readlines' || name === 'exists' || name === 'remove') {
-            return `${name}("\${1}")`;
+        if (name === 'open') {
+            return `open("\${1:filepath}", "\${2:r}")`;
+        }
+        if (name === 'input') {
+            return `input("\${1:prompt}")`;
         }
 
         const filtered = params.filter(p => !p.name.startsWith('...'));
@@ -717,6 +742,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
                         else if (rhs.startsWith('(') && rhs.endsWith(')')) inferredType = 'tuple';
                         else if (rhs.startsWith('"') && rhs.endsWith('"')) inferredType = 'string';
                         else if (rhs.startsWith('<') && rhs.endsWith('>')) inferredType = 'array';
+                        else if (rhs.startsWith('open(') || rhs.startsWith('open (')) inferredType = 'file';
                         else if (/^\d+$/.test(rhs)) inferredType = 'int';
                         else if (/^\d+\.\d+$/.test(rhs)) inferredType = 'double';
                         else if (rhs === 'true' || rhs === 'false') inferredType = 'bool';
@@ -923,7 +949,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
 
         for (let i = 0; i < lines.length; i++) {
             const l = lines[i].trim();
-            if (l.startsWith('import ')) {
+            if (l.startsWith('import ') || l.startsWith('cimport ')) {
                 insertLine = i + 1;
                 foundExistingImport = true;
             } else if (!foundExistingImport && (l.startsWith('//') || l.startsWith('#') || l === '')) {

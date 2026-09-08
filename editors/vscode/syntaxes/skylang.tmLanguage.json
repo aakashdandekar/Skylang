@@ -119,7 +119,7 @@
                 },
                 {
                     "name": "keyword.control.import.sky",
-                    "match": "\\b(import|extern)\\b"
+                    "match": "\\b(import|cimport|extern)\\b"
                 },
                 {
                     "name": "keyword.operator.logical.sky",
@@ -184,7 +184,7 @@
             "patterns": [
                 {
                     "name": "support.function.builtin.sky",
-                    "match": "\\b(print|println|range|len|type|takes|error|panic|gc|free|eval|split|join|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|chars|bytes)\\b(?=\\s*\\()"
+                    "match": "\\b(print|println|open|input|hex|bin|oct|format|range|len|type|takes|error|panic|gc|free|eval|split|join|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|chars|bytes)\\b(?=\\s*\\()"
                 },
                 {
                     "name": "variable.language.special.sky",
@@ -196,7 +196,7 @@
             "patterns": [
                 {
                     "name": "support.class.module.sky",
-                    "match": "\\b(math|io|fmt|python|js|cpp|java|go|golang|rust)\\b"
+                    "match": "\\b(math|python|js|cpp|java|go|golang|rust)\\b"
                 }
             ]
         },
@@ -207,14 +207,6 @@
                     "name": "support.function.math.sky"
                 },
                 {
-                    "match": "(?<=\\bio\\.)(readfile|writefile|appendfile|readlines|input|exists|remove)\\b",
-                    "name": "support.function.io.sky"
-                },
-                {
-                    "match": "(?<=\\bfmt\\.)(format|hex|bin|oct|pad|padleft|repeat)\\b",
-                    "name": "support.function.fmt.sky"
-                },
-                {
                     "match": "(?<=\\b(python|js|cpp|java|go|golang|rust)\\.)(load|exec|compile|version)\\b",
                     "name": "support.function.interop.sky"
                 }
@@ -223,7 +215,7 @@
         "collection_methods": {
             "patterns": [
                 {
-                    "match": "(?<=\\.)(push|pop|clear|add|has|value|split|join|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|chars|bytes)\\b(?=\\s*\\()",
+                    "match": "(?<=\\.)(push|pop|clear|add|has|value|split|join|format|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|rjust|ljust|center|zfill|read|write|readline|readlines|close|chars|bytes)\\b(?=\\s*\\()",
                     "name": "support.function.collection.sky"
                 }
             ]

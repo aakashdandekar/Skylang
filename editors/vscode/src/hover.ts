@@ -14,7 +14,19 @@ export class SkylangHoverProvider implements vscode.HoverProvider {
     ): vscode.ProviderResult<vscode.Hover> {
         const lineText = document.lineAt(position.line).text;
 
-        // 1. Check for member access like `math.sqrt`, `random.randint`, `time.sleep`, `io.readfile`, `python.load`, `this.field`
+        // 1. Check for C Header hover in `cimport "header.h"`
+        const headerRange = document.getWordRangeAtPosition(position, /[a-zA-Z0-9_\.]+\.h/);
+        if (headerRange) {
+            const header = document.getText(headerRange);
+            if (COMMON_C_HEADERS.includes(header)) {
+                const content = new vscode.MarkdownString();
+                content.appendMarkdown(`### C Header: \`<${header}>\`\n\n`);
+                content.appendMarkdown(`Standard C library header file imported via \`cimport "${header}"\` for Foreign Function Interface (FFI) bindings.`);
+                return new vscode.Hover(content, headerRange);
+            }
+        }
+
+        // 2. Check for member access like `math.sqrt`, `io.readfile`, `python.load`, `this.field`
         const memberRange = document.getWordRangeAtPosition(position, /[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+/);
         if (memberRange) {
             const rawWord = document.getText(memberRange);
@@ -194,7 +206,7 @@ export class SkylangHoverProvider implements vscode.HoverProvider {
             }
 
             // Check if interop module needs import
-            if (['python', 'js', 'cpp', 'java'].includes(word)) {
+            if (['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'].includes(word)) {
                 const text = document.getText();
                 const importRegex = new RegExp(`^\\s*import\\s+[^;\\n]*\\b${word}\\b`, 'm');
                 if (!importRegex.test(text)) {

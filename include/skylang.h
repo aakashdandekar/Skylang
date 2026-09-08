@@ -54,6 +54,7 @@ typedef enum {
     TOK_KW_NIL,
     TOK_KW_NEW,
     TOK_KW_EXTERN,    /* extern */
+    TOK_KW_CIMPORT,   /* cimport */
     TOK_KW_IMPORT,    /* import */
 
     /* Operators */
@@ -160,7 +161,8 @@ typedef enum {
     AST_STMT_CLASS_DECL,
     AST_NAMED_ARG,
     AST_STMT_EXTERN_DECL,  /* extern f name(params) */
-    AST_STMT_IMPORT,       /* import module / .sky file / foreign lang */
+    AST_STMT_CIMPORT,      /* cimport "header.h" */
+    AST_STMT_IMPORT,       /* import python / js / cpp / java */
     AST_PROGRAM
 } AstNodeType;
 
@@ -339,6 +341,13 @@ struct AstNode {
             char** params;
             size_t param_count;
         } extern_decl;
+
+        /* AST_STMT_CIMPORT */
+        struct {
+            char* header;
+            char** headers;
+            size_t count;
+        } cimport;
 
         /* AST_STMT_IMPORT */
         struct {

@@ -1,0 +1,40 @@
+import python, js, go, rust
+
+x := eval("10 + 20 * 3")
+println("eval math:", x)
+
+msg := eval("\"hello \" + \"world\"")
+println("eval string:", msg)
+
+l := eval("[1, 2, 3, 4]")
+println("eval list:", l)
+
+d := eval("{\"a\": 10, \"b\": 20}")
+println("eval dict:", d)
+
+# Test Python bridge without .eval (using .load and .exec)
+py_math := python.load("math")
+println("py_math.sqrt(64):", py_math.sqrt(64))
+
+python.exec("
+def add_five(n):
+    return n + 5
+")
+main_mod := python.load("__main__")
+println("main_mod.add_five(100):", main_mod.add_five(100))
+
+# Test JS bridge (unified JS + NPM, auto-detects globals and NPM packages)
+js_math := js.load("Math")
+println("js_math.pow(2, 8):", js_math.pow(2, 8))
+
+js.exec("globalThis.multiply = (a, b) => a * b;")
+js_global := js.load("globalThis")
+println("js_global.multiply(6, 7):", js_global.multiply(6, 7))
+
+# Test Go bridge without .eval (using .load and .compile and .exec)
+go_math := go.load("math")
+println("go_math.Sqrt(144.0):", go_math.Sqrt(144.0))
+
+# Test Rust bridge without .eval (using .load and .compile and .exec)
+rust_math := rust.load("std::f64::consts")
+println("rust_math.PI:", rust_math.PI)

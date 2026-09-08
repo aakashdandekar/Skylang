@@ -1675,7 +1675,7 @@ Value val_call_method_kw(Value target, const char* name, int argc, Value* argv, 
                     Value key = val_string(name);
                     if (dict_has(d, key)) {
                         Value fn_val = dict_get(d, key);
-                        if (fn_val.type == VAL_OBJ && (fn_val.as.obj->type == OBJ_FUNCTION || fn_val.as.obj->type == OBJ_CLASS)) {
+                        if (fn_val.type == VAL_OBJ && fn_val.as.obj->type == OBJ_FUNCTION) {
                             return val_call_kw(fn_val, argc, argv, arg_names);
                         }
                     }

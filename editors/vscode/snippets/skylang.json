@@ -2,9 +2,16 @@
   "Import Module": {
     "prefix": "import",
     "body": [
-      "import ${1|math,random,time,io,fmt,python,js,cpp,java,go,rust|}"
+      "import ${1|python,js,cpp,java,go,golang,rust|}"
     ],
-    "description": "Import a Skylang module or file"
+    "description": "Import a Skylang multi-language interop bridge module"
+  },
+  "C Header Import (FFI)": {
+    "prefix": "cimport",
+    "body": [
+      "cimport \"${1:math.h}\""
+    ],
+    "description": "Import a C header file for native C FFI"
   },
   "Extern Function Declaration": {
     "prefix": "extern",
@@ -330,5 +337,70 @@
       "rust.exec(\"${1:println!(\\\"Hello from Rust\\\");}\")"
     ],
     "description": "Execute Rust source code statements"
+  },
+  "File Open (Read)": {
+    "prefix": "open",
+    "body": [
+      "f := open(\"${1:data.txt}\", \"r\")",
+      "content := f.read()",
+      "f.close()"
+    ],
+    "description": "Open and read a file (Python-style)"
+  },
+  "File Open (Write)": {
+    "prefix": "openw",
+    "body": [
+      "f := open(\"${1:data.txt}\", \"w\")",
+      "f.write(${2:content})",
+      "f.close()"
+    ],
+    "description": "Open and write to a file (Python-style)"
+  },
+  "File Read Lines": {
+    "prefix": "openlines",
+    "body": [
+      "f := open(\"${1:data.txt}\", \"r\")",
+      "lines := f.readlines()",
+      "f.close()",
+      "for line in lines {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Open and read all lines as a list (Python-style)"
+  },
+  "Input": {
+    "prefix": "input",
+    "body": [
+      "${1:val} := input(\"${2:Prompt: }\")"
+    ],
+    "description": "Read standard input from user"
+  },
+  "String Format": {
+    "prefix": "format",
+    "body": [
+      "\"${1:Hello, {}!}\".format(${2:name})"
+    ],
+    "description": "Format string with {} placeholders (Python-style)"
+  },
+  "Hexadecimal": {
+    "prefix": "hex",
+    "body": [
+      "hex(${1:number})"
+    ],
+    "description": "Convert integer to hexadecimal string"
+  },
+  "Binary": {
+    "prefix": "bin",
+    "body": [
+      "bin(${1:number})"
+    ],
+    "description": "Convert integer to binary string"
+  },
+  "Octal": {
+    "prefix": "oct",
+    "body": [
+      "oct(${1:number})"
+    ],
+    "description": "Convert integer to octal string"
   }
 }

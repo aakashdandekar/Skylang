@@ -727,18 +727,11 @@ static AstNode* parse_statement(Parser* parser) {
         do {
             char* mname = NULL;
             if (match(parser, TOK_IDENT)) {
-                char buf[512];
-                snprintf(buf, sizeof(buf), "%s", parser->previous.as.s_val);
-                while (match(parser, TOK_DOT)) {
-                    consume(parser, TOK_IDENT, "Expect identifier after '.' in import module path");
-                    size_t cur_len = strlen(buf);
-                    snprintf(buf + cur_len, sizeof(buf) - cur_len, "/%s", parser->previous.as.s_val);
-                }
-                mname = strdup(buf);
+                mname = strdup(parser->previous.as.s_val);
             } else if (match(parser, TOK_STRING_LIT)) {
                 mname = strdup(parser->previous.as.s_val);
             } else {
-                error_at(parser, &parser->current, "Expect module or file path after 'import'");
+                error_at(parser, &parser->current, "Expect module or language name after 'import'");
                 return NULL;
             }
 
@@ -752,6 +745,29 @@ static AstNode* parse_statement(Parser* parser) {
         n->as.import_stmt.module_names = mnames;
         n->as.import_stmt.count = mcount;
         n->as.import_stmt.module_name = mcount > 0 ? mnames[0] : NULL;
+
+        match(parser, TOK_SEMICOLON);
+        return n;
+    }
+
+    if (match(parser, TOK_KW_CIMPORT)) {
+        AstNode* n = ast_new(AST_STMT_CIMPORT, line);
+        char** headers = NULL;
+        size_t hcount = 0, hcap = 0;
+
+        do {
+            consume(parser, TOK_STRING_LIT, "Expect string header after 'cimport'");
+            char* hname = strdup(parser->previous.as.s_val);
+            if (hcount >= hcap) {
+                hcap = hcap < 4 ? 4 : hcap * 2;
+                headers = realloc(headers, hcap * sizeof(char*));
+            }
+            headers[hcount++] = hname;
+        } while (match(parser, TOK_COMMA));
+
+        n->as.cimport.headers = headers;
+        n->as.cimport.count = hcount;
+        n->as.cimport.header = hcount > 0 ? headers[0] : NULL;
 
         match(parser, TOK_SEMICOLON);
         return n;

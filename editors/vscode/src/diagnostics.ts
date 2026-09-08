@@ -93,8 +93,169 @@ export class SkylangDiagnosticsProvider {
                 diagnostics.push(diag);
             }
 
-            // 3. Unknown method on standard library & interop modules
-            const moduleCallMatch = line.match(/\b(math|io|fmt|python|js|cpp|java|go|golang|rust)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
+            // 3. Import syntax & validity check
+            const importMatch = line.match(/^import(?:\s+(.*)|$)/);
+            if (importMatch && !line.startsWith('cimport')) {
+                const importKeywordCol = rawLine.indexOf('import');
+                const rawAfter = importMatch[1] !== undefined ? importMatch[1].trim() : '';
+
+                if (!rawAfter) {
+                    const range = new vscode.Range(
+                        new vscode.Position(i, importKeywordCol),
+                        new vscode.Position(i, importKeywordCol + 6)
+                    );
+                    const diag = new vscode.Diagnostic(
+                        range,
+                        "Expected module name or language bridge after 'import'",
+                        vscode.DiagnosticSeverity.Error
+                    );
+                    diag.code = 'skylang-invalid-import-syntax';
+                    diagnostics.push(diag);
+                } else {
+                    const items = rawAfter.split(',');
+                    let searchOffset = rawLine.indexOf(rawAfter, importKeywordCol + 6);
+                    const VALID_BRIDGES = new Set(['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust']);
+
+                    for (let idx = 0; idx < items.length; idx++) {
+                        const rawItem = items[idx];
+                        const trimmedItem = rawItem.trim();
+
+                        if (trimmedItem.length === 0) {
+                            const commaPos = rawLine.indexOf(',', searchOffset);
+                            const pos = commaPos !== -1 ? commaPos : searchOffset;
+                            const range = new vscode.Range(
+                                new vscode.Position(i, pos),
+                                new vscode.Position(i, pos + 1)
+                            );
+                            const diag = new vscode.Diagnostic(
+                                range,
+                                "Expected module name after ',' in import statement",
+                                vscode.DiagnosticSeverity.Error
+                            );
+                            diag.code = 'skylang-invalid-import-syntax';
+                            diagnostics.push(diag);
+                            searchOffset = pos + 1;
+                            continue;
+                        }
+
+                        const itemCol = rawLine.indexOf(trimmedItem, searchOffset);
+                        const startCol = itemCol !== -1 ? itemCol : searchOffset;
+                        const endCol = startCol + trimmedItem.length;
+                        const range = new vscode.Range(
+                            new vscode.Position(i, startCol),
+                            new vscode.Position(i, endCol)
+                        );
+                        if (itemCol !== -1) {
+                            searchOffset = endCol;
+                        }
+
+                        // A. Quoted string file import: import "foo.sky"
+                        if (
+                            (trimmedItem.startsWith('"') && trimmedItem.endsWith('"')) ||
+                            (trimmedItem.startsWith("'") && trimmedItem.endsWith("'"))
+                        ) {
+                            continue;
+                        }
+
+                        // B. Dot notation error: e.g. java.cpp
+                        if (trimmedItem.includes('.')) {
+                            const subParts = trimmedItem.split('.').map(s => s.trim()).filter(Boolean);
+                            const diag = new vscode.Diagnostic(
+                                range,
+                                `Invalid import syntax '${trimmedItem}': '.' is not allowed in import statements. To import multiple modules, separate them with commas (e.g. 'import ${subParts.join(', ')}').`,
+                                vscode.DiagnosticSeverity.Error
+                            );
+                            diag.code = 'skylang-invalid-import-syntax';
+                            diagnostics.push(diag);
+                        }
+                        // C. Go library package / Python syntax error: import fmt
+                        else if (trimmedItem === 'fmt') {
+                            const diag = new vscode.Diagnostic(
+                                range,
+                                `'fmt' is not a Skylang library (for Go package, load with 'go.load("fmt")'). Use Python-style string formatting (e.g. str.format(), hex(), bin(), oct()).`,
+                                vscode.DiagnosticSeverity.Error
+                            );
+                            diag.code = 'skylang-invalid-import-module';
+                            diagnostics.push(diag);
+                        }
+                        // D. io is not a lib: import io
+                        else if (trimmedItem === 'io') {
+                            const diag = new vscode.Diagnostic(
+                                range,
+                                `'io' is not a library in Skylang. Use Python-style file I/O built-ins (open(), input(), print()) without import.`,
+                                vscode.DiagnosticSeverity.Error
+                            );
+                            diag.code = 'skylang-invalid-import-module';
+                            diagnostics.push(diag);
+                        }
+                        // E. Built-in module: import math
+                        else if (trimmedItem === 'math') {
+                            const diag = new vscode.Diagnostic(
+                                range,
+                                `'math' is built into Skylang and available globally without an 'import' statement.`,
+                                vscode.DiagnosticSeverity.Warning
+                            );
+                            diag.code = 'skylang-unnecessary-import';
+                            diagnostics.push(diag);
+                        }
+                        // F. Unknown bridge
+                        else if (!VALID_BRIDGES.has(trimmedItem)) {
+                            const diag = new vscode.Diagnostic(
+                                range,
+                                `Unknown import module '${trimmedItem}'. Valid importable language bridges are: python, js, cpp, java, go, golang, rust.`,
+                                vscode.DiagnosticSeverity.Error
+                            );
+                            diag.code = 'skylang-unknown-import';
+                            diagnostics.push(diag);
+                        }
+                    }
+                }
+            }
+
+            // 4. Invalid io. or fmt. module call check (Python syntax reminder)
+            const invalidLibMatch = line.match(/\b(io|fmt)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
+            if (invalidLibMatch) {
+                for (const match of invalidLibMatch) {
+                    const [mod, member] = match.split('.');
+                    const col = rawLine.indexOf(match);
+                    if (col >= 0) {
+                        const range = new vscode.Range(
+                            new vscode.Position(i, col),
+                            new vscode.Position(i, col + match.length)
+                        );
+                        let hint = '';
+                        if (mod === 'io') {
+                            if (member === 'readfile' || member === 'readlines') {
+                                hint = `Use Python-style 'open(filepath).${member === 'readfile' ? 'read()' : 'readlines()'}' instead.`;
+                            } else if (member === 'input') {
+                                hint = `Use Python-style built-in 'input([prompt])' directly.`;
+                            } else {
+                                hint = `Use Python-style built-in file operations (open(), input(), print()) instead.`;
+                            }
+                        } else if (mod === 'fmt') {
+                            if (member === 'format') {
+                                hint = `Use Python-style string method 'template.format(...)' instead.`;
+                            } else if (member === 'hex' || member === 'bin' || member === 'oct') {
+                                hint = `Use Python-style built-in '${member}(...)' directly.`;
+                            } else if (member === 'pad' || member === 'padleft') {
+                                hint = `Use Python-style string method 'str.ljust()' or 'str.rjust()' instead.`;
+                            } else {
+                                hint = `Use Python-style formatting ('str.format()', hex(), bin(), oct()) or load Go fmt via 'go.load("fmt")'.`;
+                            }
+                        }
+                        const diag = new vscode.Diagnostic(
+                            range,
+                            `'${mod}' is not a library in Skylang. ${hint}`,
+                            vscode.DiagnosticSeverity.Error
+                        );
+                        diag.code = 'skylang-invalid-module-usage';
+                        diagnostics.push(diag);
+                    }
+                }
+            }
+
+            // 5. Unknown method on standard library & interop modules
+            const moduleCallMatch = line.match(/\b(math|python|js|cpp|java|go|golang|rust)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
             if (moduleCallMatch) {
                 for (const match of moduleCallMatch) {
                     const [mod, member] = match.split('.');
@@ -103,8 +264,8 @@ export class SkylangDiagnosticsProvider {
                         const isFn = modDef.functions && modDef.functions[member] !== undefined;
                         const isConst = modDef.constants && modDef.constants[member] !== undefined;
 
-                        // For math/io/fmt (static stdlib), check invalid member names
-                        if (['math', 'io', 'fmt'].includes(mod) && !isFn && !isConst) {
+                        // For math (static stdlib), check invalid member names
+                        if (mod === 'math' && !isFn && !isConst) {
                             const col = rawLine.indexOf(match);
                             if (col >= 0) {
                                 const range = new vscode.Range(
@@ -124,7 +285,7 @@ export class SkylangDiagnosticsProvider {
                 }
             }
 
-            // 4. Unimported module check for interop modules (python, js, cpp, java, go, golang, rust)
+            // 5. Unimported module check for interop modules (python, js, cpp, java, go, golang, rust)
             const interopMods = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'];
             for (const mod of interopMods) {
                 const modUsageRegex = new RegExp(`\\b${mod}\\.([a-zA-Z_][a-zA-Z0-9_]*)`, 'g');

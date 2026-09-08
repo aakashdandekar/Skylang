@@ -1,5 +1,7 @@
 // 08_ffi.sky - Demonstrating Foreign Function Interface (FFI)
-// Skylang can directly declare and bind extern C functions!
+// Skylang can directly cimport C headers and declare extern C functions!
+
+cimport "math.h"
 
 extern f cos(x)
 extern f sin(x)

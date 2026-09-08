@@ -1,8 +1,8 @@
 # Skylang Programming Language: Complete Student Guide & Documentation
 
-Welcome to **Skylang**, a high-performance compiled, dynamic, object-oriented programming language with automatic garbage collection.
+Welcome to **Skylang**, a compiled dynamic object-oriented programming language built upon C with automatic garbage collection.
 
-This guide is designed for students learning Skylang from scratch. By the end of this tutorial, you will understand how to write, compile, run, and debug Skylang programs and build multi-file applications.
+This guide is designed for students learning Skylang from scratch. By the end of this tutorial, you will understand how to write, compile, run, and debug Skylang programs, as well as how Skylang translates into high-performance C code under the hood.
 
 ---
 
@@ -15,9 +15,8 @@ This guide is designed for students learning Skylang from scratch. By the end of
 6. [Control Flow](#6-control-flow)
 7. [Functions & The takes(...) Feature](#7-functions--the-takes-feature)
 8. [Object-Oriented Programming (Classes)](#8-object-oriented-programming-classes)
-9. [Modules & Standard Library](#9-modules--standard-library)
-10. [Error Handling & Memory Management](#10-error-handling--memory-management)
-11. [Student Practice Exercises](#11-student-practice-exercises)
+9. [Error Handling & Memory Management](#9-error-handling--memory-management)
+10. [Student Practice Exercises](#10-student-practice-exercises)
 
 
 ---
@@ -28,25 +27,27 @@ Skylang combines the best attributes of modern languages:
 - **Python-like Simplicity**: Clean syntax, slicing, dynamic typing, and expressive collections.
 - **Go-like Predictability**: Unified `for` loop syntax and clean error reporting.
 - **JavaScript-like Object Model**: Dynamic instance properties, method tables, and automatic garbage collection.
-- **High Performance**: Skylang compiles directly to optimized native machine code executables.
+- **C Performance & Portability**: Skylang programs compile to C and link directly with GCC, generating native machine code executables.
 
 ---
 
 ## 2. Installation & Toolchain
 
-### Installing Skylang
-Run the automated installation script:
+### Building the Compiler
+To build the Skylang compiler from source, run:
 ```bash
-./install.sh
+make clean && make
 ```
-This sets up the global `skylang` and `sky` toolchain commands on your system.
+This produces two executable binaries in the `bin/` directory:
+- `bin/skylang`: The full compiler executable.
+- `bin/sky`: A convenient short alias.
 
 ### CLI Commands
 | Command | Description | Example |
 |---|---|---|
-| `sky run <file.sky>` | Compiles and executes a program immediately | `sky run examples/01_basics.sky` |
-| `sky build <file.sky> [-o <bin>]` | Compiles to a standalone native binary (defaults to `./<basename>`) | `sky build main.sky -o my_app` |
-| `sky <file.sky>` | Shorthand for `sky run <file.sky>` | `sky main.sky` |
+| `sky run <file.sky>` | Compiles and executes a program immediately | `./bin/sky run examples/01_basics.sky` |
+| `sky build <file.sky> [-o <bin>]` | Compiles to a standalone native binary (defaults to `./<basename>`) | `./bin/sky build main.sky -o my_app` |
+| `sky <file.sky>` | Shorthand for `sky run <file.sky>` | `./bin/sky main.sky` |
 
 ---
 
@@ -466,40 +467,6 @@ if critical_system_failure {
 }
 ```
 
-## 9. Modules & Standard Library
-
-### Importing Other `.sky` Files
-You can split programs into multiple files across the same directory or subdirectories:
-
-```skylang
-// Import from same directory
-import "math_utils.sky"
-
-// Import from subdirectory
-import "utils/helper.sky"
-
-// Use functions and classes via module namespace:
-println(math_utils.add(10, 20))
-h := helper.Greeter("Hello")
-
-// Or use them directly in scope:
-println(add(10, 20))
-```
-
-### Standard Library Modules
-
-Skylang includes built-in modules ready to import:
-
-```skylang
-import math, random, time, io, fmt
-```
-
-1. **`math`** — `math.sqrt(x)`, `math.sin(x)`, `math.cos(x)`, `math.tan(x)`, `math.abs(x)`, `math.min(a, b)`, `math.max(a, b)`, `math.pi`, `math.e`
-2. **`random`** — `random.random()`, `random.randint(min, max)`, `random.uniform(a, b)`, `random.choice(list)`, `random.shuffle(list)`, `random.seed(n)`
-3. **`time`** — `time.time()` / `time.now()`, `time.sleep(seconds)`, `time.clock()`
-4. **`io`** — `io.readfile(path)`, `io.writefile(path, data)`, `io.exists(path)`, `io.remove(path)`
-5. **`fmt`** — `fmt.format(...)`, `fmt.hex(n)`, `fmt.bin(n)`, `fmt.pad(s, w)`, `fmt.repeat(s, n)`
-
 ### Built-in Functions
 Skylang provides core built-in functions available everywhere without imports:
 
@@ -507,6 +474,12 @@ Skylang provides core built-in functions available everywhere without imports:
 |---|---|---|
 | `print(...)` | `print(a, b, ...)` | Prints arguments space-separated without trailing newline |
 | `println(...)` | `println(a, b, ...)` | Prints arguments space-separated with a trailing newline |
+| `open(path, mode)` | `open(filepath, mode="r")` | Opens a file and returns a file object (`.read()`, `.write()`, `.readlines()`, `.close()`) |
+| `input(prompt)` | `input(prompt="")` | Reads a line of user input from stdin |
+| `format(val, fmt)` | `format(value, format_spec)` | Formats a value with format specifiers |
+| `hex(num)` | `hex(number)` | Converts an integer to a hexadecimal string representation |
+| `bin(num)` | `bin(number)` | Converts an integer to a binary string representation |
+| `oct(num)` | `oct(number)` | Converts an integer to an octal string representation |
 | `eval(expr)` | `eval(code_str)` | Dynamically evaluates Skylang expressions at runtime and returns a Value |
 | `range(stop)` | `range(stop)` / `range(start, stop, step)` | Returns a list of sequential integers |
 | `len(coll)` | `len(coll)` | Returns the item count or string length |
@@ -564,29 +537,7 @@ println("Rust PI:", rust_math.PI)
 
 ---
 
-## 10. Error Handling & Memory Management
-
-### Go-Style Error Handling
-```skylang
-f divide {
-    takes(a, b)
-    if b == 0 {
-        return 0, error("division by zero")
-    }
-    return a / b, none
-}
-
-res, err := divide(10, 2)
-if err != none {
-    println("Error:", err)
-} else {
-    println("Result:", res)
-}
-```
-
----
-
-## 11. Student Practice Exercises
+## 10. Student Practice Exercises
 
 ### Exercise 1: Temperature Converter
 Write a program that converts Celsius to Fahrenheit using formula `F = (C * 9/5) + 32`.

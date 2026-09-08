@@ -35,32 +35,6 @@ exports.STDLIB_MODULES = {
             'clamp': { name: 'math.clamp', signature: 'math.clamp(val, min, max)', description: 'Clamps value to lie between the lower bound min and upper bound max.', params: [{ name: 'val', doc: 'Value to clamp' }, { name: 'min', doc: 'Lower bound' }, { name: 'max', doc: 'Upper bound' }], returns: 'int | double', example: 'math.clamp(15, 0, 10) // 10' }
         }
     },
-    'io': {
-        name: 'io (Standard Input / Output Module)',
-        description: 'Built-in file reading, file writing, directory inspection, and terminal console input utilities available globally.',
-        functions: {
-            'readfile': { name: 'io.readfile', signature: 'io.readfile(filepath)', description: 'Reads the entire contents of a file from disk into a string.', params: [{ name: 'filepath', doc: 'Path to the file to read' }], returns: 'string', example: 'content := io.readfile("data.txt")' },
-            'writefile': { name: 'io.writefile', signature: 'io.writefile(filepath, content)', description: 'Writes string content to a file, creating it if needed and overwriting existing contents.', params: [{ name: 'filepath', doc: 'Target file path' }, { name: 'content', doc: 'String content to write' }], returns: 'bool', example: 'io.writefile("output.txt", "Hello Skylang!")' },
-            'appendfile': { name: 'io.appendfile', signature: 'io.appendfile(filepath, content)', description: 'Appends string content to the end of a file without overwriting existing data.', params: [{ name: 'filepath', doc: 'Target file path' }, { name: 'content', doc: 'String content to append' }], returns: 'bool', example: 'io.appendfile("log.txt", "New entry\\n")' },
-            'readlines': { name: 'io.readlines', signature: 'io.readlines(filepath)', description: 'Reads all lines from a file and returns them as a dynamic list of strings.', params: [{ name: 'filepath', doc: 'Path to the file' }], returns: 'list', example: 'lines := io.readlines("config.txt")\nfor line in lines {\n    println(line)\n}' },
-            'input': { name: 'io.input', signature: 'io.input([prompt])', description: 'Displays an optional prompt message and reads a single line of input from standard input.', params: [{ name: 'prompt', doc: 'Optional prompt text to display' }], returns: 'string', example: 'name := io.input("Enter your name: ")' },
-            'exists': { name: 'io.exists', signature: 'io.exists(filepath)', description: 'Checks whether a file or directory exists at the given path on the filesystem.', params: [{ name: 'filepath', doc: 'Path to test' }], returns: 'bool', example: 'if io.exists("data.txt") {\n    data := io.readfile("data.txt")\n}' },
-            'remove': { name: 'io.remove', signature: 'io.remove(filepath)', description: 'Deletes a file from disk. Returns true if successfully removed, otherwise false.', params: [{ name: 'filepath', doc: 'Path to file to delete' }], returns: 'bool', example: 'io.remove("temp.txt")' }
-        }
-    },
-    'fmt': {
-        name: 'fmt (Formatting Module)',
-        description: 'String templating with `{}` placeholders, numeric base conversion (hex, bin, oct), padding, and string repetition.',
-        functions: {
-            'format': { name: 'fmt.format', signature: 'fmt.format(template, ...args)', description: 'Formats a string template by replacing each `{}` placeholder with the string representation of subsequent arguments.', params: [{ name: 'template', doc: 'Format string containing {} placeholders' }, { name: '...args', doc: 'Values to interpolate' }], returns: 'string', example: 'msg := fmt.format("User {} scored {}/{}", "Alice", 95, 100)' },
-            'hex': { name: 'fmt.hex', signature: 'fmt.hex(integer)', description: 'Converts an integer to its lowercase hexadecimal string representation.', params: [{ name: 'integer', doc: 'Integer number' }], returns: 'string', example: 'fmt.hex(255) // "ff"' },
-            'bin': { name: 'fmt.bin', signature: 'fmt.bin(integer)', description: 'Converts an integer to its binary string representation (e.g. "101010").', params: [{ name: 'integer', doc: 'Integer number' }], returns: 'string', example: 'fmt.bin(42) // "101010"' },
-            'oct': { name: 'fmt.oct', signature: 'fmt.oct(integer)', description: 'Converts an integer to its octal string representation.', params: [{ name: 'integer', doc: 'Integer number' }], returns: 'string', example: 'fmt.oct(64) // "100"' },
-            'pad': { name: 'fmt.pad', signature: 'fmt.pad(str, width)', description: 'Right-pads a string with spaces until it reaches the specified width.', params: [{ name: 'str', doc: 'Input string' }, { name: 'width', doc: 'Target total character width' }], returns: 'string', example: 'fmt.pad("Sky", 6) // "Sky   "' },
-            'padleft': { name: 'fmt.padleft', signature: 'fmt.padleft(str, width)', description: 'Left-pads a string with spaces until it reaches the specified width.', params: [{ name: 'str', doc: 'Input string' }, { name: 'width', doc: 'Target total character width' }], returns: 'string', example: 'fmt.padleft("42", 5) // "   42"' },
-            'repeat': { name: 'fmt.repeat', signature: 'fmt.repeat(str, count)', description: 'Returns a new string consisting of `str` repeated `count` times.', params: [{ name: 'str', doc: 'String to repeat' }, { name: 'count', doc: 'Number of repetitions' }], returns: 'string', example: 'fmt.repeat("=-", 5) // "=-=-=-=-=-"' }
-        }
-    },
     'python': {
         name: 'python (Python 3 Interoperability Bridge)',
         description: 'Direct embedded Python 3 C API runtime bridge with automatic bidirectional type marshalling for loading NumPy, SciPy, PyTorch, sys, math, and custom Python scripts.',
