@@ -4,6 +4,7 @@
   "description": "Comprehensive language support for Skylang: snippets, IntelliSense, hover tooltips, signature help, outline symbols, formatting, diagnostics, and code execution.",
   "version": "1.0.0",
   "publisher": "skylang",
+  "license": "Apache-2.0",
   "icon": "icon.png",
   "engines": {
     "vscode": "^1.75.0"

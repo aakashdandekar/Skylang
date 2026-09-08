@@ -8,7 +8,7 @@
 [![Language](https://img.shields.io/badge/language-Skylang-orange.svg)]()
 [![Version](https://img.shields.io/badge/version-v1.0.0-brightgreen.svg)]()
 [![Target](https://img.shields.io/badge/target-C11%20%7C%20GCC%20%7C%20Bytecode%20VM-blue.svg)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Comprehensive, first-class language support for the **Skylang** programming language in Visual Studio Code. This extension provides advanced **IntelliSense**, **Snippets**, **Context-Aware Autocomplete**, **Hover Documentation**, **Signature Help**, **Go-to-Definition**, **Document Outline**, **Automatic Code Formatting**, **Real-time Diagnostics & Linting**, **One-Click QuickFix Actions**, and **Integrated Execution & Profiling** via Skylang's AOT and Bytecode VM engines.
 
@@ -416,5 +416,5 @@ npm run watch
 ---
 
 ## License
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+ 
+This project is licensed under the **Apache License, Version 2.0** - see the [LICENSE](LICENSE) file for details.

@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0" />
   <img src="https://img.shields.io/badge/build%20%26%20test-passing%20(24%2F24)-brightgreen.svg" alt="Build & Test" />
   <img src="https://img.shields.io/badge/target-C11%20%7C%20GCC%20--O2-blue.svg" alt="C11 & GCC" />
   <img src="https://img.shields.io/badge/GC-Boehm--Demers--Weiser-orange.svg" alt="Memory Management" />
@@ -1466,5 +1467,21 @@ make vscode
 
 ## License
 
-This project is currently unlicensed. All rights reserved.
+This project is licensed under the [Apache License, Version 2.0](LICENSE) - see the [LICENSE](LICENSE) file for details.
+
+```
+Copyright 2026 Aakash Dandekar
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
 
