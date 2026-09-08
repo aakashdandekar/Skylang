@@ -17,12 +17,10 @@ step()    { echo -e "\n${CYAN}${BOLD}── $1 ──${NC}"; }
 
 echo -e "${CYAN}${BOLD}"
 echo "  ┌─────────────────────────────────────────┐"
-echo "  │           Skylang Setup Script           │"
-echo "  │   Compiled Dynamic OOP Language on C     │"
+echo "  │               Skylang Setup             │"
 echo "  └─────────────────────────────────────────┘"
 echo -e "${NC}"
 
-step "Step 1/6: Detecting Operating System"
 
 SKYLANG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 info "Repository Directory: ${SKYLANG_DIR}"
@@ -126,8 +124,6 @@ case "$OS" in
         ;;
 esac
 
-step "Step 2/6: Installing Multi-Language Runtimes & Dependencies"
-
 INSTALL_LIST=()
 
 if ! command -v gcc &>/dev/null || ! command -v make &>/dev/null || ! pkg-config --exists bdw-gc 2>/dev/null; then
@@ -175,13 +171,8 @@ if command -v go &>/dev/null; then success "Go Runtime: $(go version)"; fi
 if command -v rustc &>/dev/null; then success "Rust Runtime: $(rustc --version)"; fi
 if command -v javac &>/dev/null; then success "Java Compiler: $(javac --version 2>&1 | head -n1)"; fi
 
-step "Step 3/6: Building Skylang Compiler & Runtime"
-
 info "Building bin/skylang, bin/sky, and lib/libskylang_rt.a..."
 make -C "$SKYLANG_DIR" clean all
-success "Skylang successfully compiled"
-
-step "Step 4/6: Configuring Global Binaries & PATH"
 
 LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN"
@@ -231,8 +222,6 @@ if ! echo "$PATH" | tr ':' '\n' | grep -qx "$LOCAL_BIN"; then
     export PATH="$LOCAL_BIN:$PATH"
 fi
 
-step "Step 5/6: Setting Up VS Code Extension"
-
 make -C "$SKYLANG_DIR" vscode 2>/dev/null || true
 
 step "Step 6/6: Verifying Installation with Test Suite"
@@ -245,8 +234,6 @@ echo ""
 echo -e "  ${BOLD}Usage:${NC}"
 echo -e "    ${CYAN}sky run ${NC}<file.sky>           Compile and run a Skylang program"
 echo -e "    ${CYAN}sky build ${NC}<file.sky> -o app   Compile to a standalone binary"
-echo -e "    ${CYAN}sky repl${NC}                      Start the interactive REPL"
-echo -e "    ${CYAN}sky vm ${NC}<file.sky>             Execute via Bytecode VM"
 echo ""
 echo -e "  ${BOLD}Multi-Language Interop Available:${NC}"
 echo -e "    - Python 3     (import python)"
