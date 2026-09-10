@@ -432,6 +432,12 @@ static AstNode* parse_primary(Parser* parser) {
         return n;
     }
 
+    if (match(parser, TOK_KW_ASYNC)) {
+        AstNode* n = ast_new(AST_VARIABLE, line);
+        n->as.variable.name = strdup("async");
+        return n;
+    }
+
     if (match(parser, TOK_IDENT)) {
         AstNode* n = ast_new(AST_VARIABLE, line);
         n->as.variable.name = strdup(parser->previous.as.s_val);
@@ -508,6 +514,10 @@ static AstNode* parse_postfix(Parser* parser) {
             char* name = NULL;
             if (match(parser, TOK_KW_T)) {
                 name = strdup("T");
+            } else if (match(parser, TOK_KW_AWAIT)) {
+                name = strdup("await");
+            } else if (match(parser, TOK_KW_SPAWN)) {
+                name = strdup("spawn");
             } else if (match(parser, TOK_IDENT)) {
                 name = strdup(parser->previous.as.s_val);
             } else {
@@ -544,7 +554,7 @@ static AstNode* parse_postfix(Parser* parser) {
 }
 
 static AstNode* parse_unary(Parser* parser) {
-    if (match(parser, TOK_BANG) || match(parser, TOK_MINUS)) {
+    if (match(parser, TOK_BANG) || match(parser, TOK_MINUS) || match(parser, TOK_KW_AWAIT) || match(parser, TOK_KW_SPAWN)) {
         TokenType op = parser->previous.type;
         int line = parser->previous.line;
         AstNode* operand = parse_unary(parser);
@@ -769,6 +779,7 @@ static AstNode* parse_function_decl(Parser* parser, const char* forced_name) {
     fn->as.fn_decl.params = params;
     fn->as.fn_decl.param_count = param_count;
     fn->as.fn_decl.body = body;
+    fn->as.fn_decl.is_async = false;
     return fn;
 }
 
@@ -875,9 +886,9 @@ static AstNode* parse_statement(Parser* parser) {
 
         do {
             char* mname = NULL;
-            if (match(parser, TOK_IDENT)) {
+            if (match(parser, TOK_IDENT) || match(parser, TOK_KW_ASYNC)) {
                 char buf[512];
-                snprintf(buf, sizeof(buf), "%s", parser->previous.as.s_val);
+                snprintf(buf, sizeof(buf), "%s", parser->previous.type == TOK_KW_ASYNC ? "async" : parser->previous.as.s_val);
                 while (match(parser, TOK_DOT)) {
                     consume(parser, TOK_IDENT, "Expect identifier after '.' in import module path");
                     size_t cur_len = strlen(buf);
@@ -928,9 +939,9 @@ static AstNode* parse_statement(Parser* parser) {
     if (match(parser, TOK_KW_FROM)) {
         AstNode* n = ast_new(AST_STMT_FROM_IMPORT, line);
         char* mpath = NULL;
-        if (match(parser, TOK_IDENT)) {
+        if (match(parser, TOK_IDENT) || match(parser, TOK_KW_ASYNC)) {
             char buf[512];
-            snprintf(buf, sizeof(buf), "%s", parser->previous.as.s_val);
+            snprintf(buf, sizeof(buf), "%s", parser->previous.type == TOK_KW_ASYNC ? "async" : parser->previous.as.s_val);
             while (match(parser, TOK_DOT)) {
                 consume(parser, TOK_IDENT, "Expect identifier after '.' in module path");
                 size_t cur_len = strlen(buf);
@@ -959,8 +970,15 @@ static AstNode* parse_statement(Parser* parser) {
             size_t fcount = 0, fcap = 0;
 
             do {
-                consume(parser, TOK_IDENT, "Expect symbol name to import");
-                char* sym = strdup(parser->previous.as.s_val);
+                char* sym = NULL;
+                if (match(parser, TOK_KW_SPAWN)) {
+                    sym = strdup("spawn");
+                } else if (match(parser, TOK_KW_AWAIT)) {
+                    sym = strdup("await");
+                } else {
+                    consume(parser, TOK_IDENT, "Expect symbol name to import");
+                    sym = strdup(parser->previous.as.s_val);
+                }
                 char* alias = NULL;
                 if (match(parser, TOK_KW_AS)) {
                     consume(parser, TOK_IDENT, "Expect identifier after 'as'");
@@ -1037,6 +1055,21 @@ static AstNode* parse_statement(Parser* parser) {
         n->as.extern_decl.params = eparams;
         n->as.extern_decl.param_count = epcount;
         return n;
+    }
+
+    if (check(parser, TOK_KW_ASYNC)) {
+        Lexer peek_lex = parser->lexer;
+        Token next_tok = lexer_next_token(&peek_lex);
+        while (next_tok.type == TOK_ERROR) {
+            next_tok = lexer_next_token(&peek_lex);
+        }
+        if (next_tok.type == TOK_KW_F) {
+            advance(parser);
+            advance(parser);
+            AstNode* fn = parse_function_decl(parser, NULL);
+            if (fn) fn->as.fn_decl.is_async = true;
+            return fn;
+        }
     }
 
     if (match(parser, TOK_KW_F)) {

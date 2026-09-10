@@ -1,10 +1,10 @@
 #define _GNU_SOURCE
 #include "../include/skylang.h"
+#include "../include/sky_platform.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <unistd.h>
 
 typedef struct {
     char* data;
@@ -105,7 +105,7 @@ static void registry_init(void) {
 }
 
 static bool file_readable(const char* path) {
-    return access(path, R_OK) == 0;
+    return sky_access(path, R_OK) == 0;
 }
 
 static char* read_file_contents(const char* path) {
@@ -148,6 +148,9 @@ static bool is_foreign_module(const char* name) {
 static bool is_stdlib_module(const char* name) {
     if (!name) return false;
     return (strcmp(name, "math") == 0 ||
+            strcmp(name, "io") == 0 ||
+            strcmp(name, "fmt") == 0 ||
+            strcmp(name, "async") == 0 ||
             strcmp(name, "str") == 0);
 }
 
@@ -219,14 +222,7 @@ static LoadedModule* load_module_file(ModuleRegistry* reg, const char* mod_path,
 
     char base_dir[1024] = {0};
     if (current_file_path) {
-        const char* last_slash = strrchr(current_file_path, '/');
-        if (last_slash) {
-            size_t dirlen = (size_t)(last_slash - current_file_path);
-            if (dirlen < sizeof(base_dir)) {
-                strncpy(base_dir, current_file_path, dirlen);
-                base_dir[dirlen] = '\0';
-            }
-        }
+        sky_extract_dirname(current_file_path, base_dir, sizeof(base_dir));
     }
 
     char* resolved = resolve_module_file(base_dir[0] ? base_dir : NULL, mod_path);
@@ -559,6 +555,70 @@ static void emit_expr(Buffer* b, AstNode* node, const char* current_class) {
                 buf_puts(b, "val_not(");
                 emit_expr(b, node->as.unary.operand, current_class);
                 buf_puts(b, ")");
+            } else if (node->as.unary.op == TOK_KW_AWAIT) {
+                buf_puts(b, "val_future_await(");
+                emit_expr(b, node->as.unary.operand, current_class);
+                buf_puts(b, ")");
+            } else if (node->as.unary.op == TOK_KW_SPAWN) {
+                AstNode* operand = node->as.unary.operand;
+                if (operand->type == AST_CALL) {
+                    int t = temp_var_counter++;
+                    size_t argc = operand->as.call.args.count;
+                    buf_printf(b, "({ Value _callee_%d = ", t);
+                    emit_expr(b, operand->as.call.callee, current_class);
+                    buf_printf(b, "; Value _sargs_%d[%zu]; ", t, argc + 1);
+                    buf_printf(b, "_sargs_%d[0] = _callee_%d; ", t, t);
+                    for (size_t i = 0; i < argc; ++i) {
+                        AstNode* arg = operand->as.call.args.items[i];
+                        buf_printf(b, "_sargs_%d[%zu] = ", t, i + 1);
+                        if (arg->type == AST_NAMED_ARG) {
+                            emit_expr(b, arg->as.named_arg.value, current_class);
+                        } else {
+                            emit_expr(b, arg, current_class);
+                        }
+                        buf_puts(b, "; ");
+                    }
+                    buf_printf(b, "sky_async_spawn(%zu, _sargs_%d); })", argc + 1, t);
+                } else {
+                    int t = temp_var_counter++;
+                    buf_printf(b, "({ Value _sargs_%d[1]; _sargs_%d[0] = ", t, t);
+                    emit_expr(b, operand, current_class);
+                    buf_printf(b, "; sky_async_spawn(1, _sargs_%d); })", t);
+                }
+            }
+            break;
+        }
+        case AST_EXPR_AWAIT: {
+            buf_puts(b, "val_future_await(");
+            emit_expr(b, node->as.unary.operand, current_class);
+            buf_puts(b, ")");
+            break;
+        }
+        case AST_EXPR_SPAWN: {
+            AstNode* operand = node->as.unary.operand;
+            if (operand->type == AST_CALL) {
+                int t = temp_var_counter++;
+                size_t argc = operand->as.call.args.count;
+                buf_printf(b, "({ Value _callee_%d = ", t);
+                emit_expr(b, operand->as.call.callee, current_class);
+                buf_printf(b, "; Value _sargs_%d[%zu]; ", t, argc + 1);
+                buf_printf(b, "_sargs_%d[0] = _callee_%d; ", t, t);
+                for (size_t i = 0; i < argc; ++i) {
+                    AstNode* arg = operand->as.call.args.items[i];
+                    buf_printf(b, "_sargs_%d[%zu] = ", t, i + 1);
+                    if (arg->type == AST_NAMED_ARG) {
+                        emit_expr(b, arg->as.named_arg.value, current_class);
+                    } else {
+                        emit_expr(b, arg, current_class);
+                    }
+                    buf_puts(b, "; ");
+                }
+                buf_printf(b, "sky_async_spawn(%zu, _sargs_%d); })", argc + 1, t);
+            } else {
+                int t = temp_var_counter++;
+                buf_printf(b, "({ Value _sargs_%d[1]; _sargs_%d[0] = ", t, t);
+                emit_expr(b, operand, current_class);
+                buf_printf(b, "; sky_async_spawn(1, _sargs_%d); })", t);
             }
             break;
         }
@@ -982,6 +1042,8 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
                     buf_printf(b, "sky_var_%s = sky_rust_init();\n", alias);
                 } else if (strcmp(mpath, "math") == 0) {
                     buf_printf(b, "sky_var_%s = sky_mod_math;\n", alias);
+                } else if (strcmp(mpath, "async") == 0) {
+                    buf_printf(b, "sky_var_%s = sky_mod_async;\n", alias);
                 } else {
                     LoadedModule* mod = find_loaded_module(&registry, NULL, mpath);
                     if (mod) {
@@ -1070,6 +1132,17 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
                     buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
                                item->alias ? item->alias : item->symbol, t, item->symbol);
                 }
+            } else if (strcmp(mpath, "async") == 0) {
+                int t = temp_var_counter++;
+                buf_printf(b, "Value _mmod_%d = sky_mod_async;\n", t);
+                emit_indent(b, indent);
+                buf_printf(b, "ObjDict* _mdict_%d = as_dict(_mmod_%d);\n", t, t);
+                for (size_t i = 0; i < stmt->as.from_import.count; ++i) {
+                    FromImportItem* item = &stmt->as.from_import.items[i];
+                    emit_indent(b, indent);
+                    buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
+                               item->alias ? item->alias : item->symbol, t, item->symbol);
+                }
             } else {
                 LoadedModule* mod = find_loaded_module(&registry, NULL, mpath);
                 if (mod) {
@@ -1120,35 +1193,92 @@ static void emit_function_named(Buffer* b, AstNode* fn, const char* func_c_name,
     const char* prev_fn = codegen_current_fn;
     codegen_current_fn = func_display_name;
 
-    buf_printf(b, "static Value %s(int argc, Value* argv) {\n", func_c_name);
-    if (codegen_source_filename && fn->line > 0) {
-        buf_printf(b, "    sky_push_frame(\"%s\", %d, \"%s\");\n", codegen_source_filename, fn->line, func_display_name);
-    }
-    int arg_offset = 0;
-    if (class_prefix) {
-        buf_puts(b, "    Value sky_this = (argc > 0) ? argv[0] : val_nil();\n");
-        arg_offset = 1;
-    }
+    if (fn->as.fn_decl.is_async) {
+        buf_printf(b, "static Value __real_%s(int argc, Value* argv) {\n", func_c_name);
+        if (codegen_source_filename && fn->line > 0) {
+            buf_printf(b, "    sky_push_frame(\"%s\", %d, \"%s\");\n", codegen_source_filename, fn->line, func_display_name);
+        }
+        int arg_offset = 0;
+        if (class_prefix) {
+            buf_puts(b, "    Value sky_this = (argc > 0) ? argv[0] : val_nil();\n");
+            arg_offset = 1;
+        }
 
-    buf_puts(b, "    Value sky_var_args = val_list();\n");
-    buf_printf(b, "    for (int _ai = %d; _ai < argc; ++_ai) list_push(as_list(sky_var_args), argv[_ai]);\n", arg_offset);
-    scope_add("args");
+        buf_puts(b, "    Value sky_var_args = val_list();\n");
+        buf_printf(b, "    for (int _ai = %d; _ai < argc; ++_ai) list_push(as_list(sky_var_args), argv[_ai]);\n", arg_offset);
+        scope_add("args");
 
-    size_t pcount = fn->as.fn_decl.param_count;
-    for (size_t i = 0; i < pcount; ++i) {
-        scope_add(fn->as.fn_decl.params[i]);
-        buf_printf(b, "    Value sky_var_%s = (argc > %d) ? argv[%d] : val_nil();\n",
-                   fn->as.fn_decl.params[i], (int)i + arg_offset, (int)i + arg_offset);
+        size_t pcount = fn->as.fn_decl.param_count;
+        for (size_t i = 0; i < pcount; ++i) {
+            scope_add(fn->as.fn_decl.params[i]);
+            buf_printf(b, "    Value sky_var_%s = (argc > %d) ? argv[%d] : val_nil();\n",
+                       fn->as.fn_decl.params[i], (int)i + arg_offset, (int)i + arg_offset);
+        }
+
+        AstNode* body = fn->as.fn_decl.body;
+        for (size_t i = 0; i < body->as.block.statements.count; ++i) {
+            emit_statement(b, body->as.block.statements.items[i], class_prefix, 1);
+        }
+
+        buf_puts(b, "    sky_pop_frame();\n");
+        buf_puts(b, "    return val_nil();\n");
+        buf_puts(b, "}\n\n");
+
+        buf_printf(b, "typedef struct {\n");
+        buf_printf(b, "    SkyFuture* future;\n");
+        buf_printf(b, "    int argc;\n");
+        buf_printf(b, "    Value* argv;\n");
+        buf_printf(b, "} __AsyncArgs_%s;\n\n", func_c_name);
+
+        buf_printf(b, "static void* __async_worker_%s(void* raw_args) {\n", func_c_name);
+        buf_printf(b, "    __AsyncArgs_%s* a = (__AsyncArgs_%s*)raw_args;\n", func_c_name, func_c_name);
+        buf_printf(b, "    Value res = __real_%s(a->argc, a->argv);\n", func_c_name);
+        buf_printf(b, "    sky_future_resolve(a->future, res);\n");
+        buf_printf(b, "    return NULL;\n");
+        buf_printf(b, "}\n\n");
+
+        buf_printf(b, "static Value %s(int argc, Value* argv) {\n", func_c_name);
+        buf_printf(b, "    SkyFuture* fut = sky_future_create();\n");
+        buf_printf(b, "    fut->has_thread = true;\n");
+        buf_printf(b, "    __AsyncArgs_%s* args = (__AsyncArgs_%s*)GC_MALLOC(sizeof(__AsyncArgs_%s));\n", func_c_name, func_c_name, func_c_name);
+        buf_printf(b, "    args->future = fut;\n");
+        buf_printf(b, "    args->argc = argc;\n");
+        buf_printf(b, "    args->argv = (argc > 0) ? (Value*)GC_MALLOC(sizeof(Value) * argc) : NULL;\n");
+        buf_printf(b, "    for (int _i = 0; _i < argc; _i++) args->argv[_i] = argv[_i];\n");
+        buf_printf(b, "    pthread_create(&fut->thread, NULL, __async_worker_%s, args);\n", func_c_name);
+        buf_printf(b, "    return val_future(fut);\n");
+        buf_printf(b, "}\n\n");
+    } else {
+        buf_printf(b, "static Value %s(int argc, Value* argv) {\n", func_c_name);
+        if (codegen_source_filename && fn->line > 0) {
+            buf_printf(b, "    sky_push_frame(\"%s\", %d, \"%s\");\n", codegen_source_filename, fn->line, func_display_name);
+        }
+        int arg_offset = 0;
+        if (class_prefix) {
+            buf_puts(b, "    Value sky_this = (argc > 0) ? argv[0] : val_nil();\n");
+            arg_offset = 1;
+        }
+
+        buf_puts(b, "    Value sky_var_args = val_list();\n");
+        buf_printf(b, "    for (int _ai = %d; _ai < argc; ++_ai) list_push(as_list(sky_var_args), argv[_ai]);\n", arg_offset);
+        scope_add("args");
+
+        size_t pcount = fn->as.fn_decl.param_count;
+        for (size_t i = 0; i < pcount; ++i) {
+            scope_add(fn->as.fn_decl.params[i]);
+            buf_printf(b, "    Value sky_var_%s = (argc > %d) ? argv[%d] : val_nil();\n",
+                       fn->as.fn_decl.params[i], (int)i + arg_offset, (int)i + arg_offset);
+        }
+
+        AstNode* body = fn->as.fn_decl.body;
+        for (size_t i = 0; i < body->as.block.statements.count; ++i) {
+            emit_statement(b, body->as.block.statements.items[i], class_prefix, 1);
+        }
+
+        buf_puts(b, "    sky_pop_frame();\n");
+        buf_puts(b, "    return val_nil();\n");
+        buf_puts(b, "}\n\n");
     }
-
-    AstNode* body = fn->as.fn_decl.body;
-    for (size_t i = 0; i < body->as.block.statements.count; ++i) {
-        emit_statement(b, body->as.block.statements.items[i], class_prefix, 1);
-    }
-
-    buf_puts(b, "    sky_pop_frame();\n");
-    buf_puts(b, "    return val_nil();\n");
-    buf_puts(b, "}\n\n");
     codegen_current_fn = prev_fn;
 }
 
@@ -1280,6 +1410,7 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "static Value sky_var_go;\n");
     buf_puts(&b, "static Value sky_var_golang;\n");
     buf_puts(&b, "static Value sky_var_rust;\n");
+    buf_puts(&b, "static Value sky_var_async;\n");
 
     const char* all_global_vars[4096];
     size_t global_vars_count = 0;
@@ -1549,7 +1680,8 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "    sky_var_java = sky_java_init();\n");
     buf_puts(&b, "    sky_var_go = sky_go_init();\n");
     buf_puts(&b, "    sky_var_golang = sky_go_init();\n");
-    buf_puts(&b, "    sky_var_rust = sky_rust_init();\n\n");
+    buf_puts(&b, "    sky_var_rust = sky_rust_init();\n");
+    buf_puts(&b, "    sky_var_async = sky_mod_async;\n\n");
 
     for (size_t m = 0; m < registry.count; ++m) {
         LoadedModule* mod = &registry.items[m];

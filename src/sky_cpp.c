@@ -1,18 +1,17 @@
 
 #include "../include/sky_cpp.h"
+#include "../include/sky_platform.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dlfcn.h>
-#include <unistd.h>
 #include <gc.h>
 
 Value sky_mod_cpp;
 
 Value sky_cpp_load(const char* so_path) {
-    void* handle = dlopen(so_path, RTLD_NOW | RTLD_GLOBAL);
+    void* handle = sky_dlopen(so_path);
     if (!handle) {
-        sky_runtime_error("OSError", "Failed to open shared library '%s': %s", so_path, dlerror());
+        sky_runtime_error("OSError", "Failed to open shared library '%s': %s", so_path, sky_dlerror());
         return val_nil();
     }
     return val_foreign(FOREIGN_CPP, so_path, handle, NULL);
@@ -22,10 +21,13 @@ static int cpp_file_counter = 0;
 
 Value sky_cpp_compile(const char* cpp_code) {
     int fid = ++cpp_file_counter;
-    char cpp_file[1024];
-    char so_file[1024];
-    snprintf(cpp_file, sizeof(cpp_file), "/tmp/sky_cpp_%d_%d.cpp", getpid(), fid);
-    snprintf(so_file, sizeof(so_file), "/tmp/sky_cpp_%d_%d.so", getpid(), fid);
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+
+    char cpp_file[2048];
+    char so_file[2048];
+    snprintf(cpp_file, sizeof(cpp_file), "%s/sky_cpp_%d_%d.cpp", tmp_dir, (int)sky_getpid(), fid);
+    snprintf(so_file, sizeof(so_file), "%s/sky_cpp_%d_%d%s", tmp_dir, (int)sky_getpid(), fid, SKY_SO_EXT);
 
     FILE* f = fopen(cpp_file, "w");
     if (!f) {
@@ -43,8 +45,14 @@ Value sky_cpp_compile(const char* cpp_code) {
     fputs(cpp_code, f);
     fclose(f);
 
-    char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "g++ -O2 -shared -fPIC -std=c++17 %s -o %s 2>&1", cpp_file, so_file);
+    char cmd[8192];
+#if defined(SKY_OS_WINDOWS)
+    snprintf(cmd, sizeof(cmd), "g++ -O2 -shared -std=c++17 \"%s\" -o \"%s\" 2>&1", cpp_file, so_file);
+#elif defined(SKY_OS_MACOS)
+    snprintf(cmd, sizeof(cmd), "g++ -O2 -dynamiclib -std=c++17 \"%s\" -o \"%s\" 2>&1", cpp_file, so_file);
+#else
+    snprintf(cmd, sizeof(cmd), "g++ -O2 -shared -fPIC -std=c++17 \"%s\" -o \"%s\" 2>&1", cpp_file, so_file);
+#endif
     FILE* pipe = popen(cmd, "r");
     if (pipe) {
         char err_buf[512];
@@ -54,16 +62,16 @@ Value sky_cpp_compile(const char* cpp_code) {
         }
         int status = pclose(pipe);
         if (status != 0) {
-            unlink(cpp_file);
+            sky_unlink(cpp_file);
             sky_runtime_error("CompileError", "C++ inline compilation failed:\n%s", full_err);
             return val_nil();
         }
     }
-    unlink(cpp_file);
+    sky_unlink(cpp_file);
 
-    void* handle = dlopen(so_file, RTLD_NOW | RTLD_GLOBAL);
+    void* handle = sky_dlopen(so_file);
     if (!handle) {
-        sky_runtime_error("OSError", "dlopen failed on compiled C++ library: %s", dlerror());
+        sky_runtime_error("OSError", "dlopen failed on compiled C++ library: %s", sky_dlerror());
         return val_nil();
     }
     return val_foreign(FOREIGN_CPP, "compiled_cpp", handle, NULL);
@@ -87,10 +95,10 @@ static double extract_double(Value v) {
 
 Value sky_cpp_call_method(ObjForeign* f, const char* name, int argc, Value* argv) {
     if (!f || !f->handle) return val_nil();
-    void* sym = dlsym(f->handle, name);
+    void* sym = sky_dlsym(f->handle, name);
     if (!sym) {
         sky_runtime_error("AttributeError", "Symbol '%s' not found in %s: %s",
-                          name, f->name ? f->name : "library", dlerror());
+                          name, f->name ? f->name : "library", sky_dlerror());
         return val_nil();
     }
 
@@ -123,7 +131,7 @@ Value sky_cpp_call_method(ObjForeign* f, const char* name, int argc, Value* argv
 
 Value sky_cpp_get_prop(ObjForeign* f, const char* name) {
     if (!f || !f->handle) return val_nil();
-    void* sym = dlsym(f->handle, name);
+    void* sym = sky_dlsym(f->handle, name);
     if (!sym) return val_nil();
     return val_foreign(FOREIGN_CPP, name, f->handle, sym);
 }

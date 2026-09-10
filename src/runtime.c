@@ -13,9 +13,9 @@
 #include "../include/sky_go.h"
 #include "../include/sky_rust.h"
 
-const char* sky_current_file = "<main>";
-int sky_current_line = 1;
-const char* sky_current_fn = "<main>";
+__thread const char* sky_current_file = "<main>";
+__thread int sky_current_line = 1;
+__thread const char* sky_current_fn = "<main>";
 
 #define SKY_MAX_CALL_STACK 1024
 
@@ -25,8 +25,8 @@ typedef struct {
     const char* fn_name;
 } SkyCallFrame;
 
-static SkyCallFrame sky_call_stack[SKY_MAX_CALL_STACK];
-static int sky_call_depth = 0;
+static __thread SkyCallFrame sky_call_stack[SKY_MAX_CALL_STACK];
+static __thread int sky_call_depth = 0;
 
 void sky_set_loc(const char* file, int line, const char* fn) {
     if (file && file[0] != '\0') sky_current_file = file;
@@ -38,7 +38,7 @@ void sky_push_frame(const char* file, int line, const char* fn) {
     if (sky_call_depth < SKY_MAX_CALL_STACK) {
         sky_call_stack[sky_call_depth].file = (file && file[0] != '\0') ? file : sky_current_file;
         sky_call_stack[sky_call_depth].line = line > 0 ? line : sky_current_line;
-        sky_call_stack[sky_call_depth].fn_name = (fn && fn[0] != '\0') ? fn : "<main>";
+        sky_call_stack[sky_call_depth].fn_name = (fn && fn[0] != '\0') ? fn : sky_current_fn;
         sky_call_depth++;
     }
 }
@@ -49,42 +49,45 @@ void sky_pop_frame(void) {
     }
 }
 
-static void print_source_line(const char* file_path, int target_line) {
-    if (!file_path || strcmp(file_path, "<main>") == 0 || strcmp(file_path, "<input>") == 0) return;
-    FILE* f = fopen(file_path, "r");
+static void print_source_line(const char* file, int line) {
+    if (!file || line <= 0) return;
+    FILE* f = fopen(file, "r");
     if (!f) return;
-    char line_buf[1024];
-    int cur = 0;
-    while (fgets(line_buf, sizeof(line_buf), f)) {
-        cur++;
-        if (cur == target_line) {
-            size_t l = strlen(line_buf);
-            while (l > 0 && (line_buf[l - 1] == '\n' || line_buf[l - 1] == '\r')) {
-                line_buf[--l] = '\0';
+
+    char buf[1024];
+    int cur = 1;
+    while (fgets(buf, sizeof(buf), f)) {
+        if (cur == line) {
+            size_t len = strlen(buf);
+            while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r')) {
+                buf[--len] = '\0';
             }
-            char* p = line_buf;
-            while (*p == ' ' || *p == '\t') p++;
-            if (*p != '\0') {
-                fprintf(stderr, "    %s\n", p);
-            }
+            char* trimmed = buf;
+            while (*trimmed == ' ' || *trimmed == '\t') trimmed++;
+            fprintf(stderr, "    %s\n", trimmed);
             break;
         }
+        cur++;
     }
     fclose(f);
 }
 
 void sky_runtime_error(const char* exc_name, const char* fmt, ...) {
     char msg[2048];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, args);
-    va_end(args);
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
+    va_end(ap);
 
     fprintf(stderr, "Traceback (most recent call last):\n");
-    for (int i = 0; i < sky_call_depth; ++i) {
-        fprintf(stderr, "  File \"%s\", line %d, in %s\n",
-                sky_call_stack[i].file, sky_call_stack[i].line, sky_call_stack[i].fn_name);
-        print_source_line(sky_call_stack[i].file, sky_call_stack[i].line);
+    if (sky_call_depth > 0) {
+        for (int i = 0; i < sky_call_depth; i++) {
+            fprintf(stderr, "  File \"%s\", line %d, in %s\n",
+                    sky_call_stack[i].file ? sky_call_stack[i].file : "<main>",
+                    sky_call_stack[i].line,
+                    sky_call_stack[i].fn_name ? sky_call_stack[i].fn_name : "<main>");
+            print_source_line(sky_call_stack[i].file, sky_call_stack[i].line);
+        }
     }
     fprintf(stderr, "  File \"%s\", line %d, in %s\n",
             sky_current_file, sky_current_line, sky_current_fn ? sky_current_fn : "<main>");
@@ -399,6 +402,265 @@ ObjForeign* as_foreign(Value v) {
     return NULL;
 }
 
+ObjFuture* as_future(Value v) {
+    if (v.type == VAL_OBJ && v.as.obj->type == OBJ_FUTURE) return (ObjFuture*)v.as.obj;
+    return NULL;
+}
+
+Value val_future(SkyFuture* fut) {
+    ObjFuture* f = (ObjFuture*)sky_alloc(sizeof(ObjFuture));
+    f->header.type = OBJ_FUTURE;
+    f->future = fut;
+
+    Value v;
+    v.type = VAL_OBJ;
+    v.as.obj = (Obj*)f;
+    return v;
+}
+
+SkyFuture* sky_future_create(void) {
+    SkyFuture* fut = (SkyFuture*)sky_alloc(sizeof(SkyFuture));
+    pthread_mutex_init(&fut->mutex, NULL);
+    pthread_cond_init(&fut->cond, NULL);
+    fut->state = FUTURE_PENDING;
+    fut->result = val_nil();
+    fut->error_msg = NULL;
+    fut->has_thread = false;
+    fut->is_joined = false;
+    return fut;
+}
+
+void sky_future_resolve(SkyFuture* fut, Value res) {
+    if (!fut) return;
+    pthread_mutex_lock(&fut->mutex);
+    fut->state = FUTURE_RESOLVED;
+    fut->result = res;
+    pthread_cond_broadcast(&fut->cond);
+    pthread_mutex_unlock(&fut->mutex);
+}
+
+void sky_future_reject(SkyFuture* fut, const char* err) {
+    if (!fut) return;
+    pthread_mutex_lock(&fut->mutex);
+    fut->state = FUTURE_REJECTED;
+    fut->error_msg = err ? strdup(err) : strdup("Unknown async error");
+    pthread_cond_broadcast(&fut->cond);
+    pthread_mutex_unlock(&fut->mutex);
+}
+
+Value sky_future_await(SkyFuture* fut) {
+    if (!fut) return val_nil();
+    if (fut->has_thread && !fut->is_joined) {
+        pthread_join(fut->thread, NULL);
+        fut->is_joined = true;
+    }
+    pthread_mutex_lock(&fut->mutex);
+    while (fut->state == FUTURE_PENDING || fut->state == FUTURE_RUNNING) {
+        pthread_cond_wait(&fut->cond, &fut->mutex);
+    }
+    FutureState st = fut->state;
+    char* err_msg = fut->error_msg ? strdup(fut->error_msg) : NULL;
+    Value res = fut->result;
+    pthread_mutex_unlock(&fut->mutex);
+
+    if (st == FUTURE_REJECTED) {
+        sky_runtime_error("AsyncError", "%s", err_msg ? err_msg : "Async operation failed");
+        return val_nil();
+    }
+    return res;
+}
+
+Value val_future_await(Value v) {
+    ObjFuture* of = as_future(v);
+    if (!of || !of->future) {
+        return v;
+    }
+    return sky_future_await(of->future);
+}
+
+typedef struct {
+    SkyFuture* future;
+    double seconds;
+} AsyncSleepArgs;
+
+static void* __async_sleep_worker(void* raw_args) {
+    AsyncSleepArgs* args = (AsyncSleepArgs*)raw_args;
+    double sec = args->seconds;
+    if (sec > 0.0) {
+#if defined(SKY_OS_WINDOWS)
+        Sleep((DWORD)(sec * 1000.0));
+#else
+        usleep((useconds_t)(sec * 1000000.0));
+#endif
+    }
+    sky_future_resolve(args->future, val_double(sec));
+    return NULL;
+}
+
+Value sky_async_sleep(int argc, Value* argv) {
+    double sec = 0.0;
+    if (argc >= 1) {
+        if (argv[0].type == VAL_INT) sec = (double)argv[0].as.i;
+        else if (argv[0].type == VAL_DOUBLE) sec = argv[0].as.d;
+    }
+    SkyFuture* fut = sky_future_create();
+    fut->has_thread = true;
+    AsyncSleepArgs* args = (AsyncSleepArgs*)sky_alloc(sizeof(AsyncSleepArgs));
+    args->future = fut;
+    args->seconds = sec;
+    pthread_create(&fut->thread, NULL, __async_sleep_worker, args);
+    return val_future(fut);
+}
+
+typedef struct {
+    SkyFuture* master_future;
+    Value futures_list;
+} AsyncAllArgs;
+
+static void* __async_all_worker(void* raw_args) {
+    AsyncAllArgs* args = (AsyncAllArgs*)raw_args;
+    Value fl = args->futures_list;
+    Value result_list = val_list();
+    ObjList* res_l = as_list(result_list);
+
+    if (fl.type == VAL_OBJ && fl.as.obj != NULL) {
+        if (fl.as.obj->type == OBJ_LIST) {
+            ObjList* l = (ObjList*)fl.as.obj;
+            for (size_t i = 0; i < l->count; i++) {
+                Value res = val_future_await(l->items[i]);
+                list_push(res_l, res);
+            }
+        } else if (fl.as.obj->type == OBJ_ARRAY) {
+            ObjArray* a = (ObjArray*)fl.as.obj;
+            for (size_t i = 0; i < a->capacity; i++) {
+                Value res = val_future_await(a->items[i]);
+                list_push(res_l, res);
+            }
+        } else if (fl.as.obj->type == OBJ_TUPLE) {
+            ObjTuple* t = (ObjTuple*)fl.as.obj;
+            for (size_t i = 0; i < t->count; i++) {
+                Value res = val_future_await(t->items[i]);
+                list_push(res_l, res);
+            }
+        }
+    }
+    sky_future_resolve(args->master_future, result_list);
+    return NULL;
+}
+
+Value sky_async_all(int argc, Value* argv) {
+    Value list_val = (argc >= 1) ? argv[0] : val_list();
+    SkyFuture* fut = sky_future_create();
+    fut->has_thread = true;
+    AsyncAllArgs* args = (AsyncAllArgs*)sky_alloc(sizeof(AsyncAllArgs));
+    args->master_future = fut;
+    args->futures_list = list_val;
+    pthread_create(&fut->thread, NULL, __async_all_worker, args);
+    return val_future(fut);
+}
+
+typedef struct {
+    SkyFuture* master_future;
+    Value futures_list;
+} AsyncRaceArgs;
+
+static void* __async_race_worker(void* raw_args) {
+    AsyncRaceArgs* args = (AsyncRaceArgs*)raw_args;
+    Value fl = args->futures_list;
+
+    size_t count = 0;
+    Value* items = NULL;
+    if (fl.type == VAL_OBJ && fl.as.obj != NULL) {
+        if (fl.as.obj->type == OBJ_LIST) {
+            ObjList* l = (ObjList*)fl.as.obj;
+            count = l->count;
+            items = l->items;
+        } else if (fl.as.obj->type == OBJ_ARRAY) {
+            ObjArray* a = (ObjArray*)fl.as.obj;
+            count = a->capacity;
+            items = a->items;
+        } else if (fl.as.obj->type == OBJ_TUPLE) {
+            ObjTuple* t = (ObjTuple*)fl.as.obj;
+            count = t->count;
+            items = t->items;
+        }
+    }
+
+    if (count == 0 || !items) {
+        sky_future_resolve(args->master_future, val_nil());
+        return NULL;
+    }
+
+    for (;;) {
+        for (size_t i = 0; i < count; i++) {
+            ObjFuture* of = as_future(items[i]);
+            if (of && of->future) {
+                pthread_mutex_lock(&of->future->mutex);
+                FutureState st = of->future->state;
+                Value res = of->future->result;
+                pthread_mutex_unlock(&of->future->mutex);
+                if (st == FUTURE_RESOLVED) {
+                    sky_future_resolve(args->master_future, res);
+                    return NULL;
+                }
+            } else {
+                sky_future_resolve(args->master_future, items[i]);
+                return NULL;
+            }
+        }
+#if defined(SKY_OS_WINDOWS)
+        Sleep(1);
+#else
+        usleep(1000);
+#endif
+    }
+}
+
+Value sky_async_race(int argc, Value* argv) {
+    Value list_val = (argc >= 1) ? argv[0] : val_list();
+    SkyFuture* fut = sky_future_create();
+    fut->has_thread = true;
+    AsyncRaceArgs* args = (AsyncRaceArgs*)sky_alloc(sizeof(AsyncRaceArgs));
+    args->master_future = fut;
+    args->futures_list = list_val;
+    pthread_create(&fut->thread, NULL, __async_race_worker, args);
+    return val_future(fut);
+}
+
+typedef struct {
+    SkyFuture* future;
+    Value callee;
+    int argc;
+    Value* argv;
+} AsyncSpawnArgs;
+
+static void* __async_spawn_worker(void* raw_args) {
+    AsyncSpawnArgs* args = (AsyncSpawnArgs*)raw_args;
+    Value res = val_call(args->callee, args->argc, args->argv);
+    sky_future_resolve(args->future, res);
+    return NULL;
+}
+
+Value sky_async_spawn(int argc, Value* argv) {
+    if (argc < 1) return val_nil();
+    Value callee = argv[0];
+    int fn_argc = argc - 1;
+    Value* fn_argv = (fn_argc > 0) ? (Value*)sky_alloc(sizeof(Value) * fn_argc) : NULL;
+    for (int i = 0; i < fn_argc; i++) {
+        fn_argv[i] = argv[i + 1];
+    }
+
+    SkyFuture* fut = sky_future_create();
+    fut->has_thread = true;
+    AsyncSpawnArgs* args = (AsyncSpawnArgs*)sky_alloc(sizeof(AsyncSpawnArgs));
+    args->future = fut;
+    args->callee = callee;
+    args->argc = fn_argc;
+    args->argv = fn_argv;
+    pthread_create(&fut->thread, NULL, __async_spawn_worker, args);
+    return val_future(fut);
+}
+
 const char* sky_type_name(SkyTypeId t) {
     switch (t) {
         case TYPE_NIL: return "none";
@@ -417,6 +679,7 @@ const char* sky_type_name(SkyTypeId t) {
         case TYPE_INSTANCE: return "instance";
         case TYPE_FUNCTION: return "function";
         case TYPE_ERROR: return "error";
+        case TYPE_FUTURE: return "future";
         case TYPE_TYPE: return "type";
         default: return "unknown";
     }
@@ -444,6 +707,7 @@ Value val_get_type(Value v) {
                 case OBJ_FUNCTION: return val_type(TYPE_FUNCTION);
                 case OBJ_ERROR: return val_type(TYPE_ERROR);
                 case OBJ_FOREIGN: return val_type(TYPE_INSTANCE);
+                case OBJ_FUTURE: return val_type(TYPE_FUTURE);
             }
     }
     return val_type(TYPE_NIL);
@@ -631,6 +895,21 @@ char* val_to_string(Value v) {
                         case FOREIGN_RUST: lang_str = "rust"; break;
                     }
                     snprintf(buffer, sizeof(buffer), "<%s object %s>", lang_str, f->name ? f->name : "");
+                    return strdup(buffer);
+                }
+                case OBJ_FUTURE: {
+                    ObjFuture* of = (ObjFuture*)v.as.obj;
+                    const char* st = "pending";
+                    if (of && of->future) {
+                        switch (of->future->state) {
+                            case FUTURE_PENDING: st = "pending"; break;
+                            case FUTURE_RUNNING: st = "running"; break;
+                            case FUTURE_RESOLVED: st = "resolved"; break;
+                            case FUTURE_REJECTED: st = "rejected"; break;
+                            case FUTURE_CANCELLED: st = "cancelled"; break;
+                        }
+                    }
+                    snprintf(buffer, sizeof(buffer), "<Future state=%s>", st);
                     return strdup(buffer);
                 }
             }
@@ -1450,6 +1729,33 @@ Value val_get_prop(Value target, const char* name) {
             return result;
         }
     }
+    if (target.type == VAL_OBJ && target.as.obj != NULL && target.as.obj->type == OBJ_FUTURE) {
+        ObjFuture* of = (ObjFuture*)target.as.obj;
+        SkyFuture* fut = of->future;
+        if (strcmp(name, "is_done") == 0) {
+            bool done = (fut && fut->state != FUTURE_PENDING && fut->state != FUTURE_RUNNING);
+            return val_bool(done);
+        }
+        if (strcmp(name, "result") == 0) {
+            return fut ? fut->result : val_nil();
+        }
+        if (strcmp(name, "error") == 0) {
+            return val_string((fut && fut->error_msg) ? fut->error_msg : "");
+        }
+        if (strcmp(name, "state") == 0) {
+            const char* st = "pending";
+            if (fut) {
+                switch (fut->state) {
+                    case FUTURE_PENDING: st = "pending"; break;
+                    case FUTURE_RUNNING: st = "running"; break;
+                    case FUTURE_RESOLVED: st = "resolved"; break;
+                    case FUTURE_REJECTED: st = "rejected"; break;
+                    case FUTURE_CANCELLED: st = "cancelled"; break;
+                }
+            }
+            return val_string(st);
+        }
+    }
     if (target.type == VAL_OBJ && target.as.obj != NULL && target.as.obj->type == OBJ_DICT) {
         ObjDict* d = (ObjDict*)target.as.obj;
         Value key = val_string(name);
@@ -1768,6 +2074,22 @@ Value val_call_method_kw(Value target, const char* name, int argc, Value* argv, 
                     case FOREIGN_GO: return sky_go_call_method(f, name, argc, argv);
                     case FOREIGN_RUST: return sky_rust_call_method(f, name, argc, argv);
                     default: break;
+                }
+                break;
+            }
+            case OBJ_FUTURE: {
+                ObjFuture* of = (ObjFuture*)target.as.obj;
+                if (strcmp(name, "await") == 0) {
+                    return sky_future_await(of->future);
+                }
+                if (strcmp(name, "cancel") == 0) {
+                    if (of->future) {
+                        pthread_mutex_lock(&of->future->mutex);
+                        of->future->state = FUTURE_CANCELLED;
+                        pthread_cond_broadcast(&of->future->cond);
+                        pthread_mutex_unlock(&of->future->mutex);
+                    }
+                    return val_bool(true);
                 }
                 break;
             }

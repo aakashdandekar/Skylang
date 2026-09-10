@@ -3,9 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libgen.h>
-#include <unistd.h>
-#include <sys/wait.h>
 
 static char* read_file(const char* path) {
     FILE* f = fopen(path, "rb");
@@ -32,15 +29,28 @@ static char* read_file(const char* path) {
 }
 
 static void get_project_root(char* out_root, size_t max_len) {
-    char exe_path[1024];
-    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
-    if (len != -1) {
-        exe_path[len] = '\0';
-        char* dir = dirname(exe_path);
+    const char* env_dir = getenv("SKYLANG_DIR");
+    if (!env_dir) env_dir = getenv("SKYLANG_HOME");
+    if (env_dir && env_dir[0]) {
+        snprintf(out_root, max_len, "%s", env_dir);
+        return;
+    }
 
-        if (strstr(dir, "/bin")) {
-            char* up = dirname(dir);
-            snprintf(out_root, max_len, "%s", up);
+    char exe_path[1024];
+    if (sky_get_executable_path(exe_path, sizeof(exe_path))) {
+        char dir[1024];
+        sky_extract_dirname(exe_path, dir, sizeof(dir));
+
+        /* Normalize slashes in dir */
+        for (char* p = dir; *p; ++p) {
+            if (*p == '\\') *p = '/';
+        }
+
+        /* Check if dir ends with /bin */
+        size_t dlen = strlen(dir);
+        if (dlen >= 4 && strcmp(dir + dlen - 4, "/bin") == 0) {
+            dir[dlen - 4] = '\0';
+            snprintf(out_root, max_len, "%s", dir[0] ? dir : "/");
             return;
         }
         snprintf(out_root, max_len, "%s", dir);
@@ -217,6 +227,8 @@ static void translate_and_print_gcc_errors(const char* gcc_output, const char* d
     free(copy);
 }
 
+static int tmp_counter = 0;
+
 static int compile_c_to_binary(const char* c_source, const char* out_bin, const char* sky_file) {
     char root[1024];
     get_project_root(root, sizeof(root));
@@ -250,8 +262,10 @@ static int compile_c_to_binary(const char* c_source, const char* out_bin, const 
     snprintf(go_path, sizeof(go_path), "%s/src/sky_go.c", root);
     snprintf(rust_path, sizeof(rust_path), "%s/src/sky_rust.c", root);
 
-    char c_file_path[1024];
-    snprintf(c_file_path, sizeof(c_file_path), "/tmp/skylang_%d.c", getpid());
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char c_file_path[2048];
+    snprintf(c_file_path, sizeof(c_file_path), "%s/skylang_%d_%d.c", tmp_dir, (int)sky_getpid(), ++tmp_counter);
 
     FILE* f = fopen(c_file_path, "w");
     if (!f) {
@@ -264,36 +278,79 @@ static int compile_c_to_binary(const char* c_source, const char* out_bin, const 
     fclose(f);
 
     char cmd[32768];
+#if defined(SKY_OS_WINDOWS)
     snprintf(cmd, sizeof(cmd),
-             "gcc -O2 -I%s $(pkg-config --cflags python3-embed 2>/dev/null || pkg-config --cflags python3 2>/dev/null || echo \"-I/usr/include/python3.14\") "
-             "%s %s %s %s %s %s %s %s %s %s %s %s %s -lgc -lm -ldl $(pkg-config --libs python3-embed 2>/dev/null || pkg-config --libs python3 2>/dev/null || echo \"-lpython3.14\") -o %s 2>&1",
+             "gcc -O2 -DGC_THREADS -I\"%s\" "
+             "\"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" "
+             "-lgc -lpython3 -lm -lpthread -o \"%s\" 2>&1",
              inc_path, c_file_path, rt_path, stdlib_path, lexer_path, parser_path, compiler_path, vm_path, py_path, js_path, cpp_path, java_path, go_path, rust_path, out_bin);
+#elif defined(SKY_OS_MACOS)
+    snprintf(cmd, sizeof(cmd),
+             "gcc -O2 -DGC_THREADS -I\"%s\" $(pkg-config --cflags bdw-gc 2>/dev/null || echo \"\") $(pkg-config --cflags python3-embed 2>/dev/null || pkg-config --cflags python3 2>/dev/null || echo \"\") "
+             "\"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" "
+             "$(pkg-config --libs bdw-gc 2>/dev/null || echo \"-lgc\") $(pkg-config --libs python3-embed 2>/dev/null || pkg-config --libs python3 2>/dev/null || echo \"-lpython3\") -lm -ldl -pthread -o \"%s\" 2>&1",
+             inc_path, c_file_path, rt_path, stdlib_path, lexer_path, parser_path, compiler_path, vm_path, py_path, js_path, cpp_path, java_path, go_path, rust_path, out_bin);
+#else
+    snprintf(cmd, sizeof(cmd),
+             "gcc -O2 -DGC_THREADS -I\"%s\" $(pkg-config --cflags python3-embed 2>/dev/null || pkg-config --cflags python3 2>/dev/null || echo \"-I/usr/include/python3.14\") "
+             "\"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" \"%s\" "
+             "-lgc -lm -ldl -pthread $(pkg-config --libs python3-embed 2>/dev/null || pkg-config --libs python3 2>/dev/null || echo \"-lpython3.14\") -o \"%s\" 2>&1",
+             inc_path, c_file_path, rt_path, stdlib_path, lexer_path, parser_path, compiler_path, vm_path, py_path, js_path, cpp_path, java_path, go_path, rust_path, out_bin);
+#endif
 
     FILE* pipe = popen(cmd, "r");
     if (!pipe) {
-        unlink(c_file_path);
+        sky_unlink(c_file_path);
+        fprintf(stderr, "Traceback (most recent call last):\n");
+        fprintf(stderr, "  File \"%s\", line 1, in <main>\n", sky_file ? sky_file : "<main>");
+        fprintf(stderr, "CompileError: Failed to invoke C backend compiler\n");
         return 1;
     }
 
-    char gcc_buf[65536];
-    size_t total_read = 0;
-    char chunk[1024];
+    size_t err_cap = 8192;
+    size_t err_len = 0;
+    char* err_buf = malloc(err_cap);
+    if (!err_buf) {
+        sky_unlink(c_file_path);
+        pclose(pipe);
+        return 1;
+    }
+    err_buf[0] = '\0';
+
+    char chunk[512];
     while (fgets(chunk, sizeof(chunk), pipe)) {
         size_t clen = strlen(chunk);
-        if (total_read + clen + 1 < sizeof(gcc_buf)) {
-            memcpy(gcc_buf + total_read, chunk, clen);
-            total_read += clen;
-            gcc_buf[total_read] = '\0';
+        if (err_len + clen + 1 >= err_cap) {
+            err_cap *= 2;
+            char* nb = realloc(err_buf, err_cap);
+            if (!nb) break;
+            err_buf = nb;
         }
+        memcpy(err_buf + err_len, chunk, clen + 1);
+        err_len += clen;
     }
-    int status = pclose(pipe);
-    unlink(c_file_path);
 
-    if (status != 0) {
-        translate_and_print_gcc_errors(gcc_buf, sky_file);
+    int pclose_res = pclose(pipe);
+    sky_unlink(c_file_path);
+
+    int exit_status = 0;
+#ifdef SKY_OS_WINDOWS
+    exit_status = pclose_res;
+#else
+    if (WIFEXITED(pclose_res)) {
+        exit_status = WEXITSTATUS(pclose_res);
+    } else {
+        exit_status = pclose_res;
+    }
+#endif
+
+    if (exit_status != 0) {
+        translate_and_print_gcc_errors(err_buf, sky_file);
+        free(err_buf);
         return 1;
     }
 
+    free(err_buf);
     return 0;
 }
 
@@ -312,8 +369,10 @@ static int cmd_run(const char* sky_file) {
     char* c_code = codegen_emit_c(ast, sky_file);
     free(source);
 
-    char bin_path[1024];
-    snprintf(bin_path, sizeof(bin_path), "/tmp/skylang_%d.bin", getpid());
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char bin_path[2048];
+    snprintf(bin_path, sizeof(bin_path), "%s/skylang_%d_%d%s", tmp_dir, (int)sky_getpid(), ++tmp_counter, SKY_EXE_EXT);
 
     int comp_res = compile_c_to_binary(c_code, bin_path, sky_file);
     free(c_code);
@@ -322,9 +381,16 @@ static int cmd_run(const char* sky_file) {
         return 1;
     }
 
-    int run_res = system(bin_path);
-    unlink(bin_path);
-    return WEXITSTATUS(run_res);
+    char run_cmd[4096];
+    snprintf(run_cmd, sizeof(run_cmd), "\"%s\"", bin_path);
+    int run_res = system(run_cmd);
+    sky_unlink(bin_path);
+
+#if defined(SKY_OS_WINDOWS)
+    return run_res;
+#else
+    return WIFEXITED(run_res) ? WEXITSTATUS(run_res) : run_res;
+#endif
 }
 
 static int cmd_build(const char* sky_file, const char* out_bin) {
@@ -380,12 +446,17 @@ int main(int argc, char** argv) {
         const char* sky_file = argv[2];
         char default_bin[1024];
         const char* last_slash = strrchr(sky_file, '/');
-        const char* bname = last_slash ? last_slash + 1 : sky_file;
+        const char* last_bslash = strrchr(sky_file, '\\');
+        const char* sep = (last_bslash > last_slash) ? last_bslash : last_slash;
+        const char* bname = sep ? sep + 1 : sky_file;
         snprintf(default_bin, sizeof(default_bin), "%s", bname);
         char* dot = strrchr(default_bin, '.');
         if (dot && (strcmp(dot, ".sky") == 0 || strcmp(dot, ".skylang") == 0)) {
             *dot = '\0';
         }
+#if defined(SKY_OS_WINDOWS)
+        strcat(default_bin, ".exe");
+#endif
 
         const char* out_bin = default_bin;
         for (int i = 3; i < argc; ++i) {

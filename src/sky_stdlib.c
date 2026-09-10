@@ -1,16 +1,17 @@
 
 #include "../include/sky_stdlib.h"
+#include "../include/sky_platform.h"
 #include <math.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <gc.h>
 
 Value sky_mod_math;
 Value sky_mod_io;
 Value sky_mod_fmt;
+Value sky_mod_async;
 
 static double to_num(Value v) {
     if (v.type == VAL_INT) return (double)v.as.i;
@@ -238,7 +239,7 @@ static Value io_input(int argc, Value* argv) {
 
 static Value io_exists(int argc, Value* argv) {
     if (argc < 1) return val_bool(false);
-    return val_bool(access(to_cstr(argv[0]), F_OK) == 0);
+    return val_bool(sky_access(to_cstr(argv[0]), F_OK) == 0);
 }
 
 static Value io_remove_fn(int argc, Value* argv) {
@@ -363,9 +364,20 @@ Value sky_stdlib_fmt_init(void) {
     return mod;
 }
 
+Value sky_stdlib_async_init(void) {
+    Value mod = val_dict();
+    ObjDict* d = as_dict(mod);
+    dict_set(d, val_string("sleep"), val_function("sleep", sky_async_sleep, 1));
+    dict_set(d, val_string("all"),   val_function("all",   sky_async_all,   1));
+    dict_set(d, val_string("race"),  val_function("race",  sky_async_race,  1));
+    dict_set(d, val_string("spawn"), val_function("spawn", sky_async_spawn, -1));
+    return mod;
+}
+
 void sky_stdlib_init_all(void) {
-    sky_mod_math = sky_stdlib_math_init();
-    sky_mod_io   = sky_stdlib_io_init();
-    sky_mod_fmt  = sky_stdlib_fmt_init();
+    sky_mod_math  = sky_stdlib_math_init();
+    sky_mod_io    = sky_stdlib_io_init();
+    sky_mod_fmt   = sky_stdlib_fmt_init();
+    sky_mod_async = sky_stdlib_async_init();
 }
 

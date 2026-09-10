@@ -170,7 +170,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.sky",
-                    "match": "\\b(if|else|elif|for|in|while|break|continue|return)\\b"
+                    "match": "\\b(if|else|elif|for|in|while|break|continue|return|async|await|spawn)\\b"
                 },
                 {
                     "name": "keyword.declaration.function.sky",
@@ -218,7 +218,7 @@
                 },
                 {
                     "name": "storage.type.collection.sky",
-                    "match": "\\b(L|T|SL|DICT|SET)\\b"
+                    "match": "\\b(list|dict|set|pair|file|future)\\b"
                 },
                 {
                     "name": "storage.type.builtin.sky",
@@ -234,10 +234,11 @@
             }
         },
         "fn_decl": {
-            "match": "\\b(f)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+            "match": "\\b(?:(async)\\s+)?(f)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
             "captures": {
-                "1": { "name": "keyword.declaration.function.sky" },
-                "2": { "name": "entity.name.function.sky" }
+                "1": { "name": "keyword.control.sky" },
+                "2": { "name": "keyword.declaration.function.sky" },
+                "3": { "name": "entity.name.function.sky" }
             }
         },
         "extern_decl": {
@@ -271,7 +272,7 @@
             "patterns": [
                 {
                     "name": "support.class.module.sky",
-                    "match": "\\b(math|python|js|cpp|java|go|golang|rust)\\b"
+                    "match": "\\b(math|python|js|cpp|java|go|golang|rust|async)\\b"
                 }
             ]
         },
@@ -280,6 +281,10 @@
                 {
                     "match": "(?<=\\bmath\\.)(sqrt|sin|cos|tan|asin|acos|atan|atan2|abs|ceil|floor|round|log|log10|log2|exp|pow|min|max|hypot|clamp)\\b",
                     "name": "support.function.math.sky"
+                },
+                {
+                    "match": "(?<=\\basync\\.)(sleep|all|race|spawn)\\b",
+                    "name": "support.function.async.sky"
                 },
                 {
                     "match": "(?<=\\b(python|js|cpp|java|go|golang|rust)\\.)(load|exec|compile|version)\\b",

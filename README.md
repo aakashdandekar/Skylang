@@ -26,6 +26,7 @@
    - [Operators & Precedence](#operators--precedence)
    - [Control Flow Statements](#control-flow-statements)
    - [Function Declarations & Parameter Gateway](#function-declarations--parameter-gateway)
+   - [Async Functions, Await & Spawn Syntax](#async-functions-await--spawn-syntax)
    - [Class & Object-Oriented Syntax](#class--object-oriented-syntax)
    - [Module Imports & Export Resolution](#module-imports--export-resolution)
    - [Foreign Function Interface (C FFI) Syntax](#foreign-function-interface-c-ffi-syntax)
@@ -44,21 +45,23 @@
    - [Dictionary (`dict`)](#dictionary-methods--properties)
    - [Set (`set`)](#set-methods--properties)
    - [Sorted List (`sortedList`)](#sorted-list-methods--properties)
-6. [File Object Methods & Properties](#6-file-object-methods--properties)
-7. [Standard Library Modules](#7-standard-library-modules)
+6. [Future Object Methods & Properties (`future`)](#6-future-object-methods--properties-future)
+7. [File Object Methods & Properties](#7-file-object-methods--properties)
+8. [Standard Library Modules](#8-standard-library-modules)
    - [The `math` Module](#the-math-module)
    - [The `str` Module](#the-str-module)
-8. [Multi-Language Interoperability Bridges](#8-multi-language-interoperability-bridges)
+   - [The `async` Concurrency Module](#the-async-concurrency-module)
+9. [Multi-Language Interoperability Bridges](#9-multi-language-interoperability-bridges)
    - [Python Bridge (`python`)](#python-bridge)
    - [JavaScript / NPM Bridge (`js`)](#javascript--npm-bridge)
    - [C++ JIT Bridge (`cpp`)](#c-jit-bridge)
    - [Java Bridge (`java`)](#java-bridge)
    - [Golang Bridge (`go`, `golang`)](#golang-bridge)
    - [Rust Bridge (`rust`)](#rust-bridge)
-9. [Error Handling & Runtime Exceptions](#9-error-handling--runtime-exceptions)
-10. [CLI Toolchain Commands](#10-cli-toolchain-commands)
-11. [VS Code Extension Reference](#11-vs-code-extension-reference)
-12. [License](#12-license)
+10. [Error Handling & Runtime Exceptions](#10-error-handling--runtime-exceptions)
+11. [CLI Toolchain Commands & Multi-Platform Installation](#11-cli-toolchain-commands--multi-platform-installation)
+12. [VS Code Extension Reference & Foreign IntelliSense](#12-vs-code-extension-reference--foreign-intellisense)
+13. [License](#13-license)
 
 ---
 
@@ -183,6 +186,34 @@ f <function_name> {
 - Functions can return multiple expressions separated by commas: `return val1, val2`.
 - Caller unbinds with comma-separated assignment: `a, b := fn()`.
 - Blank identifier `_` discards unwanted return slots: `val, _ := fn()`.
+
+---
+
+### Async Functions, Await & Spawn Syntax
+
+#### 1. Async Function Declarations (`async f`)
+Prefixing a function declaration with `async` returns a concurrency `Future` object immediately:
+```skylang
+async f fetch_user {
+    takes(user_id)
+    await async.sleep(0.05)
+    return {"id": user_id, "name": "Alice"}
+}
+```
+
+#### 2. The `await` Expression
+Suspends the calling execution context until a `Future` resolves its value:
+```skylang
+user := await fetch_user(42)
+println(user["name"])
+```
+
+#### 3. The `spawn` Task Expression
+Spawns any function call or expression onto a background OS worker thread:
+```skylang
+worker := spawn compute_heavy_task(1000)
+result := await worker
+```
 
 ---
 
@@ -477,7 +508,26 @@ class <ClassName> {
 
 ---
 
-## 6. File Object Methods & Properties
+## 6. Future Object Methods & Properties (`future`)
+
+Returned by `async f` calls, `spawn` expressions, and `async.*` concurrency APIs:
+
+### Future Properties
+- `fut.state`: String representation of current state (`"pending"`, `"running"`, `"resolved"`, `"rejected"`, or `"cancelled"`).
+- `fut.is_done`: Boolean flag indicating if task has completed execution.
+- `fut.result`: The resolved return value (or `none` if pending/errored).
+- `fut.error`: Error message string if rejected.
+- `fut.T`: Returns `<type future>`.
+
+### Future Methods
+| Future Method Signature | Return Type | Description |
+|---|---|---|
+| `fut.await()` | `any` | Blocks calling thread until future resolves and returns its value. |
+| `fut.cancel()` | `bool` | Requests cancellation of the background worker task. |
+
+---
+
+## 7. File Object Methods & Properties
 
 Returned by `open(filepath, mode)`:
 
@@ -499,7 +549,7 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 7. Standard Library Modules
+## 8. Standard Library Modules
 
 ### The `math` Module
 
@@ -558,7 +608,16 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 8. Multi-Language Interoperability Bridges
+### The `async` Concurrency Module
+
+- `async.sleep(seconds: number)`: Returns a Future that resolves after non-blocking sleep duration.
+- `async.all(futures: list)`: Returns a Future resolving to a list of results once all tasks complete.
+- `async.race(futures: list)`: Returns a Future resolving to the value of whichever task finishes first.
+- `async.spawn(callee: function, ...args)`: Spawns function pointer with arguments in a background worker thread.
+
+---
+
+## 9. Multi-Language Interoperability Bridges
 
 ### Python Bridge (`python`)
 - `python.load(module_name: string)`: Loads Python C-API module into Skylang object.
@@ -588,7 +647,7 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 9. Error Handling & Runtime Exceptions
+## 10. Error Handling & Runtime Exceptions
 
 ### Error Protocol
 - `error(msg: string)`: Constructs Go-style error object.
@@ -608,7 +667,29 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 10. CLI Toolchain Commands
+## 11. CLI Toolchain Commands & Multi-Platform Installation
+
+### Cross-Platform Installation
+
+| Platform | Installer Command | Details |
+|---|---|---|
+| **Windows (.exe Installer)** | `skylang-installer.exe` | Native standalone Win32 installer: configures `%LOCALAPPDATA%\Skylang`, adds `bin\` to Registry PATH, registers `.sky` file associations, creates `uninstall.exe` |
+| **Linux & macOS** | `./install.sh` | Detects Homebrew/apt/dnf/pacman, builds and links `sky` and `skylang` to `/usr/local/bin` |
+| **From Source** | `make clean all` | Builds `bin/skylang`, `bin/sky`, and `lib/libskylang_rt.a` via Makefile / MinGW |
+
+#### Windows Installer CLI Options
+```cmd
+skylang-installer.exe             :: Interactive installation wizard
+skylang-installer.exe --silent    :: Unattended / silent installation
+skylang-installer.exe --dir "C:\Skylang" :: Custom destination path
+skylang-installer.exe --uninstall :: Remove Skylang and registry associations
+```
+
+### Uninstallation
+- **Windows**: Run `uninstall.exe` from your Skylang installation folder or Windows *Add or Remove Programs*
+- **Linux / macOS**: `./delete.sh`
+
+### CLI Commands
 
 | Command Signature | Function |
 |---|---|
@@ -621,11 +702,20 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 11. VS Code Extension Reference
+## 12. VS Code Extension Reference & Foreign IntelliSense
 
 - **File Associations**: `.sky`, `.skylang`
-- **Grammar Scopes**: TextMate grammar covering bracketless functions, `takes(...)`, walrus `:=`, scalar prefixes, f-strings, and multi-language bridges.
+- **Grammar Scopes**: TextMate grammar covering bracketless functions, `async f`, `await`, `spawn`, `takes(...)`, walrus `:=`, scalar prefixes, f-strings, and multi-language bridges.
+- **Universal Foreign IntelliSense**: Autocompletions, parameter hints, and hover documentation for:
+  - **Node.js / JS**: `fs`, `path`, `http`, `express`, `lodash`, `axios`, `Math`, `JSON`
+  - **Python 3**: `math`, `sys`, `os`, `json`, `numpy`, `requests`
+  - **Java / JVM**: `java.lang.Math`, `java.util.ArrayList`, `java.util.HashMap`, `java.io.File`
+  - **Golang**: `fmt`, `math`, `os`, `net/http`, `strings`, `sync`
+  - **Rust**: `std::f64::consts`, `std::collections::HashMap`, `std::fs`, `std::io`
+  - **C/C++ FFI**: `stdio.h`, `stdlib.h`, `math.h`, `string.h`, `unistd.h`
 - **Snippets Catalog**:
+  - `asyncf` / `await` / `spawn`: Asynchronous functions, task await, and background thread spawning
+  - `asyncsleep` / `asyncall` / `asyncrace` / `asyncspawn`: Concurrency standard library combinators
   - `f` / `fn`: Function declaration with `takes(...)`
   - `fvar`: Variadic function declaration with `args`
   - `takes`: Parameter filtering gateway
@@ -640,7 +730,7 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 12. License
+## 13. License
 
 This project is licensed under the [Apache License, Version 2.0](LICENSE) - see the [LICENSE](LICENSE) file for details.
 

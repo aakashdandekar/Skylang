@@ -310,9 +310,61 @@ static void compile_expr(Compiler* c, AstNode* node) {
         }
 
         case AST_UNARY: {
+            if (node->as.unary.op == TOK_KW_SPAWN) {
+                AstNode* operand = node->as.unary.operand;
+                if (operand->type == AST_CALL) {
+                    compile_expr(c, operand->as.call.callee);
+                    int argc = (int)operand->as.call.args.count;
+                    for (int i = 0; i < argc; i++) {
+                        AstNode* arg = operand->as.call.args.items[i];
+                        if (arg->type == AST_NAMED_ARG) {
+                            compile_expr(c, arg->as.named_arg.value);
+                        } else {
+                            compile_expr(c, arg);
+                        }
+                    }
+                    emit_byte(c, OP_SPAWN, line);
+                    emit_byte(c, (uint8_t)argc, line);
+                } else {
+                    compile_expr(c, operand);
+                    emit_byte(c, OP_SPAWN, line);
+                    emit_byte(c, 0, line);
+                }
+            } else {
+                compile_expr(c, node->as.unary.operand);
+                if (node->as.unary.op == TOK_MINUS) emit_byte(c, OP_NEG, line);
+                else if (node->as.unary.op == TOK_BANG) emit_byte(c, OP_NOT, line);
+                else if (node->as.unary.op == TOK_KW_AWAIT) emit_byte(c, OP_AWAIT, line);
+            }
+            break;
+        }
+
+        case AST_EXPR_AWAIT: {
             compile_expr(c, node->as.unary.operand);
-            if (node->as.unary.op == TOK_MINUS) emit_byte(c, OP_NEG, line);
-            else if (node->as.unary.op == TOK_BANG) emit_byte(c, OP_NOT, line);
+            emit_byte(c, OP_AWAIT, line);
+            break;
+        }
+
+        case AST_EXPR_SPAWN: {
+            AstNode* operand = node->as.unary.operand;
+            if (operand->type == AST_CALL) {
+                compile_expr(c, operand->as.call.callee);
+                int argc = (int)operand->as.call.args.count;
+                for (int i = 0; i < argc; i++) {
+                    AstNode* arg = operand->as.call.args.items[i];
+                    if (arg->type == AST_NAMED_ARG) {
+                        compile_expr(c, arg->as.named_arg.value);
+                    } else {
+                        compile_expr(c, arg);
+                    }
+                }
+                emit_byte(c, OP_SPAWN, line);
+                emit_byte(c, (uint8_t)argc, line);
+            } else {
+                compile_expr(c, operand);
+                emit_byte(c, OP_SPAWN, line);
+                emit_byte(c, 0, line);
+            }
             break;
         }
 

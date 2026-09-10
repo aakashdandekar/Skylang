@@ -94,6 +94,47 @@ exports.STDLIB_MODULES = {
             'load': { name: 'rust.load', signature: 'rust.load(so_path_or_module)', description: 'Loads a pre-compiled Rust cdylib library (.so) or standard module into Skylang.', params: [{ name: 'so_path_or_module', doc: 'Path to .so library or Rust module' }], returns: 'foreign_obj', example: 'import rust\nlib := rust.load("./librustcalc.so")' },
             'exec': { name: 'rust.exec', signature: 'rust.exec(rust_source_code)', description: 'Executes Rust source code.', params: [{ name: 'rust_source_code', doc: 'Rust code block' }], returns: 'none', example: 'import rust\nrust.exec("println!(\\"Hello from Rust\\");")' }
         }
+    },
+    'async': {
+        name: 'async (Asynchronous Programming & Concurrency Module)',
+        description: 'First-class asynchronous utilities, non-blocking timers, parallel task aggregators, and background thread dispatching.',
+        functions: {
+            'sleep': {
+                name: 'async.sleep',
+                signature: 'async.sleep(seconds)',
+                description: 'Creates a non-blocking timer that returns a Future resolving after the specified number of seconds.',
+                params: [{ name: 'seconds', doc: 'Duration to sleep in seconds (e.g. 0.5, 1.0, 2)' }],
+                returns: 'future',
+                example: 'await async.sleep(1.0)'
+            },
+            'all': {
+                name: 'async.all',
+                signature: 'async.all(futures_list)',
+                description: 'Waits for all Future objects in the list to complete in parallel, returning a Future that resolves to a list of results.',
+                params: [{ name: 'futures_list', doc: 'List of Future objects' }],
+                returns: 'future',
+                example: 'results := await async.all([task1, task2, task3])'
+            },
+            'race': {
+                name: 'async.race',
+                signature: 'async.race(futures_list)',
+                description: 'Waits for the fastest Future object in the list to complete, returning a Future resolving with its result.',
+                params: [{ name: 'futures_list', doc: 'List of Future objects' }],
+                returns: 'future',
+                example: 'winner := await async.race([task1, task2])'
+            },
+            'spawn': {
+                name: 'async.spawn',
+                signature: 'async.spawn(fn, ...args)',
+                description: 'Dynamically launches a function with arguments onto a background worker thread and returns a Future immediately.',
+                params: [
+                    { name: 'fn', doc: 'Callable function or function pointer' },
+                    { name: '...args', doc: 'Optional arguments to pass to the function' }
+                ],
+                returns: 'future',
+                example: 'fut := async.spawn(heavy_computation, 1000000)\nres := await fut'
+            }
+        }
     }
 };
 exports.COMMON_PYTHON_PACKAGES = [
@@ -114,7 +155,7 @@ exports.COMMON_JAVA_CLASSES = [
     'java.net.URI', 'java.net.http.HttpClient'
 ];
 exports.COMMON_NPM_PACKAGES = [
-    'lodash', 'axios', 'express', 'moment', 'chalk', 'fs', 'path', 'http',
+    'lodash', 'axios', 'express', 'expressjs', 'moment', 'chalk', 'fs', 'path', 'http',
     'crypto', 'dotenv', 'rxjs', 'ws', 'dayjs', 'zod', 'commander', 'glob',
     'fs-extra', 'cheerio', 'debug', 'yargs', 'winston', 'bcrypt', 'cors', 'jsonwebtoken'
 ];

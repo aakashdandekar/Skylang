@@ -9,6 +9,7 @@ ARCH="$(uname -m)"
 DISTRO="unknown"
 PKG_MGR=""
 INSTALL_CMD=""
+IS_WINDOWS=false
 
 case "$OS" in
     Linux)
@@ -86,11 +87,12 @@ case "$OS" in
         ;;
     MINGW*|MSYS*|CYGWIN*)
         echo "Operating System: Windows ($OS, $ARCH)"
+        IS_WINDOWS=true
         if command -v pacman &>/dev/null; then
             PKG_MGR="pacman"
             INSTALL_CMD="pacman -S --noconfirm --needed"
-            PKGS_BUILD="mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-pkg-config mingw-w64-x86_64-gc"
-            PKGS_PYTHON="mingw-w64-x86_64-python"
+            PKGS_BUILD="mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-pkgconf mingw-w64-x86_64-gc"
+            PKGS_PYTHON="mingw-w64-x86_64-python mingw-w64-x86_64-python-pip"
             PKGS_NODE="mingw-w64-x86_64-nodejs"
             PKGS_GO="mingw-w64-x86_64-go"
             PKGS_RUST="mingw-w64-x86_64-rust"
@@ -98,14 +100,13 @@ case "$OS" in
         fi
         ;;
     *)
-        echo "Unsupported operating system: $OS"
-        exit 1
+        echo "Operating System: $OS (generic/unix)"
         ;;
 esac
 
 INSTALL_LIST=()
 
-if ! command -v gcc &>/dev/null || ! command -v make &>/dev/null || ! pkg-config --exists bdw-gc 2>/dev/null; then
+if ! command -v gcc &>/dev/null || ! command -v make &>/dev/null; then
     INSTALL_LIST+=($PKGS_BUILD)
 fi
 
@@ -150,13 +151,33 @@ if command -v go &>/dev/null; then echo "Go Runtime: $(go version)"; fi
 if command -v rustc &>/dev/null; then echo "Rust Runtime: $(rustc --version)"; fi
 if command -v javac &>/dev/null; then echo "Java Compiler: $(javac --version 2>&1 | head -n1)"; fi
 
-echo "Building bin/skylang, bin/sky, and lib/libskylang_rt.a..."
+echo "Building Skylang binaries and runtime library..."
 make -C "$SKYLANG_DIR" clean all
 
 LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN"
-ln -sf "$SKYLANG_DIR/bin/skylang" "$LOCAL_BIN/skylang"
-ln -sf "$SKYLANG_DIR/bin/skylang" "$LOCAL_BIN/sky"
+
+if [ "$IS_WINDOWS" = true ] || [ -f "$SKYLANG_DIR/bin/skylang.exe" ]; then
+    cp -f "$SKYLANG_DIR/bin/skylang.exe" "$LOCAL_BIN/skylang.exe" 2>/dev/null || cp -f "$SKYLANG_DIR/bin/skylang" "$LOCAL_BIN/skylang.exe"
+    cp -f "$SKYLANG_DIR/bin/skylang.exe" "$LOCAL_BIN/sky.exe" 2>/dev/null || cp -f "$SKYLANG_DIR/bin/skylang" "$LOCAL_BIN/sky.exe"
+    cp -f "$SKYLANG_DIR/bin/skylang" "$LOCAL_BIN/skylang" 2>/dev/null || true
+    cp -f "$SKYLANG_DIR/bin/skylang" "$LOCAL_BIN/sky" 2>/dev/null || true
+
+    # Create Windows batch wrappers for cmd.exe / PowerShell compatibility
+    cat << 'EOF' > "$LOCAL_BIN/sky.cmd"
+@echo off
+"%~dp0sky.exe" %*
+EOF
+    cat << 'EOF' > "$LOCAL_BIN/skylang.cmd"
+@echo off
+"%~dp0skylang.exe" %*
+EOF
+    chmod +x "$LOCAL_BIN/sky.cmd" "$LOCAL_BIN/skylang.cmd" 2>/dev/null || true
+else
+    ln -sf "$SKYLANG_DIR/bin/skylang" "$LOCAL_BIN/skylang"
+    ln -sf "$SKYLANG_DIR/bin/skylang" "$LOCAL_BIN/sky"
+fi
+
 echo "Installed binaries to ${LOCAL_BIN}"
 
 NEEDS_PATH_UPDATE=false
@@ -180,6 +201,7 @@ if ! echo "$PATH" | tr ':' '\n' | grep -qx "$LOCAL_BIN"; then
 
     [ -f "$HOME/.zshrc" ] && [[ ! " ${SHELL_CONFIGS[*]} " =~ " $HOME/.zshrc " ]] && SHELL_CONFIGS+=("$HOME/.zshrc")
     [ -f "$HOME/.bashrc" ] && [[ ! " ${SHELL_CONFIGS[*]} " =~ " $HOME/.bashrc " ]] && SHELL_CONFIGS+=("$HOME/.bashrc")
+    [ -f "$HOME/.bash_profile" ] && [[ ! " ${SHELL_CONFIGS[*]} " =~ " $HOME/.bash_profile " ]] && SHELL_CONFIGS+=("$HOME/.bash_profile")
 
     for config_file in "${SHELL_CONFIGS[@]}"; do
         if ! grep -qF '.local/bin' "$config_file" 2>/dev/null; then

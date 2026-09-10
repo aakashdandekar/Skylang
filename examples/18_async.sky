@@ -1,0 +1,105 @@
+// 18_async.sky - Demonstrating First-Class Async/Await, Futures & Concurrency in Skylang
+import async
+
+println("=== 1. Async Functions & Await ===")
+
+async f fetch_data {
+    takes(source_id)
+    println(f"Fetching data from source #{source_id}...")
+    await async.sleep(0.05)
+    return {"id": source_id, "payload": f"Data_from_node_{source_id}", "status": 200}
+}
+
+// Call async function returning a Future
+fut := fetch_data(101)
+println(f"Future state before await: {fut.state}")
+
+// Await the future to resolve its result
+res := await fut
+println(f"Future resolved state: {fut.state}, is_done: {fut.is_done}")
+println(f"Payload: {res[\"payload\"]}")
+
+println("\n=== 2. Spawning Background Tasks with `spawn` ===")
+
+f compute_heavy_task {
+    takes(task_id, iterations)
+    println(f"Worker task #{task_id} started...")
+    sum := 0
+    i := 0
+    for i < iterations {
+        sum += i
+        i += 1
+    }
+    await async.sleep(0.02)
+    println(f"Worker task #{task_id} completed!")
+    return {"task_id": task_id, "sum": sum}
+}
+
+// Spawn background worker threads
+worker1 := spawn compute_heavy_task(1, 1000)
+worker2 := spawn compute_heavy_task(2, 2000)
+
+// Await both tasks
+res1 := await worker1
+res2 := worker2.await() // Can also use method syntax .await()
+
+println(f"Worker 1 result sum: {res1[\"sum\"]}")
+println(f"Worker 2 result sum: {res2[\"sum\"]}")
+
+println("\n=== 3. Parallel Fan-Out & Aggregation with `async.all` ===")
+
+f fetch_price {
+    takes(ticker)
+    await async.sleep(0.03)
+    if ticker == "SKY" { return 150.75 }
+    if ticker == "GOOG" { return 180.20 }
+    if ticker == "AAPL" { return 230.50 }
+    return 100.0
+}
+
+tickers := ["SKY", "GOOG", "AAPL"]
+price_tasks := [
+    spawn fetch_price("SKY"),
+    spawn fetch_price("GOOG"),
+    spawn fetch_price("AAPL")
+]
+
+// async.all waits for all futures to resolve concurrently
+prices := await async.all(price_tasks)
+idx := 0
+for ticker in tickers {
+    println(f"{ticker}: ${prices[idx]}")
+    idx += 1
+}
+
+println("\n=== 4. Racing Concurrent Operations with `async.race` ===")
+
+f fetch_from_primary_mirror {
+    await async.sleep(0.08)
+    return "Response from Primary Mirror (US-East)"
+}
+
+f fetch_from_edge_cache {
+    await async.sleep(0.02)
+    return "Response from Fast Edge Cache (Local-CDN)"
+}
+
+fastest_response := await async.race([
+    spawn fetch_from_primary_mirror(),
+    spawn fetch_from_edge_cache()
+])
+
+println(f"Fastest mirror won: {fastest_response}")
+
+println("\n=== 5. Using `async.spawn` Function Pointer Helper ===")
+
+f square_number {
+    takes(n)
+    await async.sleep(0.01)
+    return n * n
+}
+
+fut_sq := async.spawn(square_number, 12)
+println(f"12 squared is: {await fut_sq}")
+
+println("\nAll async/concurrency examples completed successfully!")

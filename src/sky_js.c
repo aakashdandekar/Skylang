@@ -1,10 +1,10 @@
 
 #include "../include/sky_js.h"
+#include "../include/sky_platform.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <gc.h>
 
 Value sky_mod_js;
@@ -267,19 +267,23 @@ static Value json_to_sky_val(const char* json) {
     return json_parse_val(&p);
 }
 
+static int js_file_counter = 0;
+
 static char* run_node_eval(const char* js_code) {
-    char tmp_js[1024];
-    snprintf(tmp_js, sizeof(tmp_js), "/tmp/sky_js_%d.js", getpid());
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char tmp_js[2048];
+    snprintf(tmp_js, sizeof(tmp_js), "%s/sky_js_%d_%d.js", tmp_dir, (int)sky_getpid(), ++js_file_counter);
     FILE* f = fopen(tmp_js, "w");
     if (!f) return strdup("null");
     fputs(js_code, f);
     fclose(f);
 
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "node %s 2>/dev/null", tmp_js);
+    char cmd[4096];
+    snprintf(cmd, sizeof(cmd), "node \"%s\" 2>%s", tmp_js, SKY_DEV_NULL);
     FILE* pipe = popen(cmd, "r");
     if (!pipe) {
-        unlink(tmp_js);
+        sky_unlink(tmp_js);
         return strdup("null");
     }
 
@@ -294,7 +298,7 @@ static char* run_node_eval(const char* js_code) {
     }
     buf[len] = '\0';
     pclose(pipe);
-    unlink(tmp_js);
+    sky_unlink(tmp_js);
 
     while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r')) {
         buf[--len] = '\0';

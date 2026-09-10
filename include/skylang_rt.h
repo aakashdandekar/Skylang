@@ -7,7 +7,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <pthread.h>
+#ifndef GC_THREADS
+#define GC_THREADS 1
+#endif
 #include <gc.h>
+#include "sky_platform.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +46,7 @@ typedef enum {
     TYPE_INSTANCE,
     TYPE_FUNCTION,
     TYPE_ERROR,
+    TYPE_FUTURE,
     TYPE_TYPE
 } SkyTypeId;
 
@@ -56,7 +62,8 @@ typedef enum {
     OBJ_INSTANCE,
     OBJ_FUNCTION,
     OBJ_ERROR,
-    OBJ_FOREIGN
+    OBJ_FOREIGN,
+    OBJ_FUTURE
 } ObjType;
 
 typedef struct Obj {
@@ -202,6 +209,32 @@ typedef struct {
     void* extra;
 } ObjForeign;
 
+/* Future states */
+typedef enum {
+    FUTURE_PENDING,
+    FUTURE_RUNNING,
+    FUTURE_RESOLVED,
+    FUTURE_REJECTED,
+    FUTURE_CANCELLED
+} FutureState;
+
+/* Concurrency Future */
+typedef struct SkyFuture {
+    pthread_t thread;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    FutureState state;
+    Value result;
+    char* error_msg;
+    bool has_thread;
+    bool is_joined;
+} SkyFuture;
+
+typedef struct {
+    Obj header;
+    SkyFuture* future;
+} ObjFuture;
+
 /* Value Constructors */
 Value val_nil(void);
 Value val_int(int64_t v);
@@ -223,6 +256,7 @@ Value val_instance(ObjClass* klass);
 Value val_foreign(ForeignLang lang, const char* name, void* handle, void* extra);
 Value val_function(const char* name, SkyNativeFn fn, int arity);
 Value val_function_with_params(const char* name, SkyNativeFn fn, int arity, int param_count, const char** param_names);
+Value val_future(SkyFuture* fut);
 
 /* Object helpers */
 ObjString* as_string(Value v);
@@ -235,6 +269,19 @@ ObjSortedList* as_sorted_list(Value v);
 ObjClass* as_class(Value v);
 ObjInstance* as_instance(Value v);
 ObjForeign* as_foreign(Value v);
+ObjFuture* as_future(Value v);
+
+/* Future lifecycle & async operations */
+SkyFuture* sky_future_create(void);
+void sky_future_resolve(SkyFuture* fut, Value res);
+void sky_future_reject(SkyFuture* fut, const char* err);
+Value sky_future_await(SkyFuture* fut);
+Value val_future_await(Value v);
+
+Value sky_async_sleep(int argc, Value* argv);
+Value sky_async_all(int argc, Value* argv);
+Value sky_async_race(int argc, Value* argv);
+Value sky_async_spawn(int argc, Value* argv);
 
 /* Type query & printing */
 const char* sky_type_name(SkyTypeId t);

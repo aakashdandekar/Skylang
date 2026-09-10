@@ -1,10 +1,10 @@
 
 #include "../include/sky_java.h"
+#include "../include/sky_platform.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <gc.h>
 
 Value sky_mod_java;
@@ -37,18 +37,20 @@ static Value parse_java_output(char* out) {
 }
 
 static char* run_java_runner(const char* class_name, const char* java_code) {
-    char java_file[1024];
-    snprintf(java_file, sizeof(java_file), "/tmp/%s.java", class_name);
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char java_file[2048];
+    snprintf(java_file, sizeof(java_file), "%s/%s.java", tmp_dir, class_name);
     FILE* f = fopen(java_file, "w");
     if (!f) return strdup("null");
     fputs(java_code, f);
     fclose(f);
 
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "java %s 2>/dev/null", java_file);
+    char cmd[4096];
+    snprintf(cmd, sizeof(cmd), "java \"%s\" 2>%s", java_file, SKY_DEV_NULL);
     FILE* pipe = popen(cmd, "r");
     if (!pipe) {
-        unlink(java_file);
+        sky_unlink(java_file);
         return strdup("null");
     }
 
@@ -63,7 +65,7 @@ static char* run_java_runner(const char* class_name, const char* java_code) {
     }
     buf[len] = '\0';
     pclose(pipe);
-    unlink(java_file);
+    sky_unlink(java_file);
 
     while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r')) {
         buf[--len] = '\0';

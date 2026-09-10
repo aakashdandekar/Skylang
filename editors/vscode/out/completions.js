@@ -40,6 +40,7 @@ const fs = __importStar(require("fs"));
 const keywords_1 = require("./data/keywords");
 const builtins_1 = require("./data/builtins");
 const stdlib_1 = require("./data/stdlib");
+const foreign_1 = require("./data/foreign");
 class SkylangCompletionItemProvider {
     async provideCompletionItems(document, position, token, context) {
         const lineText = document.lineAt(position.line).text;
@@ -296,7 +297,37 @@ class SkylangCompletionItemProvider {
             const varSymbol = parsedSymbols.find(s => s.name === receiver);
             if (varSymbol && varSymbol.inferredType) {
                 const infType = varSymbol.inferredType;
-                // Check container types (list, dict, set, sortedList, string, array, tuple)
+                // C1. Foreign Interop Module / Package Completion (e.g. express., app., lodash., axios., np., pd., Math_js.)
+                if (infType.startsWith('foreign_')) {
+                    const rawPkg = infType.replace(/^foreign_[a-z]+:/, '');
+                    const foreignMod = (0, foreign_1.getForeignModule)(rawPkg);
+                    if (foreignMod) {
+                        for (const [mName, mDoc] of Object.entries(foreignMod.methods)) {
+                            const item = new vscode.CompletionItem(mName, vscode.CompletionItemKind.Method);
+                            item.detail = mDoc.signature;
+                            item.documentation = new vscode.MarkdownString(`${mDoc.description}\n\n**Returns:** \`${mDoc.returns || 'any'}\`${mDoc.example ? `\n\n\`\`\`skylang\n${mDoc.example}\n\`\`\`` : ''}`);
+                            if (mDoc.snippet) {
+                                item.insertText = new vscode.SnippetString(mDoc.snippet);
+                            }
+                            else {
+                                item.insertText = new vscode.SnippetString(this.generateSnippet(mName, mDoc.params));
+                            }
+                            item.sortText = `0_${mName}`;
+                            items.push(item);
+                        }
+                        if (foreignMod.properties) {
+                            for (const [pName, pDoc] of Object.entries(foreignMod.properties)) {
+                                const item = new vscode.CompletionItem(pName, vscode.CompletionItemKind.Property);
+                                item.detail = pDoc.signature;
+                                item.documentation = new vscode.MarkdownString(`${pDoc.description}\n\n**Returns:** \`${pDoc.returns || 'any'}\``);
+                                item.sortText = `1_${pName}`;
+                                items.push(item);
+                            }
+                        }
+                        return items;
+                    }
+                }
+                // C2. Check container types (list, dict, set, sortedList, string, array, tuple, file)
                 if (builtins_1.CONTAINER_TYPE_MEMBERS[infType]) {
                     const memberDefs = builtins_1.CONTAINER_TYPE_MEMBERS[infType];
                     for (const mName of memberDefs.methods) {
@@ -322,7 +353,7 @@ class SkylangCompletionItemProvider {
                     }
                     return items;
                 }
-                // Check class instance (e.g. c := Dog("Rex"))
+                // C3. Check class instance (e.g. c := Dog("Rex"))
                 const classDef = this.findClassByName(document, infType);
                 if (classDef) {
                     for (const method of classDef.methods) {
@@ -350,7 +381,34 @@ class SkylangCompletionItemProvider {
                     return items;
                 }
             }
-            // D. Fallback: Generic Collection Methods & Properties
+            // D. Receiver matches known foreign module alias/name directly (e.g. express., lodash., axios., np., Math_js.)
+            const directForeignMod = (0, foreign_1.getForeignModule)(receiver);
+            if (directForeignMod) {
+                for (const [mName, mDoc] of Object.entries(directForeignMod.methods)) {
+                    const item = new vscode.CompletionItem(mName, vscode.CompletionItemKind.Method);
+                    item.detail = mDoc.signature;
+                    item.documentation = new vscode.MarkdownString(`${mDoc.description}\n\n**Returns:** \`${mDoc.returns || 'any'}\`${mDoc.example ? `\n\n\`\`\`skylang\n${mDoc.example}\n\`\`\`` : ''}`);
+                    if (mDoc.snippet) {
+                        item.insertText = new vscode.SnippetString(mDoc.snippet);
+                    }
+                    else {
+                        item.insertText = new vscode.SnippetString(this.generateSnippet(mName, mDoc.params));
+                    }
+                    item.sortText = `0_${mName}`;
+                    items.push(item);
+                }
+                if (directForeignMod.properties) {
+                    for (const [pName, pDoc] of Object.entries(directForeignMod.properties)) {
+                        const item = new vscode.CompletionItem(pName, vscode.CompletionItemKind.Property);
+                        item.detail = pDoc.signature;
+                        item.documentation = new vscode.MarkdownString(`${pDoc.description}\n\n**Returns:** \`${pDoc.returns || 'any'}\``);
+                        item.sortText = `1_${pName}`;
+                        items.push(item);
+                    }
+                }
+                return items;
+            }
+            // E. Fallback: Generic Collection Methods & Properties
             for (const [methodName, methodDoc] of Object.entries(builtins_1.COLLECTION_METHODS)) {
                 const item = new vscode.CompletionItem(methodName, vscode.CompletionItemKind.Method);
                 item.detail = methodDoc.signature;
@@ -619,16 +677,17 @@ class SkylangCompletionItemProvider {
                     line: i
                 });
             }
-            // Standalone function declaration: f add {
-            const fnMatch = line.match(/^f\s+([a-zA-Z_][a-zA-Z0-9_]*)/);
+            // Standalone function declaration: f add { or async f add {
+            const fnMatch = line.match(/^(?:(async)\s+)?f\s+([a-zA-Z_][a-zA-Z0-9_]*)/);
             if (fnMatch) {
-                const fnName = fnMatch[1];
+                const isAsync = !!fnMatch[1];
+                const fnName = fnMatch[2];
                 const params = this.extractTakesParams(lines, i + 1);
                 symbols.push({
                     name: fnName,
                     kind: vscode.CompletionItemKind.Function,
-                    detail: `f ${fnName}(${params.join(', ')})`,
-                    doc: `Function \`${fnName}\` declared on line ${i + 1}`,
+                    detail: `${isAsync ? 'async ' : ''}f ${fnName}(${params.join(', ')})`,
+                    doc: `${isAsync ? 'Asynchronous function' : 'Function'} \`${fnName}\` declared on line ${i + 1}`,
                     params,
                     line: i
                 });
@@ -725,37 +784,45 @@ class SkylangCompletionItemProvider {
                 const rhs = walrusMatch[2].trim();
                 for (const v of varNames) {
                     if (v && v !== '_') {
-                        let inferredType = undefined;
-                        if (rhs.startsWith('[') && rhs.endsWith(']'))
-                            inferredType = 'list';
-                        else if (rhs.startsWith('{') && rhs.endsWith('}'))
-                            inferredType = 'dict';
-                        else if (rhs.startsWith('(') && rhs.endsWith(')'))
-                            inferredType = 'tuple';
-                        else if (rhs.startsWith('"') && rhs.endsWith('"'))
-                            inferredType = 'string';
-                        else if (rhs.startsWith('<') && rhs.endsWith('>'))
-                            inferredType = 'array';
-                        else if (rhs.startsWith('open(') || rhs.startsWith('open ('))
-                            inferredType = 'file';
-                        else if (/^\d+$/.test(rhs))
-                            inferredType = 'int';
-                        else if (/^\d+\.\d+$/.test(rhs))
-                            inferredType = 'double';
-                        else if (rhs === 'true' || rhs === 'false')
-                            inferredType = 'bool';
-                        else {
-                            // Check if rhs matches a known class constructor: Dog(...)
-                            const instMatch = rhs.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
-                            if (instMatch) {
-                                inferredType = instMatch[1];
+                        const inferredType = this.inferExpressionType(rhs, symbols);
+                        let detail = `(variable) ${v}${inferredType ? `: ${inferredType}` : ''}`;
+                        let doc = `Variable \`${v}\` declared with \`:=\` on line ${i + 1}`;
+                        if (inferredType && inferredType.startsWith('foreign_')) {
+                            const rawPkg = inferredType.replace(/^foreign_[a-z]+:/, '');
+                            const fMod = (0, foreign_1.getForeignModule)(rawPkg);
+                            if (fMod) {
+                                detail = `(${fMod.bridge} module) ${v}: ${fMod.name}`;
+                                doc = fMod.description;
                             }
                         }
                         symbols.push({
                             name: v,
                             kind: vscode.CompletionItemKind.Variable,
+                            detail,
+                            doc,
+                            line: i,
+                            inferredType
+                        });
+                    }
+                }
+            }
+            // Simple variable assignment: express = js.load("expressjs")
+            const assignMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.*)$/);
+            if (assignMatch && !line.startsWith('this.') && !line.match(/^[IDBCS]\s+/)) {
+                const v = assignMatch[1].trim();
+                const rhs = assignMatch[2].trim();
+                if (!['if', 'for', 'elif', 'else', 'return', 'init', 'takes'].includes(v)) {
+                    const inferredType = this.inferExpressionType(rhs, symbols);
+                    const existing = symbols.find(s => s.name === v);
+                    if (existing && inferredType) {
+                        existing.inferredType = inferredType;
+                    }
+                    else if (!existing) {
+                        symbols.push({
+                            name: v,
+                            kind: vscode.CompletionItemKind.Variable,
                             detail: `(variable) ${v}${inferredType ? `: ${inferredType}` : ''}`,
-                            doc: `Variable \`${v}\` declared with \`:=\` on line ${i + 1}`,
+                            doc: `Variable \`${v}\` declared on line ${i + 1}`,
                             line: i,
                             inferredType
                         });
@@ -1013,6 +1080,93 @@ class SkylangCompletionItemProvider {
             // ignore
         }
         return result;
+    }
+    inferExpressionType(rhs, existingSymbols) {
+        const trimmed = rhs.trim();
+        if (trimmed.startsWith('[') && trimmed.endsWith(']'))
+            return 'list';
+        if (trimmed.startsWith('{') && trimmed.endsWith('}'))
+            return 'dict';
+        if (trimmed.startsWith('(') && trimmed.endsWith(')'))
+            return 'tuple';
+        if (trimmed.startsWith('"') && trimmed.endsWith('"'))
+            return 'string';
+        if (trimmed.startsWith('<') && trimmed.endsWith('>'))
+            return 'array';
+        if (trimmed.startsWith('open(') || trimmed.startsWith('open ('))
+            return 'file';
+        if (/^\d+$/.test(trimmed))
+            return 'int';
+        if (/^\d+\.\d+$/.test(trimmed))
+            return 'double';
+        if (trimmed === 'true' || trimmed === 'false')
+            return 'bool';
+        // Future expressions: spawn fn() or async.sleep/all/race/spawn
+        if (trimmed.startsWith('spawn '))
+            return 'future';
+        if (/(?:^|\s)async\.(?:sleep|all|race|spawn)\s*\(/i.test(trimmed))
+            return 'future';
+        // JS Load: js.load("expressjs") or js.load('express') or js.load("Math")
+        const jsLoad = trimmed.match(/(?:^|\s)js\.load\s*\(\s*["']([^"']+)["']/i);
+        if (jsLoad) {
+            return `foreign_js:${(0, foreign_1.normalizeModuleName)(jsLoad[1])}`;
+        }
+        // Python Load: python.load("numpy")
+        const pyLoad = trimmed.match(/(?:^|\s)python\.load\s*\(\s*["']([^"']+)["']/i);
+        if (pyLoad) {
+            return `foreign_python:${(0, foreign_1.normalizeModuleName)(pyLoad[1])}`;
+        }
+        // Java Load: java.load("java.lang.Math")
+        const javaLoad = trimmed.match(/(?:^|\s)java\.load\s*\(\s*["']([^"']+)["']/i);
+        if (javaLoad) {
+            return `foreign_java:${(0, foreign_1.normalizeModuleName)(javaLoad[1])}`;
+        }
+        // Go Load: go.load("fmt") or golang.load("fmt")
+        const goLoad = trimmed.match(/(?:^|\s)(?:go|golang)\.load\s*\(\s*["']([^"']+)["']/i);
+        if (goLoad) {
+            return `foreign_go:${(0, foreign_1.normalizeModuleName)(goLoad[1])}`;
+        }
+        // Rust Load: rust.load("serde")
+        const rustLoad = trimmed.match(/(?:^|\s)rust\.load\s*\(\s*["']([^"']+)["']/i);
+        if (rustLoad) {
+            return `foreign_rust:${(0, foreign_1.normalizeModuleName)(rustLoad[1])}`;
+        }
+        // C++ compile / load
+        if (/(?:^|\s)cpp\.(?:compile|load)\s*\(/i.test(trimmed)) {
+            return 'foreign_cpp';
+        }
+        // Chained / constructor call: e.g. app := express() or router := express.Router()
+        const routerMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\.Router\s*\(/i);
+        if (routerMatch) {
+            const baseSym = existingSymbols.find(s => s.name === routerMatch[1]);
+            if (baseSym && baseSym.inferredType && baseSym.inferredType.startsWith('foreign_js:')) {
+                return baseSym.inferredType;
+            }
+            if ((0, foreign_1.getForeignModule)(routerMatch[1])) {
+                return `foreign_js:${(0, foreign_1.normalizeModuleName)(routerMatch[1])}`;
+            }
+        }
+        const callMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
+        if (callMatch) {
+            const callee = callMatch[1];
+            // Check if calling an async function
+            const asyncFnSym = existingSymbols.find(s => s.name === callee && s.detail.startsWith('async f'));
+            if (asyncFnSym) {
+                return 'future';
+            }
+            // Check if callee is an existing symbol with foreign type (e.g. app := express())
+            const baseSym = existingSymbols.find(s => s.name === callee);
+            if (baseSym && baseSym.inferredType && baseSym.inferredType.startsWith('foreign_')) {
+                return baseSym.inferredType;
+            }
+            // Check if callee itself is a known foreign module (e.g. express())
+            if ((0, foreign_1.getForeignModule)(callee)) {
+                return `foreign_js:${(0, foreign_1.normalizeModuleName)(callee)}`;
+            }
+            // Otherwise it might be a user class constructor: Dog(...)
+            return callee;
+        }
+        return undefined;
     }
 }
 exports.SkylangCompletionItemProvider = SkylangCompletionItemProvider;

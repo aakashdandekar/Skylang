@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { BUILTIN_FUNCTIONS, COLLECTION_METHODS } from './data/builtins';
 import { STDLIB_MODULES, COMMON_EXTERN_C_FUNCTIONS } from './data/stdlib';
+import { getForeignModule, ForeignModuleDoc } from './data/foreign';
 import { SkylangCompletionItemProvider } from './completions';
 
 export class SkylangSignatureHelpProvider implements vscode.SignatureHelpProvider {
@@ -38,6 +39,32 @@ export class SkylangSignatureHelpProvider implements vscode.SignatureHelpProvide
                 return help;
             }
 
+            // Foreign Interop module call (e.g. express.get(...), app.listen(...), np.array(...))
+            const parsedSymbols = this.completionProvider.parseDocumentSymbols(document);
+            const varSym = parsedSymbols.find(s => s.name === modOrVar);
+            let foreignMod: ForeignModuleDoc | undefined = undefined;
+            if (varSym && varSym.inferredType && varSym.inferredType.startsWith('foreign_')) {
+                const rawPkg = varSym.inferredType.replace(/^foreign_[a-z]+:/, '');
+                foreignMod = getForeignModule(rawPkg);
+            }
+            if (!foreignMod) {
+                foreignMod = getForeignModule(modOrVar);
+            }
+
+            if (foreignMod && foreignMod.methods[fnName]) {
+                const fn = foreignMod.methods[fnName];
+                const sig = new vscode.SignatureInformation(fn.signature, new vscode.MarkdownString(fn.description));
+                if (fn.params) {
+                    sig.parameters = fn.params.map(p => new vscode.ParameterInformation(p.name, p.doc));
+                    if (namedParam) {
+                        const idx = fn.params.findIndex(p => p.name === namedParam);
+                        if (idx !== -1) help.activeParameter = idx;
+                    }
+                }
+                help.signatures = [sig];
+                return help;
+            }
+
             if (COLLECTION_METHODS[fnName]) {
                 const m = COLLECTION_METHODS[fnName];
                 const sig = new vscode.SignatureInformation(m.signature, new vscode.MarkdownString(m.description));
@@ -49,8 +76,6 @@ export class SkylangSignatureHelpProvider implements vscode.SignatureHelpProvide
             }
 
             // Check if modOrVar is an instance of a user class: acc.deposit(...)
-            const parsedSymbols = this.completionProvider.parseDocumentSymbols(document);
-            const varSym = parsedSymbols.find(s => s.name === modOrVar);
             if (varSym && varSym.inferredType) {
                 const classDef = this.completionProvider.findClassByName(document, varSym.inferredType);
                 if (classDef) {

@@ -1,11 +1,10 @@
 
 #include "../include/sky_rust.h"
+#include "../include/sky_platform.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <dlfcn.h>
 #include <gc.h>
 
 Value sky_mod_rust;
@@ -156,10 +155,11 @@ static char* run_rust_cmd_capture(const char* cmd, int* exit_code) {
 }
 
 Value sky_rust_load(const char* path_or_crate) {
-    if (strstr(path_or_crate, ".so") != NULL || access(path_or_crate, F_OK) == 0) {
-        void* handle = dlopen(path_or_crate, RTLD_NOW | RTLD_GLOBAL);
+    if (strstr(path_or_crate, ".so") != NULL || strstr(path_or_crate, ".dylib") != NULL ||
+        strstr(path_or_crate, ".dll") != NULL || sky_access(path_or_crate, F_OK) == 0) {
+        void* handle = sky_dlopen(path_or_crate);
         if (!handle) {
-            sky_runtime_error("OSError", "Failed to open shared library '%s': %s", path_or_crate, dlerror());
+            sky_runtime_error("OSError", "Failed to open shared library '%s': %s", path_or_crate, sky_dlerror());
             return val_nil();
         }
         return val_foreign(FOREIGN_RUST, path_or_crate, handle, NULL);
@@ -169,10 +169,12 @@ Value sky_rust_load(const char* path_or_crate) {
 
 Value sky_rust_compile(const char* rust_code) {
     int fid = ++rust_file_counter;
-    char rs_file[1024];
-    char so_file[1024];
-    snprintf(rs_file, sizeof(rs_file), "/tmp/sky_rust_%d_%d.rs", getpid(), fid);
-    snprintf(so_file, sizeof(so_file), "/tmp/sky_rust_%d_%d.so", getpid(), fid);
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char rs_file[2048];
+    char so_file[2048];
+    snprintf(rs_file, sizeof(rs_file), "%s/sky_rust_%d_%d.rs", tmp_dir, (int)sky_getpid(), fid);
+    snprintf(so_file, sizeof(so_file), "%s/sky_rust_%d_%d%s", tmp_dir, (int)sky_getpid(), fid, SKY_SO_EXT);
 
     FILE* f = fopen(rs_file, "w");
     if (!f) {
@@ -185,30 +187,29 @@ Value sky_rust_compile(const char* rust_code) {
     fputs(rust_code, f);
     fclose(f);
 
-    char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "rustc --crate-type cdylib -O %s -o %s 2>&1", rs_file, so_file);
+    char cmd[8192];
+    snprintf(cmd, sizeof(cmd), "rustc --crate-type cdylib -O \"%s\" -o \"%s\" 2>&1", rs_file, so_file);
     int status = 0;
     char* err = run_rust_cmd_capture(cmd, &status);
-    unlink(rs_file);
+    sky_unlink(rs_file);
 
     if (status != 0) {
-        unlink(so_file);
+        sky_unlink(so_file);
         sky_runtime_error("CompileError", "Rust inline compilation failed:\n%s", err);
         free(err);
         return val_nil();
     }
     free(err);
 
-    void* handle = dlopen(so_file, RTLD_NOW | RTLD_GLOBAL);
+    void* handle = sky_dlopen(so_file);
     if (!handle) {
-        sky_runtime_error("OSError", "dlopen failed on compiled Rust library: %s", dlerror());
+        sky_runtime_error("OSError", "dlopen failed on compiled Rust library: %s", sky_dlerror());
         return val_nil();
     }
     return val_foreign(FOREIGN_RUST, "compiled_rust", handle, NULL);
 }
 
 static Value rust_eval_internal(const char* expr) {
-
     char wrapper[4096];
     snprintf(wrapper, sizeof(wrapper),
              "#[no_mangle]\n"
@@ -218,10 +219,12 @@ static Value rust_eval_internal(const char* expr) {
              expr);
 
     int fid = ++rust_file_counter;
-    char rs_file[1024];
-    char so_file[1024];
-    snprintf(rs_file, sizeof(rs_file), "/tmp/sky_rust_eval_%d_%d.rs", getpid(), fid);
-    snprintf(so_file, sizeof(so_file), "/tmp/sky_rust_eval_%d_%d.so", getpid(), fid);
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char rs_file[2048];
+    char so_file[2048];
+    snprintf(rs_file, sizeof(rs_file), "%s/sky_rust_eval_%d_%d.rs", tmp_dir, (int)sky_getpid(), fid);
+    snprintf(so_file, sizeof(so_file), "%s/sky_rust_eval_%d_%d%s", tmp_dir, (int)sky_getpid(), fid, SKY_SO_EXT);
 
     FILE* f = fopen(rs_file, "w");
     if (f) {
@@ -229,33 +232,33 @@ static Value rust_eval_internal(const char* expr) {
         fputs(wrapper, f);
         fclose(f);
 
-        char cmd[4096];
-        snprintf(cmd, sizeof(cmd), "rustc --crate-type cdylib -O %s -o %s 2>&1", rs_file, so_file);
+        char cmd[8192];
+        snprintf(cmd, sizeof(cmd), "rustc --crate-type cdylib -O \"%s\" -o \"%s\" 2>&1", rs_file, so_file);
         int status = 0;
         char* err = run_rust_cmd_capture(cmd, &status);
-        unlink(rs_file);
+        sky_unlink(rs_file);
         if (status == 0) {
             free(err);
-            void* handle = dlopen(so_file, RTLD_NOW | RTLD_GLOBAL);
+            void* handle = sky_dlopen(so_file);
             if (handle) {
                 typedef double (*EvalFn)(void);
-                EvalFn fn = (EvalFn)dlsym(handle, "_sky_rust_eval_fn");
+                EvalFn fn = (EvalFn)sky_dlsym(handle, "_sky_rust_eval_fn");
                 if (fn) {
                     double d = fn();
-                    dlclose(handle);
-                    unlink(so_file);
+                    sky_dlclose(handle);
+                    sky_unlink(so_file);
                     return val_double(d);
                 }
-                dlclose(handle);
+                sky_dlclose(handle);
             }
         }
         free(err);
-        unlink(so_file);
+        sky_unlink(so_file);
     }
 
-    char bin_file[1024];
-    snprintf(rs_file, sizeof(rs_file), "/tmp/sky_rust_runner_%d_%d.rs", getpid(), fid);
-    snprintf(bin_file, sizeof(bin_file), "/tmp/sky_rust_runner_%d_%d.bin", getpid(), fid);
+    char bin_file[2048];
+    snprintf(rs_file, sizeof(rs_file), "%s/sky_rust_runner_%d_%d.rs", tmp_dir, (int)sky_getpid(), fid);
+    snprintf(bin_file, sizeof(bin_file), "%s/sky_rust_runner_%d_%d%s", tmp_dir, (int)sky_getpid(), fid, SKY_EXE_EXT);
 
     f = fopen(rs_file, "w");
     if (!f) {
@@ -271,12 +274,12 @@ static Value rust_eval_internal(const char* expr) {
     fputs("}\n", f);
     fclose(f);
 
-    char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "rustc -O %s -o %s 2>&1 && %s 2>&1", rs_file, bin_file, bin_file);
+    char cmd[8192];
+    snprintf(cmd, sizeof(cmd), "rustc -O \"%s\" -o \"%s\" 2>&1 && \"%s\" 2>&1", rs_file, bin_file, bin_file);
     int status = 0;
     char* out = run_rust_cmd_capture(cmd, &status);
-    unlink(rs_file);
-    unlink(bin_file);
+    sky_unlink(rs_file);
+    sky_unlink(bin_file);
 
     if (status != 0) {
         sky_runtime_error("RustError", "Rust evaluation failed:\n%s", out);
@@ -291,10 +294,12 @@ static Value rust_eval_internal(const char* expr) {
 
 Value sky_rust_exec(const char* code) {
     int fid = ++rust_file_counter;
-    char rs_file[1024];
-    char bin_file[1024];
-    snprintf(rs_file, sizeof(rs_file), "/tmp/sky_rust_exec_%d_%d.rs", getpid(), fid);
-    snprintf(bin_file, sizeof(bin_file), "/tmp/sky_rust_exec_%d_%d.bin", getpid(), fid);
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char rs_file[2048];
+    char bin_file[2048];
+    snprintf(rs_file, sizeof(rs_file), "%s/sky_rust_exec_%d_%d.rs", tmp_dir, (int)sky_getpid(), fid);
+    snprintf(bin_file, sizeof(bin_file), "%s/sky_rust_exec_%d_%d%s", tmp_dir, (int)sky_getpid(), fid, SKY_EXE_EXT);
 
     FILE* f = fopen(rs_file, "w");
     if (!f) {
@@ -312,12 +317,12 @@ Value sky_rust_exec(const char* code) {
     }
     fclose(f);
 
-    char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "rustc -O %s -o %s 2>&1 && %s 2>&1", rs_file, bin_file, bin_file);
+    char cmd[8192];
+    snprintf(cmd, sizeof(cmd), "rustc -O \"%s\" -o \"%s\" 2>&1 && \"%s\" 2>&1", rs_file, bin_file, bin_file);
     int status = 0;
     char* out = run_rust_cmd_capture(cmd, &status);
-    unlink(rs_file);
-    unlink(bin_file);
+    sky_unlink(rs_file);
+    sky_unlink(bin_file);
 
     if (status != 0) {
         sky_runtime_error("RustError", "Rust execution failed:\n%s", out);
@@ -350,9 +355,9 @@ Value sky_rust_call_method(ObjForeign* f, const char* name, int argc, Value* arg
     if (!f) return val_nil();
 
     if (f->extra == NULL && f->handle && strstr(f->name, "compiled_rust") != NULL) {
-        void* sym = dlsym(f->handle, name);
+        void* sym = sky_dlsym(f->handle, name);
         if (!sym) {
-            sky_runtime_error("AttributeError", "Symbol '%s' not found in Rust shared library: %s", name, dlerror());
+            sky_runtime_error("AttributeError", "Symbol '%s' not found in Rust shared library: %s", name, sky_dlerror());
             return val_nil();
         }
         switch (argc) {
@@ -403,7 +408,7 @@ Value sky_rust_get_prop(ObjForeign* f, const char* name) {
     }
 
     if (f->handle && strstr(f->name, "compiled_rust") != NULL) {
-        void* sym = dlsym(f->handle, name);
+        void* sym = sky_dlsym(f->handle, name);
         if (sym) return val_foreign(FOREIGN_RUST, name, f->handle, sym);
     }
 

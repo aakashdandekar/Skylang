@@ -88,6 +88,8 @@ static const char* opcode_name(uint8_t op) {
         case OP_SET_THIS: return "OP_SET_THIS";
         case OP_PRINT: return "OP_PRINT";
         case OP_UNPACK: return "OP_UNPACK";
+        case OP_AWAIT: return "OP_AWAIT";
+        case OP_SPAWN: return "OP_SPAWN";
         default: return "OP_UNKNOWN";
     }
 }
@@ -308,9 +310,10 @@ static void vm_register_builtins(VM* vm) {
     vm_set_global(vm, "bytes",      val_function("bytes",      sky_builtin_bytes,       1));
 
     sky_stdlib_init_all();
-    vm_set_global(vm, "math", sky_mod_math);
-    vm_set_global(vm, "io",   sky_mod_io);
-    vm_set_global(vm, "fmt",  sky_mod_fmt);
+    vm_set_global(vm, "math",  sky_mod_math);
+    vm_set_global(vm, "io",    sky_mod_io);
+    vm_set_global(vm, "fmt",   sky_mod_fmt);
+    vm_set_global(vm, "async", sky_mod_async);
 
     vm_set_global(vm, "python", sky_python_init());
     vm_set_global(vm, "js",     sky_js_init());
@@ -627,6 +630,27 @@ VMResult vm_run(VM* vm, CompiledFn* main_fn, bool profile) {
                 uint16_t index = READ_16();
                 Value coll = PEEK(0);
                 PUSH(val_unpack(coll, index));
+                break;
+            }
+
+            case OP_AWAIT: {
+                Value fut_val = POP();
+                PUSH(val_future_await(fut_val));
+                break;
+            }
+
+            case OP_SPAWN: {
+                uint8_t argc = READ_BYTE();
+                Value* args = vm->stack_top - argc;
+                Value callee = args[-1];
+                Value* spawn_args = (Value*)GC_MALLOC(sizeof(Value) * (argc + 1));
+                spawn_args[0] = callee;
+                for (uint8_t i = 0; i < argc; i++) {
+                    spawn_args[i + 1] = args[i];
+                }
+                vm->stack_top -= (argc + 1);
+                Value fut = sky_async_spawn((int)argc + 1, spawn_args);
+                PUSH(fut);
                 break;
             }
 

@@ -552,6 +552,22 @@ exports.COLLECTION_METHODS = {
         returns: 'list',
         example: '"ABC".bytes() // [65, 66, 67]',
         container: 'string'
+    },
+    'await': {
+        name: 'await',
+        signature: 'future.await()',
+        description: 'Waits for the background task to complete and returns its resolved value.',
+        returns: 'any',
+        example: 'res := fut.await()',
+        container: 'future'
+    },
+    'cancel': {
+        name: 'cancel',
+        signature: 'future.cancel()',
+        description: 'Flags the background asynchronous task for cancellation.',
+        returns: 'none',
+        example: 'fut.cancel()',
+        container: 'future'
     }
 };
 exports.PROPERTIES = {
@@ -583,10 +599,38 @@ exports.PROPERTIES = {
         returns: 'list',
         example: 'println("Bytes:", "hello".bytes)'
     },
+    'is_done': {
+        name: 'is_done',
+        signature: 'future.is_done',
+        description: 'Boolean property returning true if the background task has completed execution, false otherwise.',
+        returns: 'bool',
+        example: 'if task.is_done {\n    println("Task finished:", task.result)\n}'
+    },
+    'result': {
+        name: 'result',
+        signature: 'future.result',
+        description: 'The resolved return value of the Future. If still running, awaits or returns none.',
+        returns: 'any',
+        example: 'println("Resolved value:", task.result)'
+    },
+    'error': {
+        name: 'error',
+        signature: 'future.error',
+        description: 'Error message string if the async task failed or panicked.',
+        returns: 'string',
+        example: 'if task.error != "" {\n    println("Async error:", task.error)\n}'
+    },
+    'state': {
+        name: 'state',
+        signature: 'future.state',
+        description: 'Current execution state of the Future: "pending", "running", "resolved", "rejected", or "cancelled".',
+        returns: 'string',
+        example: 'println("Future state:", task.state)'
+    },
     'T': {
         name: 'T',
         signature: 'val.T',
-        description: 'Returns the runtime type descriptor of the variable (e.g. `<type int>`, `<type string>`, `<type list>`).',
+        description: 'Returns the runtime type descriptor of the variable (e.g. `<type int>`, `<type string>`, `<type list>`, `<type future>`).',
         returns: 'type',
         example: 'if x.T == "int" {\n    println("x is an integer")\n}\nprintln("Type:", tasks.T)'
     }
@@ -615,6 +659,10 @@ exports.CONTAINER_TYPE_MEMBERS = {
     'file': {
         methods: ['read', 'write', 'readline', 'readlines', 'close'],
         properties: ['T']
+    },
+    'future': {
+        methods: ['await', 'cancel'],
+        properties: ['is_done', 'result', 'error', 'state', 'T']
     },
     'array': {
         methods: [],

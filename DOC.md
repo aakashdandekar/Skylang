@@ -17,7 +17,9 @@ This guide is designed for students learning Skylang from scratch. By the end of
 8. [Object-Oriented Programming (Classes)](#8-object-oriented-programming-classes)
 9. [Modules & File Importing](#9-modules--file-importing)
 10. [Error Handling & Memory Management](#10-error-handling--memory-management)
-11. [Student Practice Exercises](#11-student-practice-exercises)
+11. [Async/Await Concurrency & Futures](#11-asyncawait-concurrency--futures)
+12. [Multi-Language Interoperability & IntelliSense](#12-multi-language-interoperability--intellisense)
+13. [Student Practice Exercises](#13-student-practice-exercises)
 
 
 ---
@@ -34,21 +36,41 @@ Skylang combines the best attributes of modern languages:
 
 ## 2. Installation & Toolchain
 
-### Building the Compiler
-To build the Skylang compiler from source, run:
+### Multi-Platform Installation
+
+#### 🐧 Linux & 🍎 macOS (or WSL / MSYS2 / Git Bash)
+Run the automated installer script:
+```bash
+./install.sh
+```
+Or build manually from source:
 ```bash
 make clean && make
 ```
-This produces two executable binaries in the `bin/` directory:
-- `bin/skylang`: The full compiler executable.
-- `bin/sky`: A convenient short alias.
+This automatically detects system dependencies (Boehm-GC, Python 3, GCC) and installs `sky` and `skylang` to `/usr/local/bin` (or `~/.local/bin`).
+
+#### 🪟 Windows (Native Executable Installer)
+1. Ensure **GCC** (via MinGW-w64, MSYS2, or WinLibs) and **Python 3** are installed and added to your `PATH`.
+2. Run the native Windows installer:
+   ```cmd
+   skylang-installer.exe
+   ```
+   Or silent unattended installation:
+   ```cmd
+   skylang-installer.exe --silent
+   ```
+This automatically compiles and installs `skylang.exe` and `sky.exe`, creates `sky.cmd` wrappers in `%LOCALAPPDATA%\Skylang\bin`, registers `.sky` and `.skylang` file associations in Windows Registry, updates the User `PATH`, and registers in Windows *Add or Remove Programs*.
+
+### Uninstallation
+- **Windows**: Run `uninstall.exe` from your Skylang installation folder or uninstall via Windows *Add or Remove Programs*.
+- **Linux / macOS**: `./delete.sh`
 
 ### CLI Commands
 | Command | Description | Example |
 |---|---|---|
-| `sky run <file.sky>` | Compiles and executes a program immediately | `./bin/sky run examples/01_basics.sky` |
-| `sky build <file.sky> [-o <bin>]` | Compiles to a standalone native binary (defaults to `./<basename>`) | `./bin/sky build main.sky -o my_app` |
-| `sky <file.sky>` | Shorthand for `sky run <file.sky>` | `./bin/sky main.sky` |
+| `sky run <file.sky>` | Compiles and executes a program immediately | `sky run examples/01_basics.sky` |
+| `sky build <file.sky> [-o <bin>]` | Compiles to a standalone native binary (defaults to `./<basename>` or `.exe`) | `sky build main.sky -o my_app` |
+| `sky <file.sky>` | Shorthand for `sky run <file.sky>` | `sky main.sky` |
 
 ---
 
@@ -572,14 +594,115 @@ Skylang provides core built-in functions available everywhere without imports:
 | `chars(str)` | `chars(str)` | Returns list of characters as strings |
 | `bytes(str)` | `bytes(str)` | Returns list of integer ASCII byte values |
 
-### Multi-Language Interoperability
-Skylang connects directly to other languages:
-- **Python (`import python`)**: `python.load("math")`, `python.exec("...")`
-- **JavaScript & NPM (`import js`)**: `js.load("Math")` (globals) & `js.load("lodash")` (NPM packages), `js.exec("...")`
-- **C++ (`import cpp`)**: `cpp.compile("...")`, `cpp.load("./lib.so")`
-- **Java (`import java`)**: `java.load("java.lang.Math")`, `java.exec("...")`
-- **Golang (`import go`)**: `go.load("math")`, `go.compile("...")`, `go.exec("...")`
-- **Rust (`import rust`)**: `rust.load("std::f64::consts")`, `rust.compile("...")`, `rust.exec("...")`
+---
+
+## 11. Async/Await Concurrency & Futures
+
+Skylang provides first-class asynchronous programming and OS-level pthread worker concurrency.
+
+### Async Functions (`async f`)
+Prefixing a function with `async` causes it to execute asynchronously and return a `Future` object immediately:
+
+```skylang
+import async
+
+async f fetch_user_data {
+    takes(user_id)
+    await async.sleep(0.05) // non-blocking 50ms sleep
+    return {"id": user_id, "name": "Alice", "status": "active"}
+}
+
+fut := fetch_user_data(42)
+println("Future state:", fut.state) // "pending" or "running"
+
+// Await pauses current execution until the future resolves:
+user := await fut
+println("User:", user["name"])
+```
+
+### Spawning Concurrent Tasks (`spawn`)
+The `spawn` expression launches any function call or expression on a background thread and returns a `Future`:
+
+```skylang
+f heavy_computation {
+    takes(n)
+    sum := 0
+    i := 0
+    for i < n {
+        sum += i
+        i += 1
+    }
+    return sum
+}
+
+// Run task in background thread
+task := spawn heavy_computation(1000000)
+
+// Do other work while task executes...
+println("Computing in background...")
+
+// Retrieve result
+result := await task
+println("Calculated sum:", result)
+```
+
+### The `Future` Object Model
+Every asynchronous computation in Skylang produces a `Future` instance with the following properties and methods:
+
+| Member | Type | Description |
+|---|---|---|
+| `.state` | Property (`string`) | Current state: `"pending"`, `"running"`, `"resolved"`, `"rejected"`, or `"cancelled"`. |
+| `.is_done` | Property (`bool`) | `true` if resolved, rejected, or cancelled. |
+| `.result` | Property (`any`) | The returned value once resolved (or `none`). |
+| `.error` | Property (`string`) | Error message string if rejected. |
+| `.await()` | Method | Suspends until the future finishes and returns its result. |
+| `.cancel()` | Method | Signals task cancellation. |
+
+### The `async` Standard Library Module
+
+Import `async` to access high-level concurrency combinators:
+
+```skylang
+import async
+
+// 1. Non-blocking sleep
+await async.sleep(0.1) // Sleep 100 milliseconds
+
+// 2. async.all - Parallel fan-out / join
+// Takes a list of futures and waits for all of them to resolve:
+futs := [spawn task_a(), spawn task_b(), spawn task_c()]
+results := await async.all(futs)
+
+// 3. async.race - Return first resolved future
+// Returns the result of whichever task finishes first:
+fastest := await async.race([
+    spawn fetch_primary(),
+    spawn fetch_fallback()
+])
+
+// 4. async.spawn - Helper to spawn functions with arguments
+task := async.spawn(heavy_computation, 50000)
+res := await task
+```
+
+---
+
+## 12. Multi-Language Interoperability & IntelliSense
+
+Skylang features high-speed native bridges to the world's most popular programming ecosystems. The VS Code extension includes full IntelliSense completions, hover documentation, and signature help for all foreign libraries and APIs.
+
+### Supported Language Bridges
+
+| Language | Import Module | Primary APIs | Example |
+|---|---|---|---|
+| **Python 3** | `import python` | `python.load(mod)`, `python.exec(code)` | `math := python.load("math"); math.sqrt(100)` |
+| **JavaScript / Node.js** | `import js` | `js.load(pkg_or_global)`, `js.exec(code)` | `lodash := js.load("lodash"); js.load("Math")` |
+| **C++ (JIT)** | `import cpp` | `cpp.compile(code)`, `cpp.load(so)` | `math := cpp.compile("extern \"C\" double sq(double x) { return x*x; }")` |
+| **Java (JVM)** | `import java` | `java.load(cls)`, `java.exec(code)` | `jmath := java.load("java.lang.Math"); jmath.max(10, 20)` |
+| **Golang** | `import go, golang` | `go.load(pkg)`, `go.compile(code)`, `go.exec(code)` | `gomath := go.load("math"); gomath.Sqrt(64.0)` |
+| **Rust** | `import rust` | `rust.load(mod)`, `rust.compile(code)`, `rust.exec(code)` | `rc := rust.compile("#[no_mangle] pub extern \"C\" fn cube(x: f64) -> f64 { x*x*x }")` |
+
+### Code Example
 
 ```skylang
 import python, js, go, rust
@@ -588,23 +711,26 @@ import python, js, go, rust
 ans := eval("10 * 20 + 56")
 println("eval result:", ans) // 256
 
-// Calling Foreign Bridges
+// Python standard library and PyPI packages
 py_math := python.load("math")
 println("Python sqrt:", py_math.sqrt(256))
 
+// JavaScript globals and NPM modules
 js_math := js.load("Math")
 println("JS max:", js_math.max(10, 50, 99))
 
+// Go standard library and JIT compilation
 go_math := go.load("math")
 println("Go Sqrt:", go_math.Sqrt(144.0))
 
+// Rust standard library and JIT compilation
 rust_math := rust.load("std::f64::consts")
 println("Rust PI:", rust_math.PI)
 ```
 
 ---
 
-## 11. Student Practice Exercises
+## 13. Student Practice Exercises
 
 ### Exercise 1: Temperature Converter
 Write a program that converts Celsius to Fahrenheit using formula `F = (C * 9/5) + 32`.
@@ -664,4 +790,29 @@ my_car.drive(150)
 my_car.info()
 ```
 
+### Exercise 4: Concurrent Downloader
+Use `spawn` and `async.all` to fetch data from multiple simulated API endpoints in parallel.
+```skylang
+import async
+
+f download_endpoint {
+    takes(endpoint_name)
+    await async.sleep(0.03)
+    return f"Data from {endpoint_name}"
+}
+
+endpoints := ["/users", "/posts", "/comments"]
+tasks := [
+    spawn download_endpoint(endpoints[0]),
+    spawn download_endpoint(endpoints[1]),
+    spawn download_endpoint(endpoints[2])
+]
+
+results := await async.all(tasks)
+for r in results {
+    println("Downloaded:", r)
+}
+```
+
 Happy coding with Skylang!
+

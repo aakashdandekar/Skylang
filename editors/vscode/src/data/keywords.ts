@@ -153,6 +153,27 @@ export const KEYWORDS: Record<string, KeywordDoc> = {
         description: 'Short-circuiting logical OR operator. Evaluates to true if either operand evaluates to truthy.',
         example: 'if is_admin or is_superuser {\n    grant_access()\n}',
         category: 'Operator'
+    },
+    'async': {
+        name: 'async (Asynchronous Function Modifier)',
+        syntax: 'async f function_name { ... }',
+        description: 'Declares an asynchronous function. Invoking it immediately returns a Future object without blocking the caller.',
+        example: 'async f fetch_data {\n    takes(id)\n    async.sleep(0.5)\n    return {"id": id, "data": "OK"}\n}\ntask := fetch_data(1)\nresult := await task',
+        category: 'Concurrency'
+    },
+    'await': {
+        name: 'await (Await Future Resolution)',
+        syntax: 'await future_expression',
+        description: 'Unary operator that pauses execution until the given Future completes and yields its resolved value (or raises an error).',
+        example: 'result := await async_operation()',
+        category: 'Concurrency'
+    },
+    'spawn': {
+        name: 'spawn (Spawn Background Worker)',
+        syntax: 'spawn function_call()',
+        description: 'Spawns execution of a regular function or expression onto a background worker thread, immediately returning a Future.',
+        example: 'fut := spawn heavy_compute(1000)\nres := await fut',
+        category: 'Concurrency'
     }
 };
 
@@ -292,6 +313,13 @@ export const TYPES: Record<string, KeywordDoc> = {
         syntax: 'val.T == "sortedList" or type(val) == "sortedList"',
         description: 'SortedList type identifier descriptor returned by `.T` or `type()`.',
         category: 'Type Name'
+    },
+    'future': {
+        name: 'future (Future / Asynchronous Promise Object)',
+        syntax: 'task := async_fn() | fut := spawn fn()',
+        description: 'First-class Future concurrency object representing an asynchronous computation. Supports `.await()`, `.is_done`, `.result`, `.error`, `.state`, `.cancel()`.',
+        example: 'fut := async.sleep(1.0)\nawait fut',
+        category: 'Concurrency'
     },
     'type': {
         name: 'type (Type Descriptor)',

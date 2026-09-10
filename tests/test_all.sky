@@ -205,5 +205,68 @@ if f_dict_esc != "Dict key: 100 and 200" { panic("Test failed: f-string escaped 
 f_methods := f"Method: {'hello'.upper()} - {list[0]}"
 if f_methods != "Method: HELLO - 1" { panic("Test failed: f-string method call") }
 
+// 16. Async/Await Concurrency, Futures & Async Module
+import async
+
+async f async_multiply {
+    takes(x, y)
+    await async.sleep(0.01)
+    return x * y
+}
+
+f async_worker_task {
+    takes(n)
+    await async.sleep(0.01)
+    return n + 100
+}
+
+fut1 := async_multiply(6, 7)
+if fut1.state != "pending" && fut1.state != "running" && fut1.state != "resolved" { panic("Test failed: future state") }
+res1 := await fut1
+if res1 != 42 { panic("Test failed: async fn await") }
+if fut1.is_done != true { panic("Test failed: future is_done") }
+if fut1.result != 42 { panic("Test failed: future result property") }
+
+// Test method call .await()
+fut2 := async_multiply(10, 5)
+res2 := fut2.await()
+if res2 != 50 { panic("Test failed: future .await() method") }
+
+// Test spawn keyword
+fut_spawn := spawn async_worker_task(23)
+res_spawn := await fut_spawn
+if res_spawn != 123 { panic("Test failed: spawn keyword") }
+
+// Test async.spawn
+fut_aspawn := async.spawn(async_worker_task, 50)
+res_aspawn := await fut_aspawn
+if res_aspawn != 150 { panic("Test failed: async.spawn") }
+
+// Test async.all
+f task_a { return 10 }
+f task_b { return 20 }
+f task_c { return 30 }
+
+futs_all := [spawn task_a(), spawn task_b(), spawn task_c()]
+results_all := await async.all(futs_all)
+if results_all.size != 3 || results_all[0] != 10 || results_all[1] != 20 || results_all[2] != 30 {
+    panic("Test failed: async.all")
+}
+
+// Test async.race
+f fast_task {
+    await async.sleep(0.01)
+    return "fast"
+}
+f slow_task {
+    await async.sleep(0.08)
+    return "slow"
+}
+race_result := await async.race([spawn slow_task(), spawn fast_task()])
+if race_result != "fast" {
+    panic("Test failed: async.race")
+}
+
 println("All Skylang tests passed successfully! [100% OK]")
+
 
