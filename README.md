@@ -604,16 +604,30 @@ Returned by `open(filepath, mode)`:
 
 ## 8. Multi-Language Interoperability Bridges
 
+### Foreign Execution Blocks (`{ ... }`) & Automatic Variable Registration
+Skylang allows you to embed raw foreign code blocks directly inside `js.exec({ ... })` and `python.exec({ ... })` calls:
+- Standard output (like `console.log` in JavaScript or `print()` in Python) streams in real time to the terminal.
+- Variables declared in foreign blocks (`let`, `var`, `const` in JS; assignments in Python) are automatically captured and registered into Skylang scope for subsequent statements:
+  ```skylang
+  js.exec({
+    console.log("Server Started");
+    let a = 10
+  })
+
+  c := 90 + a // Evaluates to 100 in Skylang!
+  ```
+- Cross-module foreign exports (`import mod_js -> mod_js.a`) and scope collision detection with `ScopeError`.
+
 ### Python Bridge (`python`)
 - `python.load(module_name: string)`: Loads Python C-API module into Skylang object.
-- `python.exec(python_code: string)`: Executes arbitrary Python code block.
+- `python.exec(python_code: string | block)`: Executes Python code block and exports declared symbols to Skylang.
 
 ### JavaScript / NPM Bridge (`js`)
 - `js.load(module_or_package: string)`: Loads Node.js / NPM package.
-- `js.exec(js_code: string)`: Executes JavaScript code via Node runtime.
+- `js.exec(js_code: string | block)`: Executes JavaScript code via Node.js runtime and exports declared symbols to Skylang.
 
 ### C++ JIT Bridge (`cpp`)
-- `cpp.compile(cpp_source: string)`: JIT compiles C++ source with GCC into shared object.
+- `cpp.compile(cpp_source: string | block)`: JIT compiles C++ source with GCC into shared object.
 - `cpp.load(shared_library_path: string)`: Loads native C++ dynamic library.
 
 ### Java Bridge (`java`)
@@ -622,12 +636,12 @@ Returned by `open(filepath, mode)`:
 
 ### Golang Bridge (`go`, `golang`)
 - `go.load(package_name: string)`: Loads Go runtime package.
-- `go.compile(go_source: string)`: JIT compiles Go code into `c-shared` binary bridge.
+- `go.compile(go_source: string | block)`: JIT compiles Go code into `c-shared` binary bridge.
 - `go.exec(function_call: string)`: Dispatches Go exported function.
 
 ### Rust Bridge (`rust`)
 - `rust.load(crate_name: string)`: Loads Rust crate library.
-- `rust.compile(rust_source: string)`: JIT compiles Rust code into `cdylib` bridge.
+- `rust.compile(rust_source: string | block)`: JIT compiles Rust code into `cdylib` bridge.
 - `rust.exec(function_call: string)`: Dispatches Rust `extern "C"` function.
 
 ---

@@ -61,6 +61,9 @@ static void get_project_root(char* out_root, size_t max_len) {
 }
 
 static void translate_and_print_gcc_errors(const char* gcc_output, const char* default_sky_file) {
+    if (gcc_output && getenv("SKY_DEBUG")) {
+        fprintf(stderr, "=== GCC ERROR ===\n%s\n=================\n", gcc_output);
+    }
     if (!gcc_output || gcc_output[0] == '\0') {
         fprintf(stderr, "Traceback (most recent call last):\n");
         fprintf(stderr, "  File \"%s\", line 1, in <main>\n", default_sky_file ? default_sky_file : "<main>");

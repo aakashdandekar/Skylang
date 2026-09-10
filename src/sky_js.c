@@ -1,4 +1,5 @@
 
+#include "../include/skylang.h"
 #include "../include/sky_js.h"
 #include "../include/sky_platform.h"
 #include <ctype.h>
@@ -267,6 +268,234 @@ static Value json_to_sky_val(const char* json) {
     return json_parse_val(&p);
 }
 
+void foreign_symtable_init(ForeignSymbolTable* table) {
+    table->items = NULL;
+    table->count = 0;
+    table->capacity = 0;
+}
+
+void foreign_symtable_add(ForeignSymbolTable* table, const char* name, const char* lang, ForeignDeclKind kind, const char* file, int line) {
+    if (!name || !*name) return;
+    for (size_t i = 0; i < table->count; ++i) {
+        if (strcmp(table->items[i].name, name) == 0) return;
+    }
+    if (table->count >= table->capacity) {
+        table->capacity = table->capacity == 0 ? 8 : table->capacity * 2;
+        table->items = (ForeignSymbol*)realloc(table->items, sizeof(ForeignSymbol) * table->capacity);
+    }
+    ForeignSymbol* s = &table->items[table->count++];
+    s->name = strdup(name);
+    s->lang = lang;
+    s->kind = kind;
+    s->file = file ? file : "<unknown>";
+    s->line = line;
+}
+
+void foreign_symtable_free(ForeignSymbolTable* table) {
+    if (table->items) {
+        for (size_t i = 0; i < table->count; ++i) {
+            free(table->items[i].name);
+        }
+        free(table->items);
+        table->items = NULL;
+    }
+    table->count = 0;
+    table->capacity = 0;
+}
+
+static bool is_js_ident_start(char c) {
+    return isalpha((unsigned char)c) || c == '_' || c == '$';
+}
+
+static bool is_js_ident_char(char c) {
+    return isalnum((unsigned char)c) || c == '_' || c == '$';
+}
+
+static bool is_js_reserved_keyword(const char* id) {
+    static const char* kws[] = {
+        "if", "else", "for", "while", "do", "switch", "case", "default",
+        "break", "continue", "return", "try", "catch", "finally", "throw",
+        "new", "delete", "typeof", "instanceof", "void", "in", "of",
+        "this", "super", "class", "extends", "export", "import", "from",
+        "as", "yield", "await", "async", "true", "false", "null", "undefined",
+        "console", "require", "process", "global", "globalThis", "window",
+        "document", "Math", "JSON", "Object", "Array", "String", "Number",
+        "Boolean", "Function", "Symbol", "BigInt", "Promise", "RegExp", "Map", "Set"
+    };
+    for (size_t i = 0; i < sizeof(kws)/sizeof(kws[0]); ++i) {
+        if (strcmp(id, kws[i]) == 0) return true;
+    }
+    return false;
+}
+
+void sky_extract_js_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table) {
+    if (!code) return;
+    const char* p = code;
+    int cur_line = base_line;
+    int brace_depth = 0;
+
+    while (*p) {
+        if (*p == '\n') { cur_line++; p++; continue; }
+        if (isspace((unsigned char)*p)) { p++; continue; }
+
+        if (p[0] == '/' && p[1] == '/') {
+            p += 2;
+            while (*p && *p != '\n') p++;
+            continue;
+        }
+        if (p[0] == '/' && p[1] == '*') {
+            p += 2;
+            while (*p && !(p[0] == '*' && p[1] == '/')) {
+                if (*p == '\n') cur_line++;
+                p++;
+            }
+            if (*p) p += 2;
+            continue;
+        }
+        if (*p == '"' || *p == '\'' || *p == '`') {
+            char q = *p++;
+            while (*p && *p != q) {
+                if (*p == '\\' && *(p + 1)) {
+                    if (*p == '\n') cur_line++;
+                    p += 2;
+                } else {
+                    if (*p == '\n') cur_line++;
+                    p++;
+                }
+            }
+            if (*p == q) p++;
+            continue;
+        }
+
+        if (*p == '{') { brace_depth++; p++; continue; }
+        if (*p == '}') { if (brace_depth > 0) brace_depth--; p++; continue; }
+
+        if (is_js_ident_start(*p)) {
+            const char* start = p;
+            while (is_js_ident_char(*p)) p++;
+            size_t id_len = (size_t)(p - start);
+            char ident[128];
+            if (id_len >= sizeof(ident)) id_len = sizeof(ident) - 1;
+            memcpy(ident, start, id_len);
+            ident[id_len] = '\0';
+
+            ForeignDeclKind kind = FOREIGN_DECL_ASSIGN;
+            bool is_decl = false;
+
+            if (strcmp(ident, "var") == 0) {
+                kind = FOREIGN_DECL_VAR;
+                is_decl = true;
+            } else if (strcmp(ident, "let") == 0) {
+                kind = FOREIGN_DECL_LET;
+                is_decl = true;
+            } else if (strcmp(ident, "const") == 0) {
+                kind = FOREIGN_DECL_CONST;
+                is_decl = true;
+            } else if (strcmp(ident, "function") == 0) {
+                kind = FOREIGN_DECL_FUNCTION;
+                while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                if (is_js_ident_start(*p)) {
+                    const char* fn_start = p;
+                    while (is_js_ident_char(*p)) p++;
+                    size_t fn_len = (size_t)(p - fn_start);
+                    char fn_name[128];
+                    if (fn_len >= sizeof(fn_name)) fn_len = sizeof(fn_name) - 1;
+                    memcpy(fn_name, fn_start, fn_len);
+                    fn_name[fn_len] = '\0';
+                    if (!is_js_reserved_keyword(fn_name)) {
+                        foreign_symtable_add(table, fn_name, "js", kind, file, cur_line);
+                    }
+                }
+                continue;
+            } else if (strcmp(ident, "class") == 0) {
+                kind = FOREIGN_DECL_CLASS;
+                while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                if (is_js_ident_start(*p)) {
+                    const char* cl_start = p;
+                    while (is_js_ident_char(*p)) p++;
+                    size_t cl_len = (size_t)(p - cl_start);
+                    char cl_name[128];
+                    if (cl_len >= sizeof(cl_name)) cl_len = sizeof(cl_name) - 1;
+                    memcpy(cl_name, cl_start, cl_len);
+                    cl_name[cl_len] = '\0';
+                    if (!is_js_reserved_keyword(cl_name)) {
+                        foreign_symtable_add(table, cl_name, "js", kind, file, cur_line);
+                    }
+                }
+                continue;
+            }
+
+            if (is_decl) {
+                while (*p) {
+                    while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                    if (!is_js_ident_start(*p)) break;
+                    const char* var_start = p;
+                    while (is_js_ident_char(*p)) p++;
+                    size_t var_len = (size_t)(p - var_start);
+                    char var_name[128];
+                    if (var_len >= sizeof(var_name)) var_len = sizeof(var_name) - 1;
+                    memcpy(var_name, var_start, var_len);
+                    var_name[var_len] = '\0';
+
+                    if (!is_js_reserved_keyword(var_name)) {
+                        foreign_symtable_add(table, var_name, "js", kind, file, cur_line);
+                    }
+
+                    while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                    if (*p == '=') {
+                        p++;
+                        int paren = 0, bracket = 0, brace = 0;
+                        while (*p) {
+                            if (*p == '(') paren++;
+                            else if (*p == ')') { if (paren > 0) paren--; }
+                            else if (*p == '[') bracket++;
+                            else if (*p == ']') { if (bracket > 0) bracket--; }
+                            else if (*p == '{') brace++;
+                            else if (*p == '}') { if (brace > 0) brace--; }
+                            else if (*p == '"' || *p == '\'' || *p == '`') {
+                                char q = *p++;
+                                while (*p && *p != q) {
+                                    if (*p == '\\' && *(p+1)) p += 2;
+                                    else p++;
+                                }
+                                if (*p == q) p++;
+                                continue;
+                            } else if (paren == 0 && bracket == 0 && brace == 0) {
+                                if (*p == ',' || *p == ';' || *p == '\n') break;
+                            }
+                            if (*p == '\n') cur_line++;
+                            p++;
+                        }
+                    }
+                    if (*p == ',') {
+                        p++;
+                        continue;
+                    }
+                    if (*p == ';' || *p == '\n') {
+                        if (*p == '\n') cur_line++;
+                        p++;
+                        break;
+                    }
+                    break;
+                }
+                continue;
+            }
+
+            if (brace_depth == 0 && !is_js_reserved_keyword(ident)) {
+                const char* save_p = p;
+                while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                if (*p == '=' && *(p+1) != '=') {
+                    foreign_symtable_add(table, ident, "js", FOREIGN_DECL_ASSIGN, file, cur_line);
+                }
+                p = save_p;
+            }
+            continue;
+        }
+
+        p++;
+    }
+}
+
 static int js_file_counter = 0;
 
 static char* run_node_eval(const char* js_code) {
@@ -311,9 +540,81 @@ Value sky_js_load(const char* package_name) {
 }
 
 Value sky_js_exec(const char* code) {
-    char* json = run_node_eval(code);
-    free(json);
-    return val_nil();
+    if (!code || !*code) return val_dict();
+
+    ForeignSymbolTable syms;
+    foreign_symtable_init(&syms);
+    sky_extract_js_declarations(code, "<js>", 1, &syms);
+
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char tmp_js[2048];
+    char tmp_vars[2048];
+    int fid = ++js_file_counter;
+    snprintf(tmp_js, sizeof(tmp_js), "%s/sky_js_exec_%d_%d.js", tmp_dir, (int)sky_getpid(), fid);
+    snprintf(tmp_vars, sizeof(tmp_vars), "%s/sky_js_vars_%d_%d.json", tmp_dir, (int)sky_getpid(), fid);
+
+    FILE* f = fopen(tmp_js, "w");
+    if (!f) {
+        foreign_symtable_free(&syms);
+        return val_dict();
+    }
+
+    char js_vars_path[2048];
+    snprintf(js_vars_path, sizeof(js_vars_path), "%s", tmp_vars);
+    for (char* p = js_vars_path; *p; ++p) {
+        if (*p == '\\') *p = '/';
+    }
+
+    fprintf(f, "const fs = require('fs');\n");
+    fprintf(f, "(async () => {\n");
+    fprintf(f, "    try {\n");
+    fprintf(f, "%s\n\n", code);
+    fprintf(f, "        const __sky_exports = {};\n");
+    for (size_t i = 0; i < syms.count; ++i) {
+        const char* sname = syms.items[i].name;
+        fprintf(f, "        try { if (typeof %s !== 'undefined') __sky_exports['%s'] = %s; } catch(e) {}\n", sname, sname, sname);
+    }
+    fprintf(f, "        fs.writeFileSync('%s', JSON.stringify(__sky_exports));\n", js_vars_path);
+    fprintf(f, "    } catch(__err) {\n");
+    fprintf(f, "        console.error(__err);\n");
+    fprintf(f, "        try { fs.writeFileSync('%s', JSON.stringify({ '__sky_error__': String(__err && __err.stack ? __err.stack : __err) })); } catch(e) {}\n", js_vars_path);
+    fprintf(f, "    }\n");
+    fprintf(f, "})();\n");
+    fclose(f);
+
+    char cmd[4096];
+    snprintf(cmd, sizeof(cmd), "node \"%s\"", tmp_js);
+    int status = system(cmd);
+    (void)status;
+
+    Value result_dict = val_dict();
+
+    FILE* vf = fopen(tmp_vars, "rb");
+    if (vf) {
+        fseek(vf, 0, SEEK_END);
+        long sz = ftell(vf);
+        fseek(vf, 0, SEEK_SET);
+        if (sz > 0) {
+            char* json_content = (char*)malloc(sz + 1);
+            if (json_content) {
+                size_t rd = fread(json_content, 1, sz, vf);
+                json_content[rd] = '\0';
+                Value parsed = json_to_sky_val(json_content);
+                free(json_content);
+                if (parsed.type == VAL_OBJ && parsed.as.obj->type == OBJ_DICT) {
+                    result_dict = parsed;
+                }
+            }
+        }
+        fclose(vf);
+    }
+
+    sky_unlink(tmp_js);
+    sky_unlink(tmp_vars);
+    foreign_symtable_free(&syms);
+
+    return result_dict;
 }
 
 Value sky_js_call_method(ObjForeign* f, const char* name, int argc, Value* argv) {

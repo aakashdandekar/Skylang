@@ -330,9 +330,16 @@
   "Python Exec": {
     "prefix": "pyexec",
     "body": [
-      "python.exec(\"${1:code}\")"
+      "python.exec({\n\t${1:print(\"Hello from Python\")}\n})"
     ],
-    "description": "Execute Python statements"
+    "description": "Execute Python statements block and capture declared variables"
+  },
+  "JavaScript Exec": {
+    "prefix": "jsexec",
+    "body": [
+      "js.exec({\n\t${1:console.log(\"Server Started\");}\n\t${2:let a = 10}\n})"
+    ],
+    "description": "Execute JavaScript statements block in Node.js and capture declared variables"
   },
   "JavaScript Load": {
     "prefix": "jsload",
@@ -340,13 +347,6 @@
       "${1:express} := js.load(\"${2:expressjs}\")"
     ],
     "description": "Load a JS global or NPM package via Node.js"
-  },
-  "JavaScript Exec": {
-    "prefix": "jsexec",
-    "body": [
-      "js.exec(\"${1:console.log('Hello')}\")"
-    ],
-    "description": "Execute JavaScript statements via Node.js"
   },
   "Express Server Setup": {
     "prefix": "expserver",

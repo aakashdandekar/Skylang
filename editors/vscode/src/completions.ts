@@ -1356,36 +1356,79 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
         const fullText = document.getText();
         const cursorOffset = document.offsetAt(position);
 
-        const bridgeRegex = /\b(python|js|cpp|go|rust|java)\s*\.\s*(exec|compile)\s*\(\s*(["'`])/g;
+        const bridgeRegex = /\b(python|js|cpp|go|rust|java)\s*\.\s*(exec|compile)\s*\(\s*(["'`{])/g;
         let match: RegExpExecArray | null;
 
         while ((match = bridgeRegex.exec(fullText)) !== null) {
             const bridge = match[1] as ForeignBridgeType;
-            const quoteChar = match[3];
+            const opener = match[3];
             const stringStart = match.index + match[0].length;
 
-            let stringEnd = -1;
-            let isEscaped = false;
-            for (let i = stringStart; i < fullText.length; i++) {
-                const char = fullText[i];
-                if (isEscaped) {
-                    isEscaped = false;
-                } else if (char === '\\') {
-                    isEscaped = true;
-                } else if (char === quoteChar) {
-                    stringEnd = i;
-                    break;
+            if (opener === '{') {
+                let depth = 1;
+                let blockEnd = -1;
+                let inString: string | null = null;
+                let isEscaped = false;
+
+                for (let i = stringStart; i < fullText.length; i++) {
+                    const char = fullText[i];
+                    if (inString) {
+                        if (isEscaped) {
+                            isEscaped = false;
+                        } else if (char === '\\') {
+                            isEscaped = true;
+                        } else if (char === inString) {
+                            inString = null;
+                        }
+                    } else {
+                        if (char === '"' || char === "'" || char === '`') {
+                            inString = char;
+                        } else if (char === '{') {
+                            depth++;
+                        } else if (char === '}') {
+                            depth--;
+                            if (depth === 0) {
+                                blockEnd = i;
+                                break;
+                            }
+                        }
+                    }
                 }
-            }
 
-            if (stringEnd === -1) {
-                stringEnd = fullText.length;
-            }
+                if (blockEnd === -1) {
+                    blockEnd = fullText.length;
+                }
 
-            if (cursorOffset >= stringStart && cursorOffset <= stringEnd) {
-                const rawCode = fullText.substring(stringStart, stringEnd);
-                const offset = cursorOffset - stringStart;
-                return { bridge, code: rawCode, offset };
+                if (cursorOffset >= stringStart && cursorOffset <= blockEnd) {
+                    const rawCode = fullText.substring(stringStart, blockEnd);
+                    const offset = cursorOffset - stringStart;
+                    return { bridge, code: rawCode, offset };
+                }
+            } else {
+                const quoteChar = opener;
+                let stringEnd = -1;
+                let isEscaped = false;
+                for (let i = stringStart; i < fullText.length; i++) {
+                    const char = fullText[i];
+                    if (isEscaped) {
+                        isEscaped = false;
+                    } else if (char === '\\') {
+                        isEscaped = true;
+                    } else if (char === quoteChar) {
+                        stringEnd = i;
+                        break;
+                    }
+                }
+
+                if (stringEnd === -1) {
+                    stringEnd = fullText.length;
+                }
+
+                if (cursorOffset >= stringStart && cursorOffset <= stringEnd) {
+                    const rawCode = fullText.substring(stringStart, stringEnd);
+                    const offset = cursorOffset - stringStart;
+                    return { bridge, code: rawCode, offset };
+                }
             }
         }
 

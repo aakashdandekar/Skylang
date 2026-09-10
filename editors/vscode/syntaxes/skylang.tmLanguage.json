@@ -121,10 +121,26 @@
             "patterns": [
                 {
                     "name": "meta.embedded.block.python.sky",
+                    "begin": "(?<=\\bpython\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.python" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.python.sky",
                     "begin": "(?<=\\bpython\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
                     "end": "\\1",
                     "patterns": [
                         { "include": "source.python" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.javascript.sky",
+                    "begin": "(?<=\\bjs\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.js" }
                     ]
                 },
                 {
@@ -137,10 +153,26 @@
                 },
                 {
                     "name": "meta.embedded.block.cpp.sky",
+                    "begin": "(?<=\\bcpp\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.cpp" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.cpp.sky",
                     "begin": "(?<=\\bcpp\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
                     "end": "\\1",
                     "patterns": [
                         { "include": "source.cpp" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.go.sky",
+                    "begin": "(?<=\\b(?:go|golang)\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.go" }
                     ]
                 },
                 {
@@ -153,10 +185,26 @@
                 },
                 {
                     "name": "meta.embedded.block.rust.sky",
+                    "begin": "(?<=\\brust\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.rust" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.rust.sky",
                     "begin": "(?<=\\brust\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
                     "end": "\\1",
                     "patterns": [
                         { "include": "source.rust" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.java.sky",
+                    "begin": "(?<=\\bjava\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.java" }
                     ]
                 },
                 {

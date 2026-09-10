@@ -1,0 +1,10 @@
+js.exec({
+  console.log("Server Started");
+  let a = 10
+})
+
+c := 90 + a
+println("Result c is:", c)
+if c != 100 {
+  panic("Assertion failed: c != 100")
+}

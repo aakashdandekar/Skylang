@@ -700,38 +700,51 @@ Skylang features high-speed native bridges to the world's most popular programmi
 
 | Language | Import Module | Primary APIs | Example |
 |---|---|---|---|
-| **Python 3** | `import python` | `python.load(mod)`, `python.exec(code)` | `math := python.load("math"); math.sqrt(100)` |
-| **JavaScript / Node.js** | `import js` | `js.load(pkg_or_global)`, `js.exec(code)` | `lodash := js.load("lodash"); js.load("Math")` |
-| **C++ (JIT)** | `import cpp` | `cpp.compile(code)`, `cpp.load(so)` | `math := cpp.compile("extern \"C\" double sq(double x) { return x*x; }")` |
+| **Python 3** | `import python` | `python.load(mod)`, `python.exec({...})`, `python.exec(code)` | `python.exec({ x = 42 })` |
+| **JavaScript / Node.js** | `import js` | `js.load(pkg_or_global)`, `js.exec({...})`, `js.exec(code)` | `js.exec({ let a = 10 })` |
+| **C++ (JIT)** | `import cpp` | `cpp.compile({...})`, `cpp.compile(code)`, `cpp.load(so)` | `cpp.compile({ ... })` |
 | **Java (JVM)** | `import java` | `java.load(cls)`, `java.exec(code)` | `jmath := java.load("java.lang.Math"); jmath.max(10, 20)` |
 | **Golang** | `import go, golang` | `go.load(pkg)`, `go.compile(code)`, `go.exec(code)` | `gomath := go.load("math"); gomath.Sqrt(64.0)` |
 | **Rust** | `import rust` | `rust.load(mod)`, `rust.compile(code)`, `rust.exec(code)` | `rc := rust.compile("#[no_mangle] pub extern \"C\" fn cube(x: f64) -> f64 { x*x*x }")` |
 
-### Code Example
+### Foreign Code Blocks (`{ ... }`) & Automatic Variable Registration
+
+Skylang allows you to embed raw foreign code blocks directly inside `js.exec({ ... })` and `python.exec({ ... })` calls. The code inside executes directly on the respective runtime (Node.js for JavaScript, CPython for Python).
+
+- **Real-time Terminal Output**: Standard library outputs like `console.log` in JavaScript or `print()` in Python stream directly to the terminal during execution.
+- **Automatic Variable Registration**: Variables declared inside the foreign block (`let`, `var`, `const` in JS; top-level variables in Python) are automatically extracted and registered into Skylang's scope, making them immediately accessible in subsequent Skylang expressions!
 
 ```skylang
-import python, js, go, rust
+import js, python
 
-// Dynamic Skylang Expression Evaluation
-ans := eval("10 * 20 + 56")
-println("eval result:", ans) // 256
+// JavaScript execution block
+js.exec({
+  console.log("Server Started");
+  let a = 10
+  var port = 8080
+})
 
-// Python standard library and PyPI packages
-py_math := python.load("math")
-println("Python sqrt:", py_math.sqrt(256))
+// Variables are immediately available in Skylang!
+c := 90 + a
+println("Result c is:", c)       // 100
+println("Server port:", port)    // 8080
 
-// JavaScript globals and NPM modules
-js_math := js.load("Math")
-println("JS max:", js_math.max(10, 50, 99))
+// Python execution block
+python.exec({
+  print("Initializing Python task")
+  base_score = 75
+  bonus = 25
+})
 
-// Go standard library and JIT compilation
-go_math := go.load("math")
-println("Go Sqrt:", go_math.Sqrt(144.0))
-
-// Rust standard library and JIT compilation
-rust_math := rust.load("std::f64::consts")
-println("Rust PI:", rust_math.PI)
+total_score := base_score + bonus
+println("Total score:", total_score) // 100
 ```
+
+### Foreign Scope Rules & Module Exports
+
+- **File / Block Scope Isolation**: Variables defined inside foreign blocks follow the natural semantics of the foreign language. In JavaScript, `let` and `const` have block scope while `var` has module/global scope.
+- **Cross-Module Imports**: When a `.sky` file executes a foreign block and is imported into another file (`import my_module`), all declared foreign variables are automatically exported and accessible via `my_module.var_name`.
+- **Scope Collision Safety**: If an imported module declares a global JavaScript `var x` and another connected file attempts to define `x` in Python scope, Skylang automatically detects the cross-language collision and reports a `ScopeError`.
 
 ---
 

@@ -286,13 +286,83 @@ static void load_modules_from_ast(ModuleRegistry* reg, AstNode* node, const char
     }
 }
 
+static void extract_foreign_symbols_from_ast(AstNode* node, const char* filepath, ForeignSymbolTable* table) {
+    if (!node) return;
+    if (node->type == AST_PROGRAM || node->type == AST_STMT_BLOCK) {
+        for (size_t i = 0; i < node->as.block.statements.count; ++i) {
+            extract_foreign_symbols_from_ast(node->as.block.statements.items[i], filepath, table);
+        }
+    } else if (node->type == AST_STMT_EXPR) {
+        AstNode* expr = node->as.expr_stmt.expr;
+        if (expr && expr->type == AST_METHOD_CALL && strcmp(expr->as.method_call.method_name, "exec") == 0) {
+            AstNode* target = expr->as.method_call.target;
+            AstNode* code_arg = expr->as.method_call.args.count > 0 ? expr->as.method_call.args.items[0] : NULL;
+            const char* code_str = (code_arg && code_arg->type == AST_LITERAL && code_arg->as.literal.lit_type == TOK_STRING_LIT)
+                                   ? code_arg->as.literal.as.s_val : NULL;
+            if (target && target->type == AST_VARIABLE && code_str) {
+                if (strcmp(target->as.variable.name, "js") == 0) {
+                    sky_extract_js_declarations(code_str, filepath, node->line, table);
+                } else if (strcmp(target->as.variable.name, "python") == 0) {
+                    sky_extract_py_declarations(code_str, filepath, node->line, table);
+                }
+            }
+        }
+    }
+}
+
+static void validate_foreign_scopes(ModuleRegistry* reg, AstNode* root, const char* root_file) {
+    ForeignSymbolTable root_syms;
+    foreign_symtable_init(&root_syms);
+    extract_foreign_symbols_from_ast(root, root_file ? root_file : "<main>", &root_syms);
+
+    for (size_t m = 0; m < reg->count; ++m) {
+        LoadedModule* mod = &reg->items[m];
+        ForeignSymbolTable mod_syms;
+        foreign_symtable_init(&mod_syms);
+        extract_foreign_symbols_from_ast(mod->ast, mod->filepath, &mod_syms);
+
+        for (size_t ms = 0; ms < mod_syms.count; ++ms) {
+            ForeignSymbol* msym = &mod_syms.items[ms];
+            if (strcmp(msym->lang, "js") == 0 && msym->kind == FOREIGN_DECL_VAR) {
+                for (size_t rs = 0; rs < root_syms.count; ++rs) {
+                    ForeignSymbol* rsym = &root_syms.items[rs];
+                    if (strcmp(rsym->name, msym->name) == 0 && strcmp(rsym->lang, "python") == 0) {
+                        fprintf(stderr, "Traceback (most recent call last):\n");
+                        fprintf(stderr, "  File \"%s\", line %d, in <main>\n", rsym->file, rsym->line);
+                        fprintf(stderr, "ScopeError: variable '%s' in Python scope conflicts with global JavaScript 'var' variable '%s' imported from '%s'\n",
+                                rsym->name, msym->name, msym->file);
+                        exit(1);
+                    }
+                }
+            } else if (strcmp(msym->lang, "python") == 0) {
+                for (size_t rs = 0; rs < root_syms.count; ++rs) {
+                    ForeignSymbol* rsym = &root_syms.items[rs];
+                    if (strcmp(rsym->name, msym->name) == 0 && strcmp(rsym->lang, "js") == 0 && rsym->kind == FOREIGN_DECL_VAR) {
+                        fprintf(stderr, "Traceback (most recent call last):\n");
+                        fprintf(stderr, "  File \"%s\", line %d, in <main>\n", rsym->file, rsym->line);
+                        fprintf(stderr, "ScopeError: global JavaScript 'var' variable '%s' conflicts with Python variable '%s' imported from '%s'\n",
+                                rsym->name, msym->name, msym->file);
+                        exit(1);
+                    }
+                }
+            }
+        }
+        foreign_symtable_free(&mod_syms);
+    }
+    foreign_symtable_free(&root_syms);
+}
+
 static void add_global_id(const char* name, const char** vars, size_t* count, size_t max) {
     if (!name || strcmp(name, "_") == 0 || strcmp(name, "this") == 0) return;
+    if (strcmp(name, "js") == 0 || strcmp(name, "python") == 0 ||
+        strcmp(name, "cpp") == 0 || strcmp(name, "java") == 0 ||
+        strcmp(name, "go") == 0 || strcmp(name, "golang") == 0 ||
+        strcmp(name, "rust") == 0 || strcmp(name, "async") == 0) return;
     for (size_t i = 0; i < *count; ++i) {
         if (strcmp(vars[i], name) == 0) return;
     }
     if (*count < max) {
-        vars[(*count)++] = name;
+        vars[(*count)++] = strdup(name);
     }
 }
 
@@ -303,6 +373,29 @@ static void collect_global_identifiers(AstNode* node, const char** vars, size_t*
         case AST_STMT_BLOCK: {
             for (size_t i = 0; i < node->as.block.statements.count; ++i) {
                 collect_global_identifiers(node->as.block.statements.items[i], vars, count, max);
+            }
+            break;
+        }
+        case AST_STMT_EXPR: {
+            AstNode* expr = node->as.expr_stmt.expr;
+            if (expr && expr->type == AST_METHOD_CALL && strcmp(expr->as.method_call.method_name, "exec") == 0) {
+                AstNode* target = expr->as.method_call.target;
+                AstNode* code_arg = expr->as.method_call.args.count > 0 ? expr->as.method_call.args.items[0] : NULL;
+                const char* code_str = (code_arg && code_arg->type == AST_LITERAL && code_arg->as.literal.lit_type == TOK_STRING_LIT)
+                                       ? code_arg->as.literal.as.s_val : NULL;
+                if (target && target->type == AST_VARIABLE && code_str) {
+                    ForeignSymbolTable syms;
+                    foreign_symtable_init(&syms);
+                    if (strcmp(target->as.variable.name, "js") == 0) {
+                        sky_extract_js_declarations(code_str, "<js>", 1, &syms);
+                    } else if (strcmp(target->as.variable.name, "python") == 0) {
+                        sky_extract_py_declarations(code_str, "<python>", 1, &syms);
+                    }
+                    for (size_t si = 0; si < syms.count; ++si) {
+                        add_global_id(syms.items[si].name, vars, count, max);
+                    }
+                    foreign_symtable_free(&syms);
+                }
             }
             break;
         }
@@ -802,8 +895,52 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
 
     switch (stmt->type) {
         case AST_STMT_EXPR: {
-            emit_expr(b, stmt->as.expr_stmt.expr, current_class);
-            buf_puts(b, ";\n");
+            AstNode* expr = stmt->as.expr_stmt.expr;
+            if (expr && expr->type == AST_METHOD_CALL && strcmp(expr->as.method_call.method_name, "exec") == 0) {
+                AstNode* target = expr->as.method_call.target;
+                AstNode* code_arg = expr->as.method_call.args.count > 0 ? expr->as.method_call.args.items[0] : NULL;
+                const char* code_str = (code_arg && code_arg->type == AST_LITERAL && code_arg->as.literal.lit_type == TOK_STRING_LIT)
+                                       ? code_arg->as.literal.as.s_val : NULL;
+
+                int t = temp_var_counter++;
+                buf_printf(b, "Value _exec_res_%d = ", t);
+                emit_expr(b, expr, current_class);
+                buf_puts(b, ";\n");
+
+                if (target && target->type == AST_VARIABLE && code_str) {
+                    ForeignSymbolTable syms;
+                    foreign_symtable_init(&syms);
+                    if (strcmp(target->as.variable.name, "js") == 0) {
+                        sky_extract_js_declarations(code_str, codegen_source_filename, stmt->line, &syms);
+                    } else if (strcmp(target->as.variable.name, "python") == 0) {
+                        sky_extract_py_declarations(code_str, codegen_source_filename, stmt->line, &syms);
+                    }
+
+                    if (syms.count > 0) {
+                        emit_indent(b, indent);
+                        buf_printf(b, "if (_exec_res_%d.type == VAL_OBJ && _exec_res_%d.as.obj->type == OBJ_DICT) {\n", t, t);
+                        emit_indent(b, indent + 1);
+                        buf_printf(b, "ObjDict* _ed_%d = (ObjDict*)_exec_res_%d.as.obj;\n", t, t);
+                        for (size_t si = 0; si < syms.count; ++si) {
+                            const char* sname = syms.items[si].name;
+                            emit_indent(b, indent + 1);
+                            buf_printf(b, "{\n");
+                            emit_indent(b, indent + 2);
+                            buf_printf(b, "Value _v = dict_get(_ed_%d, val_string(\"%s\"));\n", t, sname);
+                            emit_indent(b, indent + 2);
+                            buf_printf(b, "if (_v.type != VAL_NIL) { sky_var_%s = _v; }\n", sname);
+                            emit_indent(b, indent + 1);
+                            buf_printf(b, "}\n");
+                        }
+                        emit_indent(b, indent);
+                        buf_puts(b, "}\n");
+                    }
+                    foreign_symtable_free(&syms);
+                }
+            } else {
+                emit_expr(b, stmt->as.expr_stmt.expr, current_class);
+                buf_puts(b, ";\n");
+            }
             break;
         }
         case AST_STMT_VAR_DECL: {
@@ -1289,6 +1426,7 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     registry_init();
 
     load_modules_from_ast(&registry, root, filename);
+    validate_foreign_scopes(&registry, root, filename);
 
     Buffer b;
     buf_init(&b);
@@ -1605,6 +1743,28 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
                 } else if (stmt->type == AST_STMT_ASSIGN && stmt->as.assign.target->type == AST_VARIABLE) {
                     buf_printf(&b, "    dict_set(_mod_dict, val_string(\"%s\"), sky_var_%s);\n",
                                stmt->as.assign.target->as.variable.name, stmt->as.assign.target->as.variable.name);
+                } else if (stmt->type == AST_STMT_EXPR) {
+                    AstNode* expr = stmt->as.expr_stmt.expr;
+                    if (expr && expr->type == AST_METHOD_CALL && strcmp(expr->as.method_call.method_name, "exec") == 0) {
+                        AstNode* target = expr->as.method_call.target;
+                        AstNode* code_arg = expr->as.method_call.args.count > 0 ? expr->as.method_call.args.items[0] : NULL;
+                        const char* code_str = (code_arg && code_arg->type == AST_LITERAL && code_arg->as.literal.lit_type == TOK_STRING_LIT)
+                                               ? code_arg->as.literal.as.s_val : NULL;
+                        if (target && target->type == AST_VARIABLE && code_str) {
+                            ForeignSymbolTable syms;
+                            foreign_symtable_init(&syms);
+                            if (strcmp(target->as.variable.name, "js") == 0) {
+                                sky_extract_js_declarations(code_str, mod->filepath, stmt->line, &syms);
+                            } else if (strcmp(target->as.variable.name, "python") == 0) {
+                                sky_extract_py_declarations(code_str, mod->filepath, stmt->line, &syms);
+                            }
+                            for (size_t si = 0; si < syms.count; ++si) {
+                                buf_printf(&b, "    dict_set(_mod_dict, val_string(\"%s\"), sky_var_%s);\n",
+                                           syms.items[si].name, syms.items[si].name);
+                            }
+                            foreign_symtable_free(&syms);
+                        }
+                    }
                 }
             }
         }

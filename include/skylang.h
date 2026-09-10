@@ -394,6 +394,38 @@ struct AstNode {
     } as;
 };
 
+/* Foreign Symbol & Scope Management */
+typedef enum {
+    FOREIGN_DECL_VAR,      /* JS var (global/file-level scope) */
+    FOREIGN_DECL_LET,      /* JS let */
+    FOREIGN_DECL_CONST,    /* JS const */
+    FOREIGN_DECL_FUNCTION, /* JS function / Python def */
+    FOREIGN_DECL_CLASS,    /* JS / Python class */
+    FOREIGN_DECL_ASSIGN,   /* Python assignment / JS assignment */
+    FOREIGN_DECL_GLOBAL    /* Python global */
+} ForeignDeclKind;
+
+typedef struct {
+    char* name;
+    const char* lang;      /* "js", "python", "cpp", "go", "rust", "java" */
+    ForeignDeclKind kind;
+    const char* file;
+    int line;
+} ForeignSymbol;
+
+typedef struct {
+    ForeignSymbol* items;
+    size_t count;
+    size_t capacity;
+} ForeignSymbolTable;
+
+void foreign_symtable_init(ForeignSymbolTable* table);
+void foreign_symtable_add(ForeignSymbolTable* table, const char* name, const char* lang, ForeignDeclKind kind, const char* file, int line);
+void foreign_symtable_free(ForeignSymbolTable* table);
+
+void sky_extract_js_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table);
+void sky_extract_py_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table);
+
 /* Parser */
 typedef struct {
     Lexer lexer;

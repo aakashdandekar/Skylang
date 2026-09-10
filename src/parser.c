@@ -449,6 +449,73 @@ static AstNode* parse_primary(Parser* parser) {
     return ast_new(AST_LITERAL, line);
 }
 
+static char* parse_raw_braced_block(Parser* parser) {
+    if (!check(parser, TOK_LBRACE)) return NULL;
+
+    const char* start = parser->current.start + 1;
+    const char* p = start;
+    int depth = 1;
+
+    while (*p && depth > 0) {
+        if (p[0] == '/' && p[1] == '/') {
+            p += 2;
+            while (*p && *p != '\n') p++;
+            continue;
+        }
+        if (p[0] == '#') {
+            p++;
+            while (*p && *p != '\n') p++;
+            continue;
+        }
+        if (p[0] == '/' && p[1] == '*') {
+            p += 2;
+            while (*p && !(p[0] == '*' && p[1] == '/')) p++;
+            if (*p) p += 2;
+            continue;
+        }
+        if (*p == '"' || *p == '\'' || *p == '`') {
+            char quote = *p++;
+            while (*p && *p != quote) {
+                if (*p == '\\' && *(p + 1)) p += 2;
+                else p++;
+            }
+            if (*p == quote) p++;
+            continue;
+        }
+        if (*p == '{') {
+            depth++;
+            p++;
+        } else if (*p == '}') {
+            depth--;
+            if (depth == 0) break;
+            p++;
+        } else {
+            p++;
+        }
+    }
+
+    if (depth != 0) {
+        error_at(parser, &parser->current, "Unterminated '{' in foreign block");
+        return NULL;
+    }
+
+    size_t len = (size_t)(p - start);
+    char* raw_code = (char*)malloc(len + 1);
+    memcpy(raw_code, start, len);
+    raw_code[len] = '\0';
+
+    parser->lexer.current = p + 1;
+    int cur_line = parser->current.line;
+    for (const char* k = parser->current.start; k <= p; ++k) {
+        if (*k == '\n') cur_line++;
+    }
+    parser->lexer.line = cur_line;
+    parser->lexer.col = 1;
+
+    advance(parser);
+    return raw_code;
+}
+
 static AstNode* parse_call_arg(Parser* parser) {
     AstNode* expr = parse_expression(parser);
     if (expr && expr->type == AST_STMT_ASSIGN &&
@@ -474,7 +541,17 @@ static AstNode* parse_postfix(Parser* parser) {
             node_list_init(&call->as.call.args);
             if (!check(parser, TOK_RPAREN)) {
                 do {
-                    node_list_add(&call->as.call.args, parse_call_arg(parser));
+                    if (check(parser, TOK_LBRACE) && expr->type == AST_VARIABLE &&
+                        (strstr(expr->as.variable.name, "exec") || strstr(expr->as.variable.name, "compile"))) {
+                        int bline = parser->current.line;
+                        char* raw_code = parse_raw_braced_block(parser);
+                        AstNode* code_lit = ast_new(AST_LITERAL, bline);
+                        code_lit->as.literal.lit_type = TOK_STRING_LIT;
+                        code_lit->as.literal.as.s_val = raw_code ? raw_code : strdup("");
+                        node_list_add(&call->as.call.args, code_lit);
+                    } else {
+                        node_list_add(&call->as.call.args, parse_call_arg(parser));
+                    }
                 } while (match(parser, TOK_COMMA));
             }
             consume(parser, TOK_RPAREN, "Expect ')' after arguments");
@@ -532,7 +609,26 @@ static AstNode* parse_postfix(Parser* parser) {
                 node_list_init(&mc->as.method_call.args);
                 if (!check(parser, TOK_RPAREN)) {
                     do {
-                        node_list_add(&mc->as.method_call.args, parse_call_arg(parser));
+                        if (check(parser, TOK_LBRACE) &&
+                            (strcmp(name, "exec") == 0 || strcmp(name, "compile") == 0 ||
+                             (expr->type == AST_VARIABLE && (
+                                strcmp(expr->as.variable.name, "js") == 0 ||
+                                strcmp(expr->as.variable.name, "python") == 0 ||
+                                strcmp(expr->as.variable.name, "cpp") == 0 ||
+                                strcmp(expr->as.variable.name, "java") == 0 ||
+                                strcmp(expr->as.variable.name, "go") == 0 ||
+                                strcmp(expr->as.variable.name, "golang") == 0 ||
+                                strcmp(expr->as.variable.name, "rust") == 0
+                             )))) {
+                            int bline = parser->current.line;
+                            char* raw_code = parse_raw_braced_block(parser);
+                            AstNode* code_lit = ast_new(AST_LITERAL, bline);
+                            code_lit->as.literal.lit_type = TOK_STRING_LIT;
+                            code_lit->as.literal.as.s_val = raw_code ? raw_code : strdup("");
+                            node_list_add(&mc->as.method_call.args, code_lit);
+                        } else {
+                            node_list_add(&mc->as.method_call.args, parse_call_arg(parser));
+                        }
                     } while (match(parser, TOK_COMMA));
                 }
                 consume(parser, TOK_RPAREN, "Expect ')' after method arguments");
@@ -1290,7 +1386,17 @@ static AstNode* parse_statement(Parser* parser) {
                 node_list_init(&call->as.call.args);
                 if (!check(parser, TOK_RPAREN)) {
                     do {
-                        node_list_add(&call->as.call.args, parse_call_arg(parser));
+                        if (check(parser, TOK_LBRACE) && expr->type == AST_VARIABLE &&
+                            (strstr(expr->as.variable.name, "exec") || strstr(expr->as.variable.name, "compile"))) {
+                            int bline = parser->current.line;
+                            char* raw_code = parse_raw_braced_block(parser);
+                            AstNode* code_lit = ast_new(AST_LITERAL, bline);
+                            code_lit->as.literal.lit_type = TOK_STRING_LIT;
+                            code_lit->as.literal.as.s_val = raw_code ? raw_code : strdup("");
+                            node_list_add(&call->as.call.args, code_lit);
+                        } else {
+                            node_list_add(&call->as.call.args, parse_call_arg(parser));
+                        }
                     } while (match(parser, TOK_COMMA));
                 }
                 consume(parser, TOK_RPAREN, "Expect ')' after arguments");
@@ -1333,7 +1439,26 @@ static AstNode* parse_statement(Parser* parser) {
                     node_list_init(&mc->as.method_call.args);
                     if (!check(parser, TOK_RPAREN)) {
                         do {
-                            node_list_add(&mc->as.method_call.args, parse_call_arg(parser));
+                            if (check(parser, TOK_LBRACE) &&
+                                (strcmp(mname, "exec") == 0 || strcmp(mname, "compile") == 0 ||
+                                 (expr->type == AST_VARIABLE && (
+                                    strcmp(expr->as.variable.name, "js") == 0 ||
+                                    strcmp(expr->as.variable.name, "python") == 0 ||
+                                    strcmp(expr->as.variable.name, "cpp") == 0 ||
+                                    strcmp(expr->as.variable.name, "java") == 0 ||
+                                    strcmp(expr->as.variable.name, "go") == 0 ||
+                                    strcmp(expr->as.variable.name, "golang") == 0 ||
+                                    strcmp(expr->as.variable.name, "rust") == 0
+                                 )))) {
+                                int bline = parser->current.line;
+                                char* raw_code = parse_raw_braced_block(parser);
+                                AstNode* code_lit = ast_new(AST_LITERAL, bline);
+                                code_lit->as.literal.lit_type = TOK_STRING_LIT;
+                                code_lit->as.literal.as.s_val = raw_code ? raw_code : strdup("");
+                                node_list_add(&mc->as.method_call.args, code_lit);
+                            } else {
+                                node_list_add(&mc->as.method_call.args, parse_call_arg(parser));
+                            }
                         } while (match(parser, TOK_COMMA));
                     }
                     consume(parser, TOK_RPAREN, "Expect ')' after method arguments");

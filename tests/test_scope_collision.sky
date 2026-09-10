@@ -1,0 +1,5 @@
+import tests.mod_foreign_a as ma
+
+python.exec({
+  serverPort = 9000
+})
