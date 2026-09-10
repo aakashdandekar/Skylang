@@ -16,8 +16,7 @@ Value sky_go_call_method(ObjForeign* f, const char* name, int argc, Value* argv)
 Value sky_go_get_prop(ObjForeign* f, const char* name);
 Value sky_go_set_prop(ObjForeign* f, const char* name, Value val);
 
-/* Global go and golang module variables */
-extern Value sky_mod_go;
+/* Global golang module variable */
 extern Value sky_mod_golang;
 
 #endif /* SKY_GO_H */

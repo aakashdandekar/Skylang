@@ -462,23 +462,23 @@
   "Golang Load": {
     "prefix": "goload",
     "body": [
-      "${1:mod} := go.load(\"${2:./libcalc.so}\")"
+      "${1:mod} := golang.load(\"${2:./libcalc.so}\")"
     ],
     "description": "Load a Go package or shared library"
   },
   "Golang Compile": {
     "prefix": "gocompile",
     "body": [
-      "${1:mod} := go.compile(\"\\n//export ${2:Add}\\nfunc ${2:Add}(a, b float64) float64 {\\n\\treturn a + b\\n}\\n\")"
+      "${1:mod} := golang.compile(\"\\n//export ${2:Add}\\nfunc ${2:Add}(a, b float64) float64 {\\n\\treturn a + b\\n}\\n\")"
     ],
     "description": "JIT-compile Go code with exported functions"
   },
   "Golang Exec": {
     "prefix": "goexec",
     "body": [
-      "go.exec(\"${1:println(\\\"Hello from Go\\\")}\")"
+      "golang.exec({\n\t${1:println(\"Hello from Go\")}\n})"
     ],
-    "description": "Execute Go source code statements"
+    "description": "Execute Go source code statements block"
   },
   "Rust Load": {
     "prefix": "rustload",

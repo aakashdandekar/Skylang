@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-export type ForeignBridgeType = 'python' | 'js' | 'cpp' | 'go' | 'rust' | 'java';
+export type ForeignBridgeType = 'python' | 'js' | 'cpp' | 'golang' | 'rust' | 'java';
 
 export interface LanguageExtensionInfo {
     id: string;
@@ -46,7 +46,7 @@ export class ForeignVirtualDocumentProvider implements vscode.TextDocumentConten
 
 /**
  * Universal Foreign Language Extension IntelliSense Bridge.
- * Connects Skylang's editor with actual installed VS Code extensions for Python, JavaScript/Node.js, C/C++, Go, Rust, and Java.
+ * Connects Skylang's editor with actual installed VS Code extensions for Python, JavaScript/Node.js, C/C++, Golang, Rust, and Java.
  */
 export class ForeignLspBridge {
     private static instance: ForeignLspBridge;
@@ -72,7 +72,7 @@ export class ForeignLspBridge {
             'llvm-vs-code-extensions.vscode-clangd',
             'mitaki28.vscode-clang'
         ],
-        go: [
+        golang: [
             'golang.go'
         ],
         rust: [
@@ -90,7 +90,7 @@ export class ForeignLspBridge {
         python: 'py',
         js: 'js',
         cpp: 'cpp',
-        go: 'go',
+        golang: 'go',
         rust: 'rs',
         java: 'java'
     };
@@ -99,7 +99,7 @@ export class ForeignLspBridge {
         python: 'Python (Pylance/Python)',
         js: 'JavaScript / Node.js (TypeScript Server)',
         cpp: 'C/C++ (Clangd/CppTools)',
-        go: 'Golang (gopls)',
+        golang: 'Golang (gopls)',
         rust: 'Rust (rust-analyzer)',
         java: 'Java (Red Hat JDTLS)'
     };
@@ -212,7 +212,7 @@ export class ForeignLspBridge {
                 targetCol = `    ${memberPrefix}`.length;
                 break;
             }
-            case 'go': {
+            case 'golang': {
                 // e.g. package main\nimport "fmt"\nfunc _() { fmt. }
                 content = `package main\nimport "${packageName}"\nfunc _() {\n    ${packageName}.${memberPrefix}\n}`;
                 targetLine = 3;
@@ -240,7 +240,7 @@ export class ForeignLspBridge {
         return {
             uri,
             position: new vscode.Position(targetLine, targetCol),
-            languageId: bridge === 'js' ? 'javascript' : bridge,
+            languageId: bridge === 'js' ? 'javascript' : (bridge === 'golang' ? 'go' : bridge),
             bridgeType: bridge
         };
     }

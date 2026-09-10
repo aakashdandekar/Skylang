@@ -143,16 +143,16 @@ if java_math.max(12, 99) != 99 { panic("Test failed: java Math.max") }
 if java_math.sqrt(225.0) != 15 { panic("Test failed: java Math.sqrt") }
 
 // 12. Golang Interoperability & JIT Compilation
-import go, golang
-go_math := go.load("math")
-if go_math.Sqrt(625.0) != 25 { panic("Test failed: go math.Sqrt") }
-go_calc := go.compile("
+import golang
+go_math := golang.load("math")
+if go_math.Sqrt(625.0) != 25 { panic("Test failed: golang math.Sqrt") }
+go_calc := golang.compile("
 //export DoubleVal
 func DoubleVal(x float64) float64 {
     return x * 2.0
 }
 ")
-if go_calc.DoubleVal(21.0) != 42 { panic("Test failed: go.compile JIT") }
+if go_calc.DoubleVal(21.0) != 42 { panic("Test failed: golang.compile JIT") }
 
 // 13. Rust Interoperability & JIT Compilation
 import rust

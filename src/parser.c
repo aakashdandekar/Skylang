@@ -616,7 +616,6 @@ static AstNode* parse_postfix(Parser* parser) {
                                 strcmp(expr->as.variable.name, "python") == 0 ||
                                 strcmp(expr->as.variable.name, "cpp") == 0 ||
                                 strcmp(expr->as.variable.name, "java") == 0 ||
-                                strcmp(expr->as.variable.name, "go") == 0 ||
                                 strcmp(expr->as.variable.name, "golang") == 0 ||
                                 strcmp(expr->as.variable.name, "rust") == 0
                              )))) {
@@ -1446,7 +1445,6 @@ static AstNode* parse_statement(Parser* parser) {
                                     strcmp(expr->as.variable.name, "python") == 0 ||
                                     strcmp(expr->as.variable.name, "cpp") == 0 ||
                                     strcmp(expr->as.variable.name, "java") == 0 ||
-                                    strcmp(expr->as.variable.name, "go") == 0 ||
                                     strcmp(expr->as.variable.name, "golang") == 0 ||
                                     strcmp(expr->as.variable.name, "rust") == 0
                                  )))) {

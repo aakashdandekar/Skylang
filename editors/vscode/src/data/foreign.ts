@@ -6,7 +6,7 @@ export interface ForeignMethodDoc extends BuiltinDoc {
 
 export interface ForeignModuleDoc {
     name: string;
-    bridge: 'js' | 'python' | 'java' | 'go' | 'rust' | 'cpp';
+    bridge: 'js' | 'python' | 'java' | 'golang' | 'rust' | 'cpp';
     description: string;
     methods: Record<string, ForeignMethodDoc>;
     properties?: Record<string, BuiltinDoc>;
@@ -524,7 +524,7 @@ export const FOREIGN_MODULES: Record<string, ForeignModuleDoc> = {
     // ==========================================
     'fmt': {
         name: 'fmt (Go I/O Formatting Package)',
-        bridge: 'go',
+        bridge: 'golang',
         description: 'Go package implementing formatted I/O with functions analogous to C printf and scanf.',
         methods: {
             'Println': { name: 'Println', signature: 'fmt.Println(a ...interface{})', snippet: 'Println(${1:a})', description: 'Formats using default formats and writes to standard output with newline.', returns: 'int, error' },

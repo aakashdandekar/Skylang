@@ -229,7 +229,7 @@ class SkylangCompletionItemProvider {
             }
             return items;
         }
-        const goLoadMatch = linePrefix.match(/(?:go|golang)\.load\s*\(\s*["']([^"']*)$/);
+        const goLoadMatch = linePrefix.match(/golang\.load\s*\(\s*["']([^"']*)$/);
         if (goLoadMatch) {
             for (const pkg of stdlib_1.COMMON_GO_PACKAGES) {
                 const item = new vscode.CompletionItem(pkg, vscode.CompletionItemKind.Module);
@@ -530,8 +530,8 @@ class SkylangCompletionItemProvider {
             item.sortText = `1_${fnName}`;
             items.push(item);
         }
-        // 11. Standard Library & Interop Modules (math, io, fmt, python, js, cpp, java, go, rust)
-        const interopModuleSet = new Set(['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust']);
+        // 11. Standard Library & Interop Modules (math, io, fmt, python, js, cpp, java, golang, rust)
+        const interopModuleSet = new Set(['python', 'js', 'cpp', 'java', 'golang', 'rust']);
         for (const [modName, modDoc] of Object.entries(stdlib_1.STDLIB_MODULES)) {
             const item = new vscode.CompletionItem(modName, vscode.CompletionItemKind.Module);
             item.detail = modDoc.name;
@@ -1067,7 +1067,7 @@ class SkylangCompletionItemProvider {
     async findAvailableModules(document, token) {
         const result = [];
         const seen = new Set();
-        const bridges = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'];
+        const bridges = ['python', 'js', 'cpp', 'java', 'golang', 'rust'];
         for (const b of bridges) {
             seen.add(b);
             result.push({ name: b, isFile: false, detail: `Language bridge: ${b}` });
@@ -1147,8 +1147,8 @@ class SkylangCompletionItemProvider {
         if (javaLoad) {
             return `foreign_java:${(0, foreign_1.normalizeModuleName)(javaLoad[1])}`;
         }
-        // Go Load: go.load("fmt") or golang.load("fmt")
-        const goLoad = trimmed.match(/(?:^|\s)(?:go|golang)\.load\s*\(\s*["']([^"']+)["']/i);
+        // Go Load: golang.load("fmt")
+        const goLoad = trimmed.match(/(?:^|\s)golang\.load\s*\(\s*["']([^"']+)["']/i);
         if (goLoad) {
             return `foreign_go:${(0, foreign_1.normalizeModuleName)(goLoad[1])}`;
         }
@@ -1200,7 +1200,7 @@ class SkylangCompletionItemProvider {
     getEmbeddedCodeContext(document, position) {
         const fullText = document.getText();
         const cursorOffset = document.offsetAt(position);
-        const bridgeRegex = /\b(python|js|cpp|go|rust|java)\s*\.\s*(exec|compile)\s*\(\s*(["'`{])/g;
+        const bridgeRegex = /\b(python|js|cpp|golang|rust|java)\s*\.\s*(exec|compile)\s*\(\s*(["'`{])/g;
         let match;
         while ((match = bridgeRegex.exec(fullText)) !== null) {
             const bridge = match[1];

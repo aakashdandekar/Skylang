@@ -891,7 +891,7 @@ char* val_to_string(Value v) {
                         case FOREIGN_JS: lang_str = "js"; break;
                         case FOREIGN_CPP: lang_str = "cpp"; break;
                         case FOREIGN_JAVA: lang_str = "java"; break;
-                        case FOREIGN_GO: lang_str = "go"; break;
+                        case FOREIGN_GO: lang_str = "golang"; break;
                         case FOREIGN_RUST: lang_str = "rust"; break;
                     }
                     snprintf(buffer, sizeof(buffer), "<%s object %s>", lang_str, f->name ? f->name : "");

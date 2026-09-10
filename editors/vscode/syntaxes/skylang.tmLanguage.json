@@ -169,7 +169,7 @@
                 },
                 {
                     "name": "meta.embedded.block.go.sky",
-                    "begin": "(?<=\\b(?:go|golang)\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "begin": "(?<=\\bgolang\\.(?:exec|compile)\\s*\\(\\s*)\\{",
                     "end": "\\}(?=\\s*\\))",
                     "patterns": [
                         { "include": "source.go" }
@@ -177,7 +177,7 @@
                 },
                 {
                     "name": "meta.embedded.block.go.sky",
-                    "begin": "(?<=\\b(?:go|golang)\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "begin": "(?<=\\bgolang\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
                     "end": "\\1",
                     "patterns": [
                         { "include": "source.go" }
@@ -373,7 +373,7 @@
             "patterns": [
                 {
                     "name": "support.class.module.sky",
-                    "match": "\\b(math|python|js|cpp|java|go|golang|rust|async)\\b"
+                    "match": "\\b(math|python|js|cpp|java|golang|rust|async)\\b"
                 }
             ]
         },
@@ -388,7 +388,7 @@
                     "name": "support.function.async.sky"
                 },
                 {
-                    "match": "(?<=\\b(python|js|cpp|java|go|golang|rust)\\.)(load|exec|compile|version)\\b",
+                    "match": "(?<=\\b(python|js|cpp|java|golang|rust)\\.)(load|exec|compile|version)\\b",
                     "name": "support.function.interop.sky"
                 }
             ]

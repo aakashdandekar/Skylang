@@ -496,7 +496,7 @@ exports.FOREIGN_MODULES = {
     // ==========================================
     'fmt': {
         name: 'fmt (Go I/O Formatting Package)',
-        bridge: 'go',
+        bridge: 'golang',
         description: 'Go package implementing formatted I/O with functions analogous to C printf and scanf.',
         methods: {
             'Println': { name: 'Println', signature: 'fmt.Println(a ...interface{})', snippet: 'Println(${1:a})', description: 'Formats using default formats and writes to standard output with newline.', returns: 'int, error' },

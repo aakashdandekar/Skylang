@@ -319,7 +319,6 @@ static void vm_register_builtins(VM* vm) {
     vm_set_global(vm, "js",     sky_js_init());
     vm_set_global(vm, "cpp",    sky_cpp_init());
     vm_set_global(vm, "java",   sky_java_init());
-    vm_set_global(vm, "go",     sky_go_init());
     vm_set_global(vm, "golang", sky_go_init());
     vm_set_global(vm, "rust",   sky_rust_init());
 }

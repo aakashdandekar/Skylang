@@ -140,7 +140,6 @@ static bool is_foreign_module(const char* name) {
             strcmp(name, "js") == 0 ||
             strcmp(name, "cpp") == 0 ||
             strcmp(name, "java") == 0 ||
-            strcmp(name, "go") == 0 ||
             strcmp(name, "golang") == 0 ||
             strcmp(name, "rust") == 0);
 }
@@ -356,7 +355,7 @@ static void add_global_id(const char* name, const char** vars, size_t* count, si
     if (!name || strcmp(name, "_") == 0 || strcmp(name, "this") == 0) return;
     if (strcmp(name, "js") == 0 || strcmp(name, "python") == 0 ||
         strcmp(name, "cpp") == 0 || strcmp(name, "java") == 0 ||
-        strcmp(name, "go") == 0 || strcmp(name, "golang") == 0 ||
+        strcmp(name, "golang") == 0 ||
         strcmp(name, "rust") == 0 || strcmp(name, "async") == 0) return;
     for (size_t i = 0; i < *count; ++i) {
         if (strcmp(vars[i], name) == 0) return;
@@ -1173,7 +1172,7 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
                     buf_printf(b, "sky_var_%s = sky_cpp_init();\n", alias);
                 } else if (strcmp(mpath, "java") == 0) {
                     buf_printf(b, "sky_var_%s = sky_java_init();\n", alias);
-                } else if (strcmp(mpath, "go") == 0 || strcmp(mpath, "golang") == 0) {
+                } else if (strcmp(mpath, "golang") == 0) {
                     buf_printf(b, "sky_var_%s = sky_go_init();\n", alias);
                 } else if (strcmp(mpath, "rust") == 0) {
                     buf_printf(b, "sky_var_%s = sky_rust_init();\n", alias);
@@ -1214,7 +1213,7 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
                     buf_printf(b, "sky_var_%s = dict_get(_mdict_%d, val_string(\"%s\"));\n",
                                item->alias ? item->alias : item->symbol, t, item->symbol);
                 }
-            } else if (strcmp(mpath, "go") == 0 || strcmp(mpath, "golang") == 0) {
+            } else if (strcmp(mpath, "golang") == 0) {
                 int t = temp_var_counter++;
                 buf_printf(b, "Value _mmod_%d = sky_go_init();\n", t);
                 emit_indent(b, indent);
@@ -1545,7 +1544,6 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "static Value sky_var_js;\n");
     buf_puts(&b, "static Value sky_var_cpp;\n");
     buf_puts(&b, "static Value sky_var_java;\n");
-    buf_puts(&b, "static Value sky_var_go;\n");
     buf_puts(&b, "static Value sky_var_golang;\n");
     buf_puts(&b, "static Value sky_var_rust;\n");
     buf_puts(&b, "static Value sky_var_async;\n");
@@ -1838,7 +1836,6 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "    sky_var_js = sky_js_init();\n");
     buf_puts(&b, "    sky_var_cpp = sky_cpp_init();\n");
     buf_puts(&b, "    sky_var_java = sky_java_init();\n");
-    buf_puts(&b, "    sky_var_go = sky_go_init();\n");
     buf_puts(&b, "    sky_var_golang = sky_go_init();\n");
     buf_puts(&b, "    sky_var_rust = sky_rust_init();\n");
     buf_puts(&b, "    sky_var_async = sky_mod_async;\n\n");

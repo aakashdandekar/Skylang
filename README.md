@@ -55,7 +55,7 @@
    - [JavaScript / NPM Bridge (`js`)](#javascript--npm-bridge)
    - [C++ JIT Bridge (`cpp`)](#c-jit-bridge)
    - [Java Bridge (`java`)](#java-bridge)
-   - [Golang Bridge (`go`, `golang`)](#golang-bridge)
+   - [Golang Bridge (`golang`)](#golang-bridge)
    - [Rust Bridge (`rust`)](#rust-bridge)
 9. [Error Handling & Runtime Exceptions](#9-error-handling--runtime-exceptions)
 10. [CLI Toolchain Commands & Multi-Platform Installation](#10-cli-toolchain-commands--multi-platform-installation)
@@ -73,11 +73,11 @@ Skylang reserves the following keywords:
 ```
 async       await       break       cimport     class       continue    
 DICT        elif        else        extern      f           false       
-for         from        go          golang      if          import      
-in          init        js          L           new         none        
-panic       python      return      rust        SET         SL          
-spawn       T           takes       this        true        while       
-I           D           B           C           S
+for         from        golang      if          import      in          
+init        js          L           new         none        panic       
+python      return      rust        SET         SL          spawn       
+T           takes       this        true        while       I           
+D           B           C           S
 ```
 
 ### Variable Declarations & Assignment
@@ -634,10 +634,10 @@ Skylang allows you to embed raw foreign code blocks directly inside `js.exec({ .
 - `java.load(class_name: string)`: Loads Java class via reflection.
 - `java.exec(method_call: string)`: Dispatches static/instance JVM method.
 
-### Golang Bridge (`go`, `golang`)
-- `go.load(package_name: string)`: Loads Go runtime package.
-- `go.compile(go_source: string | block)`: JIT compiles Go code into `c-shared` binary bridge.
-- `go.exec(function_call: string)`: Dispatches Go exported function.
+### Golang Bridge (`golang`)
+- `golang.load(package_name: string)`: Loads Go runtime package.
+- `golang.compile(go_source: string | block)`: JIT compiles Go code into `c-shared` binary bridge.
+- `golang.exec(function_call: string)`: Dispatches Go exported function.
 
 ### Rust Bridge (`rust`)
 - `rust.load(crate_name: string)`: Loads Rust crate library.

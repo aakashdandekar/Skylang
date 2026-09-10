@@ -283,7 +283,7 @@ class SkylangHoverProvider {
                 content.appendMarkdown(`\n\n**Constants:** ${cList}`);
             }
             // Check if interop module needs import
-            if (['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'].includes(word)) {
+            if (['python', 'js', 'cpp', 'java', 'golang', 'rust'].includes(word)) {
                 const text = document.getText();
                 const importRegex = new RegExp(`^\\s*import\\s+[^;\\n]*\\b${word}\\b`, 'm');
                 if (!importRegex.test(text)) {

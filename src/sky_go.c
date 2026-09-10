@@ -7,7 +7,6 @@
 #include <string.h>
 #include <gc.h>
 
-Value sky_mod_go;
 Value sky_mod_golang;
 
 static int go_file_counter = 0;
@@ -449,7 +448,6 @@ Value sky_go_init(void) {
     dict_set(d, val_string("compile"), val_function("compile", go_native_compile,  1));
     dict_set(d, val_string("exec"),    val_function("exec",    go_native_exec,     1));
 
-    sky_mod_go = mod;
     sky_mod_golang = mod;
     return mod;
 }

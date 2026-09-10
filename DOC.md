@@ -704,7 +704,7 @@ Skylang features high-speed native bridges to the world's most popular programmi
 | **JavaScript / Node.js** | `import js` | `js.load(pkg_or_global)`, `js.exec({...})`, `js.exec(code)` | `js.exec({ let a = 10 })` |
 | **C++ (JIT)** | `import cpp` | `cpp.compile({...})`, `cpp.compile(code)`, `cpp.load(so)` | `cpp.compile({ ... })` |
 | **Java (JVM)** | `import java` | `java.load(cls)`, `java.exec(code)` | `jmath := java.load("java.lang.Math"); jmath.max(10, 20)` |
-| **Golang** | `import go, golang` | `go.load(pkg)`, `go.compile(code)`, `go.exec(code)` | `gomath := go.load("math"); gomath.Sqrt(64.0)` |
+| **Golang** | `import golang` | `golang.load(pkg)`, `golang.compile(code)`, `golang.exec(code)` | `gomath := golang.load("math"); gomath.Sqrt(64.0)` |
 | **Rust** | `import rust` | `rust.load(mod)`, `rust.compile(code)`, `rust.exec(code)` | `rc := rust.compile("#[no_mangle] pub extern \"C\" fn cube(x: f64) -> f64 { x*x*x }")` |
 
 ### Foreign Code Blocks (`{ ... }`) & Automatic Variable Registration

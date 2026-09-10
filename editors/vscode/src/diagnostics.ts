@@ -373,7 +373,7 @@ export class SkylangDiagnosticsProvider {
             }
 
             // 5. Unknown method on standard library & interop modules
-            const moduleCallMatch = line.match(/\b(math|python|js|cpp|java|go|golang|rust)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
+            const moduleCallMatch = line.match(/\b(math|python|js|cpp|java|golang|rust)\.([a-zA-Z_][a-zA-Z0-9_]*)/g);
             if (moduleCallMatch) {
                 for (const match of moduleCallMatch) {
                     const [mod, member] = match.split('.');
@@ -403,8 +403,8 @@ export class SkylangDiagnosticsProvider {
                 }
             }
 
-            // 5. Unimported module check for interop modules (python, js, cpp, java, go, golang, rust)
-            const interopMods = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'];
+            // 5. Unimported module check for interop modules (python, js, cpp, java, golang, rust)
+            const interopMods = ['python', 'js', 'cpp', 'java', 'golang', 'rust'];
             for (const mod of interopMods) {
                 const modUsageRegex = new RegExp(`\\b${mod}\\.([a-zA-Z_][a-zA-Z0-9_]*)`, 'g');
                 let m: RegExpExecArray | null;

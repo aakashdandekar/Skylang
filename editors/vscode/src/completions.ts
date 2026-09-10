@@ -243,7 +243,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             return items;
         }
 
-        const goLoadMatch = linePrefix.match(/(?:go|golang)\.load\s*\(\s*["']([^"']*)$/);
+        const goLoadMatch = linePrefix.match(/golang\.load\s*\(\s*["']([^"']*)$/);
         if (goLoadMatch) {
             for (const pkg of COMMON_GO_PACKAGES) {
                 const item = new vscode.CompletionItem(pkg, vscode.CompletionItemKind.Module);
@@ -619,8 +619,8 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             items.push(item);
         }
 
-        // 11. Standard Library & Interop Modules (math, io, fmt, python, js, cpp, java, go, rust)
-        const interopModuleSet = new Set(['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust']);
+        // 11. Standard Library & Interop Modules (math, io, fmt, python, js, cpp, java, golang, rust)
+        const interopModuleSet = new Set(['python', 'js', 'cpp', 'java', 'golang', 'rust']);
         for (const [modName, modDoc] of Object.entries(STDLIB_MODULES)) {
             const item = new vscode.CompletionItem(modName, vscode.CompletionItemKind.Module);
             item.detail = modDoc.name;
@@ -1215,7 +1215,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
         const result: { name: string; isFile: boolean; detail: string }[] = [];
         const seen = new Set<string>();
 
-        const bridges = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'];
+        const bridges = ['python', 'js', 'cpp', 'java', 'golang', 'rust'];
         for (const b of bridges) {
             seen.add(b);
             result.push({ name: b, isFile: false, detail: `Language bridge: ${b}` });
@@ -1293,8 +1293,8 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             return `foreign_java:${normalizeModuleName(javaLoad[1])}`;
         }
 
-        // Go Load: go.load("fmt") or golang.load("fmt")
-        const goLoad = trimmed.match(/(?:^|\s)(?:go|golang)\.load\s*\(\s*["']([^"']+)["']/i);
+        // Go Load: golang.load("fmt")
+        const goLoad = trimmed.match(/(?:^|\s)golang\.load\s*\(\s*["']([^"']+)["']/i);
         if (goLoad) {
             return `foreign_go:${normalizeModuleName(goLoad[1])}`;
         }
@@ -1356,7 +1356,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
         const fullText = document.getText();
         const cursorOffset = document.offsetAt(position);
 
-        const bridgeRegex = /\b(python|js|cpp|go|rust|java)\s*\.\s*(exec|compile)\s*\(\s*(["'`{])/g;
+        const bridgeRegex = /\b(python|js|cpp|golang|rust|java)\s*\.\s*(exec|compile)\s*\(\s*(["'`{])/g;
         let match: RegExpExecArray | null;
 
         while ((match = bridgeRegex.exec(fullText)) !== null) {

@@ -68,22 +68,13 @@ exports.STDLIB_MODULES = {
             'exec': { name: 'java.exec', signature: 'java.exec(code_str)', description: 'Executes Java statements and definitions in the JVM environment.', params: [{ name: 'code_str', doc: 'Java code block' }], returns: 'none' }
         }
     },
-    'go': {
-        name: 'go (Golang JIT Compilation & Native Bridge)',
+    'golang': {
+        name: 'golang (Golang JIT Compilation & Native Bridge)',
         description: 'On-the-fly Go compilation via `go build -buildmode=c-shared` and dynamic linking (`dlopen`) with support for exported Go functions.',
         functions: {
-            'compile': { name: 'go.compile', signature: 'go.compile(go_source_code)', description: 'JIT-compiles Go source code with `//export` bindings on-the-fly and loads the resulting shared library into a callable module.', params: [{ name: 'go_source_code', doc: 'Go source code string' }], returns: 'foreign_obj', example: 'import go\ngo_mod := go.compile("\n//export Add\nfunc Add(a, b float64) float64 {\n    return a + b\n}\n")\nprintln(go_mod.Add(10.5, 20.5))' },
-            'load': { name: 'go.load', signature: 'go.load(so_path_or_pkg)', description: 'Loads a pre-compiled Go shared library (.so) or Go standard package into Skylang.', params: [{ name: 'so_path_or_pkg', doc: 'Path to .so library or Go package name' }], returns: 'foreign_obj', example: 'import go\nlib := go.load("./libcalc.so")' },
-            'exec': { name: 'go.exec', signature: 'go.exec(go_source_code)', description: 'Executes Go source code in the Go runtime environment.', params: [{ name: 'go_source_code', doc: 'Go code block' }], returns: 'none', example: 'import go\ngo.exec("println(\\"Hello from Go\\")")' }
-        }
-    },
-    'golang': {
-        name: 'golang (Alias for Go Bridge)',
-        description: 'Alias for the `go` interoperability module.',
-        functions: {
-            'compile': { name: 'golang.compile', signature: 'golang.compile(go_source_code)', description: 'JIT-compiles Go source code.', params: [{ name: 'go_source_code', doc: 'Go source code string' }], returns: 'foreign_obj' },
-            'load': { name: 'golang.load', signature: 'golang.load(so_path_or_pkg)', description: 'Loads a Go package or shared library.', params: [{ name: 'so_path_or_pkg', doc: 'Path or package name' }], returns: 'foreign_obj' },
-            'exec': { name: 'golang.exec', signature: 'golang.exec(go_source_code)', description: 'Executes Go source code.', params: [{ name: 'go_source_code', doc: 'Go code block' }], returns: 'none' }
+            'compile': { name: 'golang.compile', signature: 'golang.compile(go_source_code)', description: 'JIT-compiles Go source code with `//export` bindings on-the-fly and loads the resulting shared library into a callable module.', params: [{ name: 'go_source_code', doc: 'Go source code string' }], returns: 'foreign_obj', example: 'import golang\ngo_mod := golang.compile("\n//export Add\nfunc Add(a, b float64) float64 {\n    return a + b\n}\n")\nprintln(go_mod.Add(10.5, 20.5))' },
+            'load': { name: 'golang.load', signature: 'golang.load(so_path_or_pkg)', description: 'Loads a pre-compiled Go shared library (.so) or Go standard package into Skylang.', params: [{ name: 'so_path_or_pkg', doc: 'Path to .so library or Go package name' }], returns: 'foreign_obj', example: 'import golang\nlib := golang.load("./libcalc.so")' },
+            'exec': { name: 'golang.exec', signature: 'golang.exec(go_source_code)', description: 'Executes Go source code in the Go runtime environment.', params: [{ name: 'go_source_code', doc: 'Go code block' }], returns: 'none', example: 'import golang\ngolang.exec("println(\\"Hello from Go\\")")' }
         }
     },
     'rust': {

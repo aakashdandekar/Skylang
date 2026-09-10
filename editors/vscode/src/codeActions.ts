@@ -15,7 +15,7 @@ export class SkylangCodeActionProvider implements vscode.CodeActionProvider {
         const text = document.getText();
         const line = document.lineAt(range.start.line).text;
 
-        const checkModules = ['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'];
+        const checkModules = ['python', 'js', 'cpp', 'java', 'golang', 'rust'];
 
         // 1. Diagnostics-driven QuickFix
         for (const diagnostic of context.diagnostics) {
