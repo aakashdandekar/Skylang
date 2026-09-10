@@ -1,0 +1,37 @@
+// tests/test_foreign_blocks.sky - Test Foreign Exec Braced Blocks & Variable Registration
+
+println("Testing JS and Python exec block syntax...")
+
+// 1. JavaScript block with let, var, const, console.log
+js.exec({
+  console.log("-> [Node.js] Starting JS sub-task");
+  let js_num = 42;
+  const js_msg = "hello from javascript";
+  var js_multiplier = 3;
+})
+
+if js_num != 42 { panic("Test failed: js_num variable extraction") }
+if js_msg != "hello from javascript" { panic("Test failed: js_msg variable extraction") }
+if js_multiplier != 3 { panic("Test failed: js_multiplier variable extraction") }
+
+js_calc := js_num * js_multiplier
+println("js_calc is:", js_calc)
+if js_calc != 126 { panic("Test failed: arithmetic with JS extracted variables") }
+
+// 2. Python block with variable declarations & print
+python.exec({
+  print("-> [Python] Running Python calculations")
+  py_base = 100
+  py_name = "Python 3 Engine"
+  py_list = [1, 2, 3, 4, 5]
+})
+
+if py_base != 100 { panic("Test failed: py_base variable extraction") }
+if py_name != "Python 3 Engine" { panic("Test failed: py_name variable extraction") }
+if py_list.size != 5 { panic("Test failed: py_list variable extraction") }
+
+combined := js_num + py_base
+println("combined JS + Python is:", combined)
+if combined != 142 { panic("Test failed: combining JS and Python variables") }
+
+println("All Foreign Exec block tests passed successfully! [100% OK]")

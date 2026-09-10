@@ -60,11 +60,11 @@ Full TextMate grammar support for `.sky` and `.skylang` files:
 - **Operators**: Walrus `:=`, compound assignments (`+=`, `-=`, `*=`, `/=`), arithmetic (`+`, `-`, `*`, `/`, `//`, `^`, `%`), relational (`==`, `!=`, `<`, `<=`, `>`, `>=`), and logical (`and`, `or`, `!`, `&&`, `||`)
 - **Built-in Functions**: `print`, `println`, `open`, `input`, `hex`, `bin`, `oct`, `format`, `range`, `len`, `type`, `takes`, `error`, `panic`, `gc`, `free`, `eval`
 - **Properties**: `.T` (type descriptor) and `.size` (O(1) container size)
-- **Built-in Modules & Interop**: `math`, `str`, `python`, `js`, `cpp`, `java`, `go`, `golang`, `rust`
+- **Built-in Modules & Interop**: `math`, `str`, `python`, `js`, `cpp`, `java`, `golang`, `rust`
 
 ```skylang
 // Example: Multi-Language Interop & Python-Style I/O in Skylang
-import python, js, go
+import python, js, golang
 
 // File I/O (Python syntax)
 f := open("sample.txt", "w")
@@ -75,8 +75,8 @@ f.close()
 msg := "Language: {}, Base: {}".format("Skylang", "C11")
 println(msg)
 
-// Loading Go's fmt library via go.load()
-fmt := go.load("fmt")
+// Loading Go's fmt library via golang.load()
+fmt := golang.load("fmt")
 fmt.Println("Loaded via Go bridge!")
 ```
 
@@ -92,7 +92,7 @@ IntelliSense adapts dynamically to the current editing context:
   - `js.` → `load`, `exec`, `eval`
   - `cpp.` → `compile`, `load`, `eval`
   - `java.` → `load`, `exec`, `eval`
-  - `go.` → `load`, `compile`, `exec`
+  - `golang.` → `load`, `compile`, `exec`
   - `rust.` → `load`, `compile`, `exec`
 - **File Object Autocompletion (`open()`)**:
   - `f.` (where `f := open(...)`) → `.read()`, `.write()`, `.readline()`, `.readlines()`, `.close()`, `.size`, `.T`
@@ -105,13 +105,13 @@ IntelliSense adapts dynamically to the current editing context:
   - `my_obj.` (where `my_obj := ClassName(...)`) → `.method()`, `.field`, `.T`
 - **Class Context (`this.`)**: Suggests instance fields and methods declared in the active class.
 - **Strict `import` Autocomplete**:
-  - `import ` → `python`, `js`, `cpp`, `java`, `go`, `golang`, `rust` *(Skylang strictly disallows dot-notation imports and flags standard libraries; Go's `fmt` is loaded via `go.load("fmt")`)*.
+  - `import ` → `python`, `js`, `cpp`, `java`, `golang`, `rust` *(Skylang strictly disallows dot-notation imports and flags standard libraries; Go's `fmt` is loaded via `golang.load("fmt")`)*.
 - **C FFI Autocomplete**:
   - `cimport "` → `"math.h"`, `"stdio.h"`, `"stdlib.h"`, `"string.h"`, `"time.h"`, `"unistd.h"`
   - `extern f ` → `cos(x)`, `sin(x)`, `tan(x)`, `sqrt(x)`, `atan2(y, x)`, `pow(base, exp)`, `strlen(str)`, `strcmp(s1, s2)`
 - **Foreign Package Suggestions**:
   - `python.load("` → `numpy`, `pandas`, `scipy`, `math`, `sys`, `os`, `json`, `random`, `requests`
-  - `go.load("` → `fmt`, `math`, `strings`, `time`, `net/http`, `os`
+  - `golang.load("` → `fmt`, `math`, `strings`, `time`, `net/http`, `os`
   - `java.load("` → `java.lang.Math`, `java.lang.String`, `java.util.ArrayList`, `java.util.HashMap`
 - **Named Arguments**: Suggests `param=` inside function, method, and constructor calls matching the target's `takes(...)` signature.
 - **Dynamic Symbol Indexing**: Autocompletes user-defined functions, classes, methods, and variables declared in your file and workspace.
@@ -128,7 +128,7 @@ Hover over any language symbol to see its full signature, documentation, paramet
 | **Types** (`I`, `D`, `B`, `C`, `S`, `L`, `T`, `DICT`, `SET`, `SL`) | Bit-width, default values, memory properties, and sample declarations |
 | **Built-in Functions** (`open`, `input`, `hex`, `bin`, `oct`, `format`, `print`, `println`, `range`, `takes`, `error`, etc.) | Signature, parameter descriptions, return value, and Python-style usage examples |
 | **Stdlib Methods** (`math.sqrt`, `str.split`, `str.format`, etc.) | Full parameter list, return type, and usage example |
-| **Interop Modules** (`python.load`, `js.load`, `cpp.compile`, `java.load`, `go.load`, `rust.load`) | Multi-language bridge documentation and examples |
+| **Interop Modules** (`python.load`, `js.load`, `cpp.compile`, `java.load`, `golang.load`, `rust.load`) | Multi-language bridge documentation and examples |
 | **C FFI & Headers** (`cimport "math.h"`, `extern f cos(x)`) | C header documentation and native function signatures |
 | **User Symbols** | Function signatures with parameters, class declarations, fields, and typed variables |
 
@@ -208,9 +208,9 @@ Over **75 productivity snippets** designed for rapid coding. Simply type the pre
 | `cppload` | `lib := cpp.load("./libnative.so")` | Load native shared library |
 | `javaload` | `cls := java.load("java.lang.Math")` | Load Java class via JVM reflection |
 | `javaexec` | `java.exec("...")` | Execute Java statements |
-| `goload` | `mod := go.load("fmt")` / `go.load("./lib.so")` | Load Go package or shared library |
-| `gocompile` | `mod := go.compile("...")` | JIT-compile Go code |
-| `goexec` | `go.exec("...")` | Execute Go code |
+| `goload` | `mod := golang.load("fmt")` / `golang.load("./lib.so")` | Load Go package or shared library |
+| `gocompile` | `mod := golang.compile("...")` | JIT-compile Go code |
+| `goexec` | `golang.exec("...")` | Execute Go code |
 | `rustload` | `mod := rust.load("./librust.so")` | Load Rust cdylib |
 | `rustcompile` | `mod := rust.compile("...")` | JIT-compile Rust code |
 | `rustexec` | `rust.exec("...")` | Execute Rust code |
@@ -239,10 +239,10 @@ Automatic document formatting via `Shift+Alt+F` (Windows/Linux) or `Shift+Option
 
 Provides instant feedback as you write code:
 - **Strict `import` Syntax Validation (`skylang-invalid-import-syntax`)**:
-  - Skylang `import` statements only accept comma-separated module names (e.g. `import python, js, cpp, java, go, rust`).
+  - Skylang `import` statements only accept comma-separated module names (e.g. `import python, js, cpp, java, golang, rust`).
   - Dot notation like `import java.cpp` is flagged with an automated QuickFix code action to convert it to `import java, cpp`.
 - **Foreign Bridge Enforcement (`skylang-invalid-import-module`)**:
-  - `import fmt` is flagged: Go's `fmt` library must be loaded via `go.load("fmt")`. An automatic QuickFix is provided to generate `import go\nfmt := go.load("fmt")`.
+  - `import fmt` is flagged: Go's `fmt` library must be loaded via `golang.load("fmt")`. An automatic QuickFix is provided to generate `import golang\nfmt := golang.load("fmt")`.
   - `import io` is flagged: Skylang uses Python-style built-in `open()`, `input()`, `f.read()`, etc.
 - **Python-Style I/O & Formatting Enforcement (`skylang-invalid-module-usage`)**:
   - Detects deprecated module calls like `io.readfile()` or `fmt.format()` and provides clear migration reminders to `open()`, `input()`, `"{}.format()"`, `hex()`, `bin()`, `oct()`.
@@ -336,12 +336,12 @@ if err != none {
 }
 
 // 8. Multi-Language Interop
-import python, js, go
+import python, js, golang
 
 math_py := python.load("math")
 println("Python sqrt(256):", math_py.sqrt(256))
 
-fmt := go.load("fmt")
+fmt := golang.load("fmt")
 fmt.Println("Hello from Go runtime!")
 ```
 

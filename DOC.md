@@ -17,7 +17,8 @@ This guide is designed for students learning Skylang from scratch. By the end of
 8. [Object-Oriented Programming (Classes)](#8-object-oriented-programming-classes)
 9. [Modules & File Importing](#9-modules--file-importing)
 10. [Error Handling & Memory Management](#10-error-handling--memory-management)
-11. [Student Practice Exercises](#11-student-practice-exercises)
+11. [Asynchronous Programming & Concurrency (async, await, spawn)](#11-asynchronous-programming--concurrency-async-await-spawn)
+12. [Multi-Language Interoperability & IntelliSense](#12-multi-language-interoperability--intellisense)
 
 
 ---
@@ -34,21 +35,41 @@ Skylang combines the best attributes of modern languages:
 
 ## 2. Installation & Toolchain
 
-### Building the Compiler
-To build the Skylang compiler from source, run:
+### Multi-Platform Installation
+
+#### 🐧 Linux & 🍎 macOS (or WSL / MSYS2 / Git Bash)
+Run the automated installer script:
+```bash
+./install.sh
+```
+Or build manually from source:
 ```bash
 make clean && make
 ```
-This produces two executable binaries in the `bin/` directory:
-- `bin/skylang`: The full compiler executable.
-- `bin/sky`: A convenient short alias.
+This automatically detects system dependencies (Boehm-GC, Python 3, GCC) and installs `sky` and `skylang` to `/usr/local/bin` (or `~/.local/bin`).
+
+#### 🪟 Windows (Native Executable Installer)
+1. Ensure **GCC** (via MinGW-w64, MSYS2, or WinLibs) and **Python 3** are installed and added to your `PATH`.
+2. Run the native Windows installer:
+   ```cmd
+   skylang-installer.exe
+   ```
+   Or silent unattended installation:
+   ```cmd
+   skylang-installer.exe --silent
+   ```
+This automatically compiles and installs `skylang.exe` and `sky.exe`, creates `sky.cmd` wrappers in `%LOCALAPPDATA%\Skylang\bin`, registers `.sky` and `.skylang` file associations in Windows Registry, updates the User `PATH`, and registers in Windows *Add or Remove Programs*.
+
+### Uninstallation
+- **Windows**: Run `uninstall.exe` from your Skylang installation folder or uninstall via Windows *Add or Remove Programs*.
+- **Linux / macOS**: `./delete.sh`
 
 ### CLI Commands
 | Command | Description | Example |
 |---|---|---|
-| `sky run <file.sky>` | Compiles and executes a program immediately | `./bin/sky run examples/01_basics.sky` |
-| `sky build <file.sky> [-o <bin>]` | Compiles to a standalone native binary (defaults to `./<basename>`) | `./bin/sky build main.sky -o my_app` |
-| `sky <file.sky>` | Shorthand for `sky run <file.sky>` | `./bin/sky main.sky` |
+| `sky run <file.sky>` | Compiles and executes a program immediately | `sky run examples/01_basics.sky` |
+| `sky build <file.sky> [-o <bin>]` | Compiles to a standalone native binary (defaults to `./<basename>` or `.exe`) | `sky build main.sky -o my_app` |
+| `sky <file.sky>` | Shorthand for `sky run <file.sky>` | `sky main.sky` |
 
 ---
 
@@ -572,96 +593,155 @@ Skylang provides core built-in functions available everywhere without imports:
 | `chars(str)` | `chars(str)` | Returns list of characters as strings |
 | `bytes(str)` | `bytes(str)` | Returns list of integer ASCII byte values |
 
-### Multi-Language Interoperability
-Skylang connects directly to other languages:
-- **Python (`import python`)**: `python.load("math")`, `python.exec("...")`
-- **JavaScript & NPM (`import js`)**: `js.load("Math")` (globals) & `js.load("lodash")` (NPM packages), `js.exec("...")`
-- **C++ (`import cpp`)**: `cpp.compile("...")`, `cpp.load("./lib.so")`
-- **Java (`import java`)**: `java.load("java.lang.Math")`, `java.exec("...")`
-- **Golang (`import go`)**: `go.load("math")`, `go.compile("...")`, `go.exec("...")`
-- **Rust (`import rust`)**: `rust.load("std::f64::consts")`, `rust.compile("...")`, `rust.exec("...")`
+---
+
+## 11. Asynchronous Programming & Concurrency (async, await, spawn)
+
+Skylang provides first-class asynchronous programming and multi-threaded background task execution.
+
+### Async Functions (`async f`) & `await`
+Declare an asynchronous function using the `async f` keyword. Calling an async function with `await` executes it and returns its response value directly once completed:
 
 ```skylang
-import python, js, go, rust
+import async
 
-// Dynamic Skylang Expression Evaluation
-ans := eval("10 * 20 + 56")
-println("eval result:", ans) // 256
+async f fetch_user_data {
+    takes(user_id)
+    await async.sleep(0.05) // non-blocking 50ms pause
+    return {"id": user_id, "name": "Alice", "status": "active"}
+}
 
-// Calling Foreign Bridges
-py_math := python.load("math")
-println("Python sqrt:", py_math.sqrt(256))
+// Directly await the async function call:
+user := await fetch_user_data(42)
+println("User:", user["name"])
+```
 
-js_math := js.load("Math")
-println("JS max:", js_math.max(10, 50, 99))
+You can also start an async task first, do other computations while it runs in the background, and `await` the response when needed:
 
-go_math := go.load("math")
-println("Go Sqrt:", go_math.Sqrt(144.0))
+```skylang
+task := fetch_user_data(101)
 
-rust_math := rust.load("std::f64::consts")
-println("Rust PI:", rust_math.PI)
+// Do other work while the task runs in the background...
+println("Performing other calculations...")
+
+// Retrieve the response:
+user := await task
+println("User payload:", user["name"])
+```
+
+### Spawning Background Tasks with `spawn`
+The `spawn` keyword converts **any regular synchronous function** into a background worker task that runs concurrently on an independent thread:
+
+```skylang
+f heavy_computation {
+    takes(n)
+    sum := 0
+    i := 0
+    for i < n {
+        sum += i
+        i += 1
+    }
+    return sum
+}
+
+// 1. Spawning and awaiting directly in one line:
+total := await spawn heavy_computation(500000)
+println("Total sum:", total)
+
+// 2. Or spawning in background to do other work concurrently:
+task := spawn heavy_computation(1000000)
+
+println("Background worker is computing...")
+
+// Retrieve the result when needed:
+result := await task
+println("Calculated result:", result)
+```
+
+### The `async` Standard Library Module
+
+Import `async` to access high-level concurrency helpers:
+
+```skylang
+import async
+
+// 1. Non-blocking sleep
+await async.sleep(0.1) // Sleeps for 100 milliseconds without blocking other tasks
+
+// 2. async.all - Parallel fan-out / join
+// Runs multiple background tasks in parallel and returns a list of all their results:
+tasks := [
+    spawn fetch_from_server_a(),
+    spawn fetch_from_server_b(),
+    spawn fetch_from_server_c()
+]
+results := await async.all(tasks)
+
+// 3. async.race - Return fastest response
+// Runs multiple tasks simultaneously and returns the result of whichever finishes first:
+fastest := await async.race([
+    spawn fetch_primary_mirror(),
+    spawn fetch_edge_cache()
+])
+
+// 4. async.spawn - Helper to launch a function with arguments in the background:
+task := async.spawn(heavy_computation, 50000)
+res := await task
 ```
 
 ---
 
-## 11. Student Practice Exercises
+## 12. Multi-Language Interoperability & IntelliSense
 
-### Exercise 1: Temperature Converter
-Write a program that converts Celsius to Fahrenheit using formula `F = (C * 9/5) + 32`.
+Skylang features high-speed native bridges to the world's most popular programming ecosystems. The VS Code extension includes full IntelliSense completions, hover documentation, and signature help for all foreign libraries and APIs.
+
+### Supported Language Bridges
+
+| Language | Import Module | Primary APIs | Example |
+|---|---|---|---|
+| **Python 3** | `import python` | `python.load(mod)`, `python.exec({...})`, `python.exec(code)` | `python.exec({ x = 42 })` |
+| **JavaScript / Node.js** | `import js` | `js.load(pkg_or_global)`, `js.exec({...})`, `js.exec(code)` | `js.exec({ let a = 10 })` |
+| **C++ (JIT)** | `import cpp` | `cpp.compile({...})`, `cpp.compile(code)`, `cpp.load(so)` | `cpp.compile({ ... })` |
+| **Java (JVM)** | `import java` | `java.load(cls)`, `java.exec(code)` | `jmath := java.load("java.lang.Math"); jmath.max(10, 20)` |
+| **Golang** | `import golang` | `golang.load(pkg)`, `golang.compile(code)`, `golang.exec(code)` | `gomath := golang.load("math"); gomath.Sqrt(64.0)` |
+| **Rust** | `import rust` | `rust.load(mod)`, `rust.compile(code)`, `rust.exec(code)` | `rc := rust.compile("#[no_mangle] pub extern \"C\" fn cube(x: f64) -> f64 { x*x*x }")` |
+
+### Foreign Code Blocks (`{ ... }`) & Automatic Variable Registration
+
+Skylang allows you to embed raw foreign code blocks directly inside `js.exec({ ... })` and `python.exec({ ... })` calls. The code inside executes directly on the respective runtime (Node.js for JavaScript, CPython for Python).
+
+- **Real-time Terminal Output**: Standard library outputs like `console.log` in JavaScript or `print()` in Python stream directly to the terminal during execution.
+- **Automatic Variable Registration**: Variables declared inside the foreign block (`let`, `var`, `const` in JS; top-level variables in Python) are automatically extracted and registered into Skylang's scope, making them immediately accessible in subsequent Skylang expressions!
+
 ```skylang
-f to_fahrenheit {
-    takes(celsius)
-    return (celsius * 9.0 / 5.0) + 32.0
-}
-print("0 C in F:", to_fahrenheit(0.0))    // 32.0
-print("100 C in F:", to_fahrenheit(100.0)) // 212.0
+import js, python
+
+// JavaScript execution block
+js.exec({
+  console.log("Server Started");
+  let a = 10
+  var port = 8080
+})
+
+// Variables are immediately available in Skylang!
+c := 90 + a
+println("Result c is:", c)       // 100
+println("Server port:", port)    // 8080
+
+// Python execution block
+python.exec({
+  print("Initializing Python task")
+  base_score = 75
+  bonus = 25
+})
+
+total_score := base_score + bonus
+println("Total score:", total_score) // 100
 ```
 
-### Exercise 2: Word Frequency Counter
-Use a `DICT` to count how many times each word appears in a list.
-```skylang
-words := ["apple", "banana", "apple", "cherry", "banana", "apple"]
-counts DICT
+### Foreign Scope Rules & Module Exports
 
-for word in words {
-    if counts.has(word) {
-        counts[word] += 1
-    } else {
-        counts[word] = 1
-    }
-}
+- **File / Block Scope Isolation**: Variables defined inside foreign blocks follow the natural semantics of the foreign language. In JavaScript, `let` and `const` have block scope while `var` has module/global scope.
+- **Cross-Module Imports**: When a `.sky` file executes a foreign block and is imported into another file (`import my_module`), all declared foreign variables are automatically exported and accessible via `my_module.var_name`.
+- **Scope Collision Safety**: If an imported module declares a global JavaScript `var x` and another connected file attempts to define `x` in Python scope, Skylang automatically detects the cross-language collision and reports a `ScopeError`.
 
-print("Frequency table:", counts)
-```
-
-### Exercise 3: Car Class
-Create a `Car` class with fields `this.make`, `this.model`, and `this.mileage`, with a method `drive` that increases `this.mileage`.
-```skylang
-class Car {
-    this.make
-    this.model
-    this.mileage
-
-    init {
-        takes(make, model)
-        this.make = make
-        this.model = model
-        this.mileage = 0
-    }
-
-    drive {
-        takes(miles)
-        this.mileage += miles
-    }
-
-    info {
-        print(this.make + " " + this.model + " - Mileage: " + this.mileage)
-    }
-}
-
-my_car := Car("Tesla", "Model 3")
-my_car.drive(150)
-my_car.info()
-```
-
-Happy coding with Skylang!

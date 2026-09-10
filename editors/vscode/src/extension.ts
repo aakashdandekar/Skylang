@@ -9,9 +9,13 @@ import { SkylangDiagnosticsProvider } from './diagnostics';
 import { SkylangCodeActionProvider } from './codeActions';
 import { SkylangCodeLensProvider } from './codelens';
 import { SkylangRunner } from './runner';
+import { ForeignLspBridge } from './foreignLspBridge';
 
 export function activate(context: vscode.ExtensionContext) {
     const SKYLANG_MODE: vscode.DocumentSelector = { language: 'skylang' };
+
+    // Initialize Universal Foreign Language Extension IntelliSense Bridge
+    ForeignLspBridge.initialize(context);
 
     // 0. Code Actions Provider (Auto-Import QuickFix)
     context.subscriptions.push(

@@ -148,6 +148,27 @@ exports.KEYWORDS = {
         description: 'Short-circuiting logical OR operator. Evaluates to true if either operand evaluates to truthy.',
         example: 'if is_admin or is_superuser {\n    grant_access()\n}',
         category: 'Operator'
+    },
+    'async': {
+        name: 'async (Asynchronous Function Modifier)',
+        syntax: 'async f function_name { ... }',
+        description: 'Declares an asynchronous function. Invoking it immediately returns a Future object without blocking the caller.',
+        example: 'async f fetch_data {\n    takes(id)\n    async.sleep(0.5)\n    return {"id": id, "data": "OK"}\n}\ntask := fetch_data(1)\nresult := await task',
+        category: 'Concurrency'
+    },
+    'await': {
+        name: 'await (Await Future Resolution)',
+        syntax: 'await future_expression',
+        description: 'Unary operator that pauses execution until the given Future completes and yields its resolved value (or raises an error).',
+        example: 'result := await async_operation()',
+        category: 'Concurrency'
+    },
+    'spawn': {
+        name: 'spawn (Spawn Background Worker)',
+        syntax: 'spawn function_call()',
+        description: 'Spawns execution of a regular function or expression onto a background worker thread, immediately returning a Future.',
+        example: 'fut := spawn heavy_compute(1000)\nres := await fut',
+        category: 'Concurrency'
     }
 };
 exports.TYPES = {
@@ -287,6 +308,13 @@ exports.TYPES = {
         description: 'SortedList type identifier descriptor returned by `.T` or `type()`.',
         category: 'Type Name'
     },
+    'future': {
+        name: 'future (Future / Asynchronous Promise Object)',
+        syntax: 'task := async_fn() | fut := spawn fn()',
+        description: 'First-class Future concurrency object representing an asynchronous computation. Supports `.await()`, `.is_done`, `.result`, `.error`, `.state`, `.cancel()`.',
+        example: 'fut := async.sleep(1.0)\nawait fut',
+        category: 'Concurrency'
+    },
     'type': {
         name: 'type (Type Descriptor)',
         syntax: 'val.T',
@@ -305,21 +333,11 @@ exports.CONSTANTS = {
         syntax: 'false',
         description: 'Boolean literal representing falsehood.'
     },
-    'nil': {
-        name: 'nil / none / None (Null Value)',
-        syntax: 'nil | none | None',
-        description: 'Represents the absence of a value or null object in Skylang.'
-    },
     'none': {
-        name: 'none (Go-Style Default Null / No-Error)',
+        name: 'none (Null / No-Error Value)',
         syntax: 'none',
-        description: 'Skylang null/nil value, automatically returned for `err` when a function returns a normal single value in Go-style multiple returns.',
+        description: 'Skylang canonical null value, automatically returned for `err` when a function returns a normal single value in Go-style multiple returns.',
         example: 'res, err := safe_fn()\nif err != none {\n    println("Error:", err)\n}'
-    },
-    'None': {
-        name: 'None (Python / Skylang Null Literal)',
-        syntax: 'None',
-        description: 'Alias for Skylang null/nil value.'
     },
     'args': {
         name: 'args (Implicit Function Argument List)',

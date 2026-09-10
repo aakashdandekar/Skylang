@@ -360,7 +360,6 @@ static TokenType check_keyword(const char* start, size_t length) {
     }
     if (length == 3) {
         if (strncmp(start, "SET", 3) == 0) return TOK_KW_SET;
-        if (strncmp(start, "nil", 3) == 0) return TOK_KW_NIL;
         if (strncmp(start, "new", 3) == 0) return TOK_KW_NEW;
         if (strncmp(start, "and", 3) == 0) return TOK_AND;
         if (strncmp(start, "for", 3) == 0) return TOK_KW_FOR;
@@ -373,7 +372,7 @@ static TokenType check_keyword(const char* start, size_t length) {
         if (strncmp(start, "else", 4) == 0) return TOK_KW_ELSE;
         if (strncmp(start, "elif", 4) == 0) return TOK_KW_ELIF;
         if (strncmp(start, "true", 4) == 0) return TOK_KW_TRUE;
-        if (strncmp(start, "none", 4) == 0 || strncmp(start, "None", 4) == 0) return TOK_KW_NIL;
+        if (strncmp(start, "none", 4) == 0) return TOK_KW_NIL;
     }
     if (length == 5) {
         if (strncmp(start, "takes", 5) == 0) return TOK_KW_TAKES;
@@ -381,6 +380,9 @@ static TokenType check_keyword(const char* start, size_t length) {
         if (strncmp(start, "while", 5) == 0) return TOK_KW_WHILE;
         if (strncmp(start, "break", 5) == 0) return TOK_KW_BREAK;
         if (strncmp(start, "false", 5) == 0) return TOK_KW_FALSE;
+        if (strncmp(start, "async", 5) == 0) return TOK_KW_ASYNC;
+        if (strncmp(start, "await", 5) == 0) return TOK_KW_AWAIT;
+        if (strncmp(start, "spawn", 5) == 0) return TOK_KW_SPAWN;
     }
     if (length == 6) {
         if (strncmp(start, "return", 6) == 0) return TOK_KW_RETURN;
@@ -614,6 +616,9 @@ const char* token_type_name(TokenType type) {
         case TOK_KW_IMPORT: return "import";
         case TOK_KW_FROM: return "from";
         case TOK_KW_AS: return "as";
+        case TOK_KW_ASYNC: return "async";
+        case TOK_KW_AWAIT: return "await";
+        case TOK_KW_SPAWN: return "spawn";
         case TOK_PLUS: return "+";
         case TOK_MINUS: return "-";
         case TOK_STAR: return "*";

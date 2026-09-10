@@ -5,6 +5,7 @@
     "patterns": [
         { "include": "#comments" },
         { "include": "#fstrings" },
+        { "include": "#embedded_foreign_code" },
         { "include": "#strings" },
         { "include": "#chars" },
         { "include": "#constants" },
@@ -116,6 +117,106 @@
                 }
             ]
         },
+        "embedded_foreign_code": {
+            "patterns": [
+                {
+                    "name": "meta.embedded.block.python.sky",
+                    "begin": "(?<=\\bpython\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.python" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.python.sky",
+                    "begin": "(?<=\\bpython\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.python" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.javascript.sky",
+                    "begin": "(?<=\\bjs\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.js" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.javascript.sky",
+                    "begin": "(?<=\\bjs\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.js" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.cpp.sky",
+                    "begin": "(?<=\\bcpp\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.cpp" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.cpp.sky",
+                    "begin": "(?<=\\bcpp\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.cpp" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.go.sky",
+                    "begin": "(?<=\\bgolang\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.go" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.go.sky",
+                    "begin": "(?<=\\bgolang\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.go" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.rust.sky",
+                    "begin": "(?<=\\brust\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.rust" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.rust.sky",
+                    "begin": "(?<=\\brust\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.rust" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.java.sky",
+                    "begin": "(?<=\\bjava\\.(?:exec|compile)\\s*\\(\\s*)\\{",
+                    "end": "\\}(?=\\s*\\))",
+                    "patterns": [
+                        { "include": "source.java" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.java.sky",
+                    "begin": "(?<=\\bjava\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.java" }
+                    ]
+                }
+            ]
+        },
         "strings": {
             "patterns": [
                 {
@@ -158,7 +259,7 @@
                 },
                 {
                     "name": "constant.language.nil.sky",
-                    "match": "\\b(nil|none|None)\\b"
+                    "match": "\\b(none)\\b"
                 },
                 {
                     "name": "constant.language.math.sky",
@@ -170,7 +271,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.sky",
-                    "match": "\\b(if|else|elif|for|in|while|break|continue|return)\\b"
+                    "match": "\\b(if|else|elif|for|in|while|break|continue|return|async|await|spawn)\\b"
                 },
                 {
                     "name": "keyword.declaration.function.sky",
@@ -218,7 +319,7 @@
                 },
                 {
                     "name": "storage.type.collection.sky",
-                    "match": "\\b(L|T|SL|DICT|SET)\\b"
+                    "match": "\\b(list|dict|set|pair|file|future)\\b"
                 },
                 {
                     "name": "storage.type.builtin.sky",
@@ -234,10 +335,11 @@
             }
         },
         "fn_decl": {
-            "match": "\\b(f)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+            "match": "\\b(?:(async)\\s+)?(f)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
             "captures": {
-                "1": { "name": "keyword.declaration.function.sky" },
-                "2": { "name": "entity.name.function.sky" }
+                "1": { "name": "keyword.control.sky" },
+                "2": { "name": "keyword.declaration.function.sky" },
+                "3": { "name": "entity.name.function.sky" }
             }
         },
         "extern_decl": {
@@ -271,7 +373,7 @@
             "patterns": [
                 {
                     "name": "support.class.module.sky",
-                    "match": "\\b(math|python|js|cpp|java|go|golang|rust)\\b"
+                    "match": "\\b(math|python|js|cpp|java|golang|rust|async)\\b"
                 }
             ]
         },
@@ -282,7 +384,11 @@
                     "name": "support.function.math.sky"
                 },
                 {
-                    "match": "(?<=\\b(python|js|cpp|java|go|golang|rust)\\.)(load|exec|compile|version)\\b",
+                    "match": "(?<=\\basync\\.)(sleep|all|race|spawn)\\b",
+                    "name": "support.function.async.sky"
+                },
+                {
+                    "match": "(?<=\\b(python|js|cpp|java|golang|rust)\\.)(load|exec|compile|version)\\b",
                     "name": "support.function.interop.sky"
                 }
             ]
@@ -290,7 +396,7 @@
         "collection_methods": {
             "patterns": [
                 {
-                    "match": "(?<=\\.)(push|pop|clear|add|has|value|split|join|format|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|rjust|ljust|center|zfill|read|write|readline|readlines|close|chars|bytes)\\b(?=\\s*\\()",
+                    "match": "(?<=\\.)(push|pop|clear|add|has|value|split|join|format|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|rjust|ljust|center|zfill|read|write|readline|readlines|close|chars|bytes|await|cancel)\\b(?=\\s*\\()",
                     "name": "support.function.collection.sky"
                 }
             ]
@@ -298,7 +404,7 @@
         "properties": {
             "patterns": [
                 {
-                    "match": "(?<=\\.)(size|length|chars|bytes|T)\\b",
+                    "match": "(?<=\\.)(size|length|chars|bytes|T|is_done|result|error|state)\\b",
                     "name": "support.variable.property.sky"
                 }
             ]

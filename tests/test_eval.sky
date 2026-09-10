@@ -1,4 +1,4 @@
-import python, js, go, rust
+import python, js, golang, rust
 
 x := eval("10 + 20 * 3")
 println("eval math:", x)
@@ -32,7 +32,7 @@ js_global := js.load("globalThis")
 println("js_global.multiply(6, 7):", js_global.multiply(6, 7))
 
 # Test Go bridge without .eval (using .load and .compile and .exec)
-go_math := go.load("math")
+go_math := golang.load("math")
 println("go_math.Sqrt(144.0):", go_math.Sqrt(144.0))
 
 # Test Rust bridge without .eval (using .load and .compile and .exec)

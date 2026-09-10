@@ -38,11 +38,24 @@ const vscode = __importStar(require("vscode"));
 const keywords_1 = require("./data/keywords");
 const builtins_1 = require("./data/builtins");
 const stdlib_1 = require("./data/stdlib");
+const foreign_1 = require("./data/foreign");
 const completions_1 = require("./completions");
+const foreignLspBridge_1 = require("./foreignLspBridge");
 class SkylangHoverProvider {
     completionProvider = new completions_1.SkylangCompletionItemProvider();
-    provideHover(document, position, _token) {
+    async provideHover(document, position, _token) {
         const lineText = document.lineAt(position.line).text;
+        // 0. Check for Embedded Foreign Code hover (python.exec, cpp.compile, etc.)
+        const embeddedContext = this.completionProvider.getEmbeddedCodeContext(document, position);
+        if (embeddedContext) {
+            const lspBridge = foreignLspBridge_1.ForeignLspBridge.getInstance();
+            if (lspBridge && lspBridge.isLanguageExtensionAvailable(embeddedContext.bridge)) {
+                const shadowDoc = lspBridge.createShadowDocumentForEmbeddedCode(embeddedContext.bridge, embeddedContext.code, embeddedContext.offset);
+                const lspHover = await lspBridge.queryHover(shadowDoc);
+                if (lspHover)
+                    return lspHover;
+            }
+        }
         // 1. Check for C Header hover in `cimport "header.h"`
         const headerRange = document.getWordRangeAtPosition(position, /[a-zA-Z0-9_\.]+\.h/);
         if (headerRange) {
@@ -90,6 +103,54 @@ class SkylangHoverProvider {
                     return new vscode.Hover(content, memberRange);
                 }
             }
+            // Foreign module member (e.g. express.get, app.listen, lodash.map, axios.post, np.array, Math_js.sqrt)
+            const docSymbols = this.completionProvider.parseDocumentSymbols(document);
+            let foreignMod = undefined;
+            const varSym = docSymbols.find(s => s.name === receiver);
+            if (varSym && varSym.inferredType && varSym.inferredType.startsWith('foreign_')) {
+                const matchBridge = varSym.inferredType.match(/^foreign_([a-z]+):(.*)$/);
+                const bridge = (matchBridge ? matchBridge[1] : 'js');
+                const rawPkg = matchBridge ? matchBridge[2] : varSym.inferredType.replace(/^foreign_[a-z]+:/, '');
+                const lspBridge = foreignLspBridge_1.ForeignLspBridge.getInstance();
+                if (lspBridge && lspBridge.isLanguageExtensionAvailable(bridge)) {
+                    const shadowDoc = lspBridge.createShadowDocumentForMember(bridge, rawPkg, member);
+                    const lspHover = await lspBridge.queryHover(shadowDoc);
+                    if (lspHover)
+                        return lspHover;
+                }
+                foreignMod = (0, foreign_1.getForeignModule)(rawPkg);
+            }
+            if (!foreignMod) {
+                foreignMod = (0, foreign_1.getForeignModule)(receiver);
+            }
+            if (foreignMod) {
+                if (foreignMod.methods[member]) {
+                    const fn = foreignMod.methods[member];
+                    const content = new vscode.MarkdownString();
+                    content.appendMarkdown(`### ${foreignMod.name}\n\n`);
+                    content.appendCodeblock(fn.signature, 'skylang');
+                    content.appendMarkdown(`\n\n${fn.description}\n\n`);
+                    if (fn.params && fn.params.length > 0) {
+                        content.appendMarkdown('**Parameters:**\n');
+                        for (const p of fn.params) {
+                            content.appendMarkdown(`- \`${p.name}\`: ${p.doc}\n`);
+                        }
+                    }
+                    content.appendMarkdown(`\n**Returns:** \`${fn.returns || 'any'}\`\n`);
+                    if (fn.example) {
+                        content.appendMarkdown(`\n**Example:**\n\`\`\`skylang\n${fn.example}\n\`\`\``);
+                    }
+                    return new vscode.Hover(content, memberRange);
+                }
+                if (foreignMod.properties && foreignMod.properties[member]) {
+                    const p = foreignMod.properties[member];
+                    const content = new vscode.MarkdownString();
+                    content.appendMarkdown(`### ${foreignMod.name}\n\n`);
+                    content.appendCodeblock(p.signature, 'skylang');
+                    content.appendMarkdown(`\n\n${p.description}\n\n**Type:** \`${p.returns || 'any'}\``);
+                    return new vscode.Hover(content, memberRange);
+                }
+            }
             // Collection method (e.g. items.push, dict.has, str.value)
             if (builtins_1.COLLECTION_METHODS[member]) {
                 const m = builtins_1.COLLECTION_METHODS[member];
@@ -120,7 +181,6 @@ class SkylangHoverProvider {
                 return new vscode.Hover(content, memberRange);
             }
             // User class instance member or `this.field`
-            const docSymbols = this.completionProvider.parseDocumentSymbols(document);
             if (receiver === 'this') {
                 const classField = docSymbols.find(s => s.name === member && s.kind === vscode.CompletionItemKind.Field);
                 if (classField) {
@@ -138,7 +198,6 @@ class SkylangHoverProvider {
                 }
             }
             else {
-                const varSym = docSymbols.find(s => s.name === receiver);
                 if (varSym && varSym.inferredType) {
                     const classDef = this.completionProvider.findClassByName(document, varSym.inferredType);
                     if (classDef) {
@@ -224,7 +283,7 @@ class SkylangHoverProvider {
                 content.appendMarkdown(`\n\n**Constants:** ${cList}`);
             }
             // Check if interop module needs import
-            if (['python', 'js', 'cpp', 'java', 'go', 'golang', 'rust'].includes(word)) {
+            if (['python', 'js', 'cpp', 'java', 'golang', 'rust'].includes(word)) {
                 const text = document.getText();
                 const importRegex = new RegExp(`^\\s*import\\s+[^;\\n]*\\b${word}\\b`, 'm');
                 if (!importRegex.test(text)) {
@@ -270,7 +329,24 @@ class SkylangHoverProvider {
             }
             if (matchedSymbol.inferredType) {
                 content.appendMarkdown(`\n\n**Inferred Type:** \`${matchedSymbol.inferredType}\``);
+                if (matchedSymbol.inferredType.startsWith('foreign_')) {
+                    const rawPkg = matchedSymbol.inferredType.replace(/^foreign_[a-z]+:/, '');
+                    const fMod = (0, foreign_1.getForeignModule)(rawPkg);
+                    if (fMod) {
+                        content.appendMarkdown(`\n\n**Available Methods:**\n${Object.keys(fMod.methods).map(m => `\`${m}\``).join(', ')}`);
+                    }
+                }
             }
+            return new vscode.Hover(content, singleWordRange);
+        }
+        // Direct Foreign Module (e.g. express, lodash, axios, numpy, etc.)
+        const directFMod = (0, foreign_1.getForeignModule)(word);
+        if (directFMod) {
+            const content = new vscode.MarkdownString();
+            content.appendMarkdown(`### ${directFMod.name}\n\n`);
+            content.appendMarkdown(`${directFMod.description}\n\n**Available Methods:**\n`);
+            const fnList = Object.keys(directFMod.methods).map(f => `\`${f}\``).join(', ');
+            content.appendMarkdown(fnList);
             return new vscode.Hover(content, singleWordRange);
         }
         return null;

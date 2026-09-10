@@ -86,6 +86,12 @@
         "title": "Skylang: Format Document",
         "icon": "$(symbol-color)",
         "category": "Skylang"
+      },
+      {
+        "command": "skylang.checkForeignExtensions",
+        "title": "Skylang: Check Installed Foreign Language Extensions",
+        "icon": "$(globe)",
+        "category": "Skylang"
       }
     ],
     "menus": {

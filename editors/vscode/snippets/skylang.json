@@ -68,6 +68,58 @@
     ],
     "description": "Define a Skylang function with takes() parameter gateway"
   },
+  "Async Function Declaration": {
+    "prefix": "asyncf",
+    "body": [
+      "async f ${1:name} {",
+      "\ttakes(${2:params})",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Define an asynchronous Skylang function returning a Future"
+  },
+  "Await Expression": {
+    "prefix": "await",
+    "body": [
+      "await ${1:future_task}"
+    ],
+    "description": "Await resolution of a Future"
+  },
+  "Spawn Expression": {
+    "prefix": "spawn",
+    "body": [
+      "spawn ${1:function_call}"
+    ],
+    "description": "Spawn regular function or call onto background worker thread"
+  },
+  "Async Sleep": {
+    "prefix": "asyncsleep",
+    "body": [
+      "await async.sleep(${1:1.0})"
+    ],
+    "description": "Non-blocking sleep timer"
+  },
+  "Async All (Parallel)": {
+    "prefix": "asyncall",
+    "body": [
+      "await async.all([${1:tasks}])"
+    ],
+    "description": "Wait for all futures to complete in parallel"
+  },
+  "Async Race": {
+    "prefix": "asyncrace",
+    "body": [
+      "await async.race([${1:tasks}])"
+    ],
+    "description": "Wait for fastest future to complete"
+  },
+  "Async Spawn Task": {
+    "prefix": "asyncspawn",
+    "body": [
+      "async.spawn(${1:function}, ${2:args})"
+    ],
+    "description": "Dynamically spawn a background task with args"
+  },
   "Variadic Function": {
     "prefix": "fvar",
     "body": [
@@ -278,28 +330,111 @@
   "Python Exec": {
     "prefix": "pyexec",
     "body": [
-      "python.exec(\"${1:code}\")"
+      "python.exec({\n\t${1:print(\"Hello from Python\")}\n})"
     ],
-    "description": "Execute Python statements"
-  },
-  "JavaScript Load": {
-    "prefix": "jsload",
-    "body": [
-      "${1:mod} := js.load(\"${2:lodash}\")"
-    ],
-    "description": "Load a JS global or NPM package via Node.js"
+    "description": "Execute Python statements block and capture declared variables"
   },
   "JavaScript Exec": {
     "prefix": "jsexec",
     "body": [
-      "js.exec(\"${1:console.log('Hello')}\")"
+      "js.exec({\n\t${1:console.log(\"Server Started\");}\n\t${2:let a = 10}\n})"
     ],
-    "description": "Execute JavaScript statements via Node.js"
+    "description": "Execute JavaScript statements block in Node.js and capture declared variables"
+  },
+  "JavaScript Load": {
+    "prefix": "jsload",
+    "body": [
+      "${1:express} := js.load(\"${2:expressjs}\")"
+    ],
+    "description": "Load a JS global or NPM package via Node.js"
+  },
+  "Express Server Setup": {
+    "prefix": "expserver",
+    "body": [
+      "import js",
+      "",
+      "express := js.load(\"expressjs\")",
+      "app := express()",
+      "",
+      "app.use(express.json())",
+      "",
+      "app.get(\"${1:/}\", (req, res) => {",
+      "\tres.send(\"${2:Hello from Skylang Express Server!}\")",
+      "})",
+      "",
+      "app.listen(${3:3000}, () => {",
+      "\tprintln(\"Server running at http://localhost:${3:3000}\")",
+      "})"
+    ],
+    "description": "Complete Express.js HTTP web server setup in Skylang"
+  },
+  "Express GET Route": {
+    "prefix": "expget",
+    "body": [
+      "${1:app}.get(\"${2:/path}\", (req, res) => {",
+      "\t${0:res.send(\"OK\")}",
+      "})"
+    ],
+    "description": "Express HTTP GET route handler"
+  },
+  "Express POST Route": {
+    "prefix": "exppost",
+    "body": [
+      "${1:app}.post(\"${2:/path}\", (req, res) => {",
+      "\t${0:res.json({ \"status\": \"success\" })}",
+      "})"
+    ],
+    "description": "Express HTTP POST route handler"
+  },
+  "Express PUT Route": {
+    "prefix": "expput",
+    "body": [
+      "${1:app}.put(\"${2:/path/:id}\", (req, res) => {",
+      "\t${0:res.json({ \"status\": \"updated\" })}",
+      "})"
+    ],
+    "description": "Express HTTP PUT route handler"
+  },
+  "Express DELETE Route": {
+    "prefix": "expdel",
+    "body": [
+      "${1:app}.delete(\"${2:/path/:id}\", (req, res) => {",
+      "\t${0:res.json({ \"status\": \"deleted\" })}",
+      "})"
+    ],
+    "description": "Express HTTP DELETE route handler"
+  },
+  "Express Middleware Use": {
+    "prefix": "expuse",
+    "body": [
+      "${1:app}.use(${2:express.json()})"
+    ],
+    "description": "Mount Express middleware function"
+  },
+  "Express Router": {
+    "prefix": "exprouter",
+    "body": [
+      "${1:router} := express.Router()",
+      "",
+      "${1:router}.get(\"${2:/}\", (req, res) => {",
+      "\t${0:res.send(\"Router response\")}",
+      "})"
+    ],
+    "description": "Express modular Router instance"
+  },
+  "Express Listen": {
+    "prefix": "explisten",
+    "body": [
+      "${1:app}.listen(${2:3000}, () => {",
+      "\tprintln(\"Server running on port ${2:3000}\")",
+      "})"
+    ],
+    "description": "Bind and listen for connections on port"
   },
   "C++ Compile": {
     "prefix": "cppcompile",
     "body": [
-      "${1:mod} := cpp.compile(\"\\nextern \\\"C\\\" {\\n    double ${2:add}(double a, double b) {\\n        return a + b;\\n    }\\n}\\n\")"
+      "${1:mod} := cpp.compile({\n\textern \"C\" {\n\t\tdouble ${2:add}(double a, double b) {\n\t\t\treturn a + b;\n\t\t}\n\t}\n})"
     ],
     "description": "JIT-compile C++ source code with extern C functions"
   },
@@ -320,30 +455,30 @@
   "Java Exec": {
     "prefix": "javaexec",
     "body": [
-      "java.exec(\"${1:System.out.println(\\\"Hello\\\");}\")"
+      "java.exec({\n\t${1:System.out.println(\"Hello\");}\n})"
     ],
     "description": "Execute Java statements in JVM"
   },
   "Golang Load": {
     "prefix": "goload",
     "body": [
-      "${1:mod} := go.load(\"${2:./libcalc.so}\")"
+      "${1:mod} := golang.load(\"${2:./libcalc.so}\")"
     ],
     "description": "Load a Go package or shared library"
   },
   "Golang Compile": {
     "prefix": "gocompile",
     "body": [
-      "${1:mod} := go.compile(\"\\n//export ${2:Add}\\nfunc ${2:Add}(a, b float64) float64 {\\n\\treturn a + b\\n}\\n\")"
+      "${1:mod} := golang.compile({\n\t//export ${2:Add}\n\tfunc ${2:Add}(a, b float64) float64 {\n\t\treturn a + b\n\t}\n})"
     ],
     "description": "JIT-compile Go code with exported functions"
   },
   "Golang Exec": {
     "prefix": "goexec",
     "body": [
-      "go.exec(\"${1:println(\\\"Hello from Go\\\")}\")"
+      "golang.exec({\n\t${1:println(\"Hello from Go\")}\n})"
     ],
-    "description": "Execute Go source code statements"
+    "description": "Execute Go source code statements block"
   },
   "Rust Load": {
     "prefix": "rustload",
@@ -355,14 +490,14 @@
   "Rust Compile": {
     "prefix": "rustcompile",
     "body": [
-      "${1:mod} := rust.compile(\"\\n#[no_mangle]\\npub extern \\\"C\\\" fn ${2:add}(a: f64, b: f64) -> f64 {\\n\\ta + b\\n}\\n\")"
+      "${1:mod} := rust.compile({\n\t#[no_mangle]\n\tpub extern \"C\" fn ${2:add}(a: f64, b: f64) -> f64 {\n\t\ta + b\n\t}\n})"
     ],
     "description": "JIT-compile Rust code with extern C functions"
   },
   "Rust Exec": {
     "prefix": "rustexec",
     "body": [
-      "rust.exec(\"${1:println!(\\\"Hello from Rust\\\");}\")"
+      "rust.exec({\n\t${1:println!(\"Hello from Rust\");}\n})"
     ],
     "description": "Execute Rust source code statements"
   },

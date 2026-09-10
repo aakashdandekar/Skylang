@@ -78,6 +78,8 @@ typedef enum {
     /* Special */
     OP_PRINT,           /* Print N values (8-bit count) */
     OP_UNPACK,          /* Tuple unpacking (16-bit index) */
+    OP_AWAIT,           /* Await a Future value */
+    OP_SPAWN,           /* Spawn function call onto background thread */
 } OpCode;
 
 /* ═══════════════════════════════════════════════════════════════════════════

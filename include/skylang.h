@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include "sky_platform.h"
 
 /* Token types */
 typedef enum {
@@ -59,6 +60,9 @@ typedef enum {
     TOK_KW_IMPORT,    /* import */
     TOK_KW_FROM,      /* from */
     TOK_KW_AS,        /* as */
+    TOK_KW_ASYNC,     /* async */
+    TOK_KW_AWAIT,     /* await */
+    TOK_KW_SPAWN,     /* spawn */
 
     /* Operators */
     TOK_PLUS,         /* + */
@@ -147,6 +151,8 @@ typedef enum {
     AST_SET_LIT,
     AST_SORTED_LIST_LIT,
     AST_FSTRING,
+    AST_EXPR_AWAIT,
+    AST_EXPR_SPAWN,
 
     /* Statements */
     AST_STMT_EXPR,
@@ -340,6 +346,7 @@ struct AstNode {
             char** params;
             size_t param_count;
             AstNode* body;
+            bool is_async;
         } fn_decl;
 
         /* AST_STMT_CLASS_DECL */
@@ -386,6 +393,40 @@ struct AstNode {
         } from_import;
     } as;
 };
+
+/* Foreign Symbol & Scope Management */
+typedef enum {
+    FOREIGN_DECL_VAR,      /* JS var (global/file-level scope) */
+    FOREIGN_DECL_LET,      /* JS let */
+    FOREIGN_DECL_CONST,    /* JS const */
+    FOREIGN_DECL_FUNCTION, /* JS function / Python def */
+    FOREIGN_DECL_CLASS,    /* JS / Python class */
+    FOREIGN_DECL_ASSIGN,   /* Python assignment / JS assignment */
+    FOREIGN_DECL_GLOBAL    /* Python global */
+} ForeignDeclKind;
+
+typedef struct {
+    char* name;
+    const char* lang;      /* "js", "python", "cpp", "go", "rust", "java" */
+    ForeignDeclKind kind;
+    const char* file;
+    int line;
+} ForeignSymbol;
+
+typedef struct {
+    ForeignSymbol* items;
+    size_t count;
+    size_t capacity;
+} ForeignSymbolTable;
+
+void foreign_symtable_init(ForeignSymbolTable* table);
+void foreign_symtable_add(ForeignSymbolTable* table, const char* name, const char* lang, ForeignDeclKind kind, const char* file, int line);
+void foreign_symtable_free(ForeignSymbolTable* table);
+
+void sky_extract_js_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table);
+void sky_extract_py_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table);
+void sky_extract_cpp_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table);
+void sky_extract_java_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table);
 
 /* Parser */
 typedef struct {

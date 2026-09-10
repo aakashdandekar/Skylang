@@ -46,8 +46,11 @@ const diagnostics_1 = require("./diagnostics");
 const codeActions_1 = require("./codeActions");
 const codelens_1 = require("./codelens");
 const runner_1 = require("./runner");
+const foreignLspBridge_1 = require("./foreignLspBridge");
 function activate(context) {
     const SKYLANG_MODE = { language: 'skylang' };
+    // Initialize Universal Foreign Language Extension IntelliSense Bridge
+    foreignLspBridge_1.ForeignLspBridge.initialize(context);
     // 0. Code Actions Provider (Auto-Import QuickFix)
     context.subscriptions.push(vscode.languages.registerCodeActionsProvider(SKYLANG_MODE, new codeActions_1.SkylangCodeActionProvider(), {
         providedCodeActionKinds: codeActions_1.SkylangCodeActionProvider.providedCodeActionKinds

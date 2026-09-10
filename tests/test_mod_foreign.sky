@@ -1,0 +1,7 @@
+import tests.mod_foreign_a as ma
+
+println("Imported serverPort:", ma.serverPort)
+println("Imported serverName:", ma.serverName)
+if ma.serverPort != 8080 { panic("Test failed: ma.serverPort") }
+if ma.serverName != "NodeServer" { panic("Test failed: ma.serverName") }
+println("Cross-module foreign exports test passed! [100% OK]")

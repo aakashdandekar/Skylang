@@ -1,14 +1,12 @@
 
 #include "../include/sky_go.h"
+#include "../include/sky_platform.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <dlfcn.h>
 #include <gc.h>
 
-Value sky_mod_go;
 Value sky_mod_golang;
 
 static int go_file_counter = 0;
@@ -158,8 +156,10 @@ static char* run_cmd_capture(const char* cmd, int* exit_code) {
 
 static Value go_eval_internal(const char* expr) {
     int fid = ++go_file_counter;
-    char go_file[1024];
-    snprintf(go_file, sizeof(go_file), "/tmp/sky_go_eval_%d_%d.go", getpid(), fid);
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char go_file[2048];
+    snprintf(go_file, sizeof(go_file), "%s/sky_go_eval_%d_%d.go", tmp_dir, (int)sky_getpid(), fid);
 
     FILE* f = fopen(go_file, "w");
     if (!f) {
@@ -178,29 +178,32 @@ static Value go_eval_internal(const char* expr) {
     fputs("    \"sort\"\n", f);
     fputs("    \"encoding/json\"\n", f);
     fputs(")\n\n", f);
+    fputs("var _ = fmt.Println\n", f);
+    fputs("var _ = math.Pi\n", f);
+    fputs("var _ = strings.ToUpper\n", f);
+    fputs("var _ = strconv.Itoa\n", f);
+    fputs("var _ = time.Now\n", f);
+    fputs("var _ = os.Getenv\n", f);
+    fputs("var _ = sort.Ints\n", f);
+    fputs("var _ = json.Marshal\n\n", f);
     fputs("func main() {\n", f);
-    fputs("    _ = fmt.Sprintf\n", f);
-    fputs("    _ = math.Pi\n", f);
-    fputs("    _ = strings.ToUpper\n", f);
-    fputs("    _ = strconv.Itoa\n", f);
-    fputs("    _ = time.Now\n", f);
-    fputs("    _ = os.Getenv\n", f);
-    fputs("    _ = sort.Ints\n", f);
-    fprintf(f, "    res := (%s)\n", expr);
-    fputs("    b, err := json.Marshal(res)\n", f);
-    fputs("    if err != nil {\n", f);
-    fputs("        fmt.Print(res)\n", f);
+    fputs("    val := ", f);
+    fputs(expr, f);
+    fputs("\n", f);
+    fputs("    data, err := json.Marshal(val)\n", f);
+    fputs("    if err == nil && string(data) != \"\" && string(data) != \"null\" {\n", f);
+    fputs("        fmt.Print(string(data))\n", f);
     fputs("    } else {\n", f);
-    fputs("        fmt.Print(string(b))\n", f);
+    fputs("        fmt.Printf(\"%v\", val)\n", f);
     fputs("    }\n", f);
     fputs("}\n", f);
     fclose(f);
 
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "go run %s 2>&1", go_file);
+    char cmd[4096];
+    snprintf(cmd, sizeof(cmd), "go run \"%s\" 2>&1", go_file);
     int status = 0;
     char* out = run_cmd_capture(cmd, &status);
-    unlink(go_file);
+    sky_unlink(go_file);
 
     if (status != 0) {
         sky_runtime_error("GoError", "Go evaluation failed:\n%s", out);
@@ -215,8 +218,10 @@ static Value go_eval_internal(const char* expr) {
 
 Value sky_go_exec(const char* code) {
     int fid = ++go_file_counter;
-    char go_file[1024];
-    snprintf(go_file, sizeof(go_file), "/tmp/sky_go_exec_%d_%d.go", getpid(), fid);
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char go_file[2048];
+    snprintf(go_file, sizeof(go_file), "%s/sky_go_exec_%d_%d.go", tmp_dir, (int)sky_getpid(), fid);
 
     FILE* f = fopen(go_file, "w");
     if (!f) {
@@ -248,11 +253,11 @@ Value sky_go_exec(const char* code) {
     }
     fclose(f);
 
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "go run %s 2>&1", go_file);
+    char cmd[4096];
+    snprintf(cmd, sizeof(cmd), "go run \"%s\" 2>&1", go_file);
     int status = 0;
     char* out = run_cmd_capture(cmd, &status);
-    unlink(go_file);
+    sky_unlink(go_file);
 
     if (status != 0) {
         sky_runtime_error("GoError", "Go execution failed:\n%s", out);
@@ -267,12 +272,14 @@ Value sky_go_exec(const char* code) {
 
 Value sky_go_compile(const char* go_code) {
     int fid = ++go_file_counter;
-    char go_file[1024];
-    char so_file[1024];
-    char h_file[1024];
-    snprintf(go_file, sizeof(go_file), "/tmp/sky_go_%d_%d.go", getpid(), fid);
-    snprintf(so_file, sizeof(so_file), "/tmp/sky_go_%d_%d.so", getpid(), fid);
-    snprintf(h_file, sizeof(h_file), "/tmp/sky_go_%d_%d.h", getpid(), fid);
+    char tmp_dir[512];
+    sky_get_temp_dir(tmp_dir, sizeof(tmp_dir));
+    char go_file[2048];
+    char so_file[2048];
+    char h_file[2048];
+    snprintf(go_file, sizeof(go_file), "%s/sky_go_%d_%d.go", tmp_dir, (int)sky_getpid(), fid);
+    snprintf(so_file, sizeof(so_file), "%s/sky_go_%d_%d%s", tmp_dir, (int)sky_getpid(), fid, SKY_SO_EXT);
+    snprintf(h_file, sizeof(h_file), "%s/sky_go_%d_%d.h", tmp_dir, (int)sky_getpid(), fid);
 
     FILE* f = fopen(go_file, "w");
     if (!f) {
@@ -289,34 +296,35 @@ Value sky_go_compile(const char* go_code) {
     }
     fclose(f);
 
-    char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "go build -buildmode=c-shared -o %s %s 2>&1", so_file, go_file);
+    char cmd[8192];
+    snprintf(cmd, sizeof(cmd), "go build -buildmode=c-shared -o \"%s\" \"%s\" 2>&1", so_file, go_file);
     int status = 0;
     char* err = run_cmd_capture(cmd, &status);
-    unlink(go_file);
-    unlink(h_file);
+    sky_unlink(go_file);
+    sky_unlink(h_file);
 
     if (status != 0) {
-        unlink(so_file);
+        sky_unlink(so_file);
         sky_runtime_error("CompileError", "Go c-shared compilation failed:\n%s", err);
         free(err);
         return val_nil();
     }
     free(err);
 
-    void* handle = dlopen(so_file, RTLD_NOW | RTLD_GLOBAL);
+    void* handle = sky_dlopen(so_file);
     if (!handle) {
-        sky_runtime_error("OSError", "dlopen failed on compiled Go library: %s", dlerror());
+        sky_runtime_error("OSError", "dlopen failed on compiled Go library: %s", sky_dlerror());
         return val_nil();
     }
     return val_foreign(FOREIGN_GO, "compiled_go", handle, NULL);
 }
 
 Value sky_go_load(const char* pkg_or_so) {
-    if (strstr(pkg_or_so, ".so") != NULL || access(pkg_or_so, F_OK) == 0) {
-        void* handle = dlopen(pkg_or_so, RTLD_NOW | RTLD_GLOBAL);
+    if (strstr(pkg_or_so, ".so") != NULL || strstr(pkg_or_so, ".dylib") != NULL ||
+        strstr(pkg_or_so, ".dll") != NULL || sky_access(pkg_or_so, F_OK) == 0) {
+        void* handle = sky_dlopen(pkg_or_so);
         if (!handle) {
-            sky_runtime_error("OSError", "Failed to open shared library '%s': %s", pkg_or_so, dlerror());
+            sky_runtime_error("OSError", "Failed to open shared library '%s': %s", pkg_or_so, sky_dlerror());
             return val_nil();
         }
         return val_foreign(FOREIGN_GO, pkg_or_so, handle, NULL);
@@ -340,9 +348,9 @@ Value sky_go_call_method(ObjForeign* f, const char* name, int argc, Value* argv)
     if (!f) return val_nil();
 
     if (f->extra == NULL && f->handle && strstr(f->name, "compiled_go") != NULL) {
-        void* sym = dlsym(f->handle, name);
+        void* sym = sky_dlsym(f->handle, name);
         if (!sym) {
-            sky_runtime_error("AttributeError", "Symbol '%s' not found in Go shared library: %s", name, dlerror());
+            sky_runtime_error("AttributeError", "Symbol '%s' not found in Go shared library: %s", name, sky_dlerror());
             return val_nil();
         }
         switch (argc) {
@@ -393,7 +401,7 @@ Value sky_go_get_prop(ObjForeign* f, const char* name) {
     }
 
     if (f->handle && strstr(f->name, "compiled_go") != NULL) {
-        void* sym = dlsym(f->handle, name);
+        void* sym = sky_dlsym(f->handle, name);
         if (sym) return val_foreign(FOREIGN_GO, name, f->handle, sym);
     }
 
@@ -440,7 +448,6 @@ Value sky_go_init(void) {
     dict_set(d, val_string("compile"), val_function("compile", go_native_compile,  1));
     dict_set(d, val_string("exec"),    val_function("exec",    go_native_exec,     1));
 
-    sky_mod_go = mod;
     sky_mod_golang = mod;
     return mod;
 }

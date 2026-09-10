@@ -70,6 +70,7 @@ if ", ".join(["a", "b", "c"]) != "a, b, c" || join(["a", "b", "c"], ", ") != "a,
 if ["a", "b", "c"].join(", ") != "a, b, c" { panic("Test failed: list join") }
 if "sky".chars.size != 3 || chars("sky").size != 3 { panic("Test failed: chars") }
 if "ABC".bytes[0] != 65 || bytes("ABC")[0] != 65 { panic("Test failed: bytes") }
+if type(input) != "function" { panic("Test failed: input builtin") }
 
 formatted := fmt.format("Number: {}", 42)
 if formatted != "Number: 42" { panic("Test failed: fmt.format") }
@@ -143,16 +144,16 @@ if java_math.max(12, 99) != 99 { panic("Test failed: java Math.max") }
 if java_math.sqrt(225.0) != 15 { panic("Test failed: java Math.sqrt") }
 
 // 12. Golang Interoperability & JIT Compilation
-import go, golang
-go_math := go.load("math")
-if go_math.Sqrt(625.0) != 25 { panic("Test failed: go math.Sqrt") }
-go_calc := go.compile("
+import golang
+go_math := golang.load("math")
+if go_math.Sqrt(625.0) != 25 { panic("Test failed: golang math.Sqrt") }
+go_calc := golang.compile("
 //export DoubleVal
 func DoubleVal(x float64) float64 {
     return x * 2.0
 }
 ")
-if go_calc.DoubleVal(21.0) != 42 { panic("Test failed: go.compile JIT") }
+if go_calc.DoubleVal(21.0) != 42 { panic("Test failed: golang.compile JIT") }
 
 // 13. Rust Interoperability & JIT Compilation
 import rust
@@ -205,5 +206,68 @@ if f_dict_esc != "Dict key: 100 and 200" { panic("Test failed: f-string escaped 
 f_methods := f"Method: {'hello'.upper()} - {list[0]}"
 if f_methods != "Method: HELLO - 1" { panic("Test failed: f-string method call") }
 
+// 16. Async/Await Concurrency, Futures & Async Module
+import async
+
+async f async_multiply {
+    takes(x, y)
+    await async.sleep(0.01)
+    return x * y
+}
+
+f async_worker_task {
+    takes(n)
+    await async.sleep(0.01)
+    return n + 100
+}
+
+fut1 := async_multiply(6, 7)
+if fut1.state != "pending" && fut1.state != "running" && fut1.state != "resolved" { panic("Test failed: future state") }
+res1 := await fut1
+if res1 != 42 { panic("Test failed: async fn await") }
+if fut1.is_done != true { panic("Test failed: future is_done") }
+if fut1.result != 42 { panic("Test failed: future result property") }
+
+// Test method call .await()
+fut2 := async_multiply(10, 5)
+res2 := fut2.await()
+if res2 != 50 { panic("Test failed: future .await() method") }
+
+// Test spawn keyword
+fut_spawn := spawn async_worker_task(23)
+res_spawn := await fut_spawn
+if res_spawn != 123 { panic("Test failed: spawn keyword") }
+
+// Test async.spawn
+fut_aspawn := async.spawn(async_worker_task, 50)
+res_aspawn := await fut_aspawn
+if res_aspawn != 150 { panic("Test failed: async.spawn") }
+
+// Test async.all
+f task_a { return 10 }
+f task_b { return 20 }
+f task_c { return 30 }
+
+futs_all := [spawn task_a(), spawn task_b(), spawn task_c()]
+results_all := await async.all(futs_all)
+if results_all.size != 3 || results_all[0] != 10 || results_all[1] != 20 || results_all[2] != 30 {
+    panic("Test failed: async.all")
+}
+
+// Test async.race
+f fast_task {
+    await async.sleep(0.01)
+    return "fast"
+}
+f slow_task {
+    await async.sleep(0.08)
+    return "slow"
+}
+race_result := await async.race([spawn slow_task(), spawn fast_task()])
+if race_result != "fast" {
+    panic("Test failed: async.race")
+}
+
 println("All Skylang tests passed successfully! [100% OK]")
+
 

@@ -26,6 +26,7 @@
    - [Operators & Precedence](#operators--precedence)
    - [Control Flow Statements](#control-flow-statements)
    - [Function Declarations & Parameter Gateway](#function-declarations--parameter-gateway)
+   - [Async Functions, Await & Spawn Syntax](#async-functions-await--spawn-syntax)
    - [Class & Object-Oriented Syntax](#class--object-oriented-syntax)
    - [Module Imports & Export Resolution](#module-imports--export-resolution)
    - [Foreign Function Interface (C FFI) Syntax](#foreign-function-interface-c-ffi-syntax)
@@ -48,16 +49,17 @@
 7. [Standard Library Modules](#7-standard-library-modules)
    - [The `math` Module](#the-math-module)
    - [The `str` Module](#the-str-module)
+   - [The `async` Concurrency Module](#the-async-concurrency-module)
 8. [Multi-Language Interoperability Bridges](#8-multi-language-interoperability-bridges)
    - [Python Bridge (`python`)](#python-bridge)
    - [JavaScript / NPM Bridge (`js`)](#javascript--npm-bridge)
    - [C++ JIT Bridge (`cpp`)](#c-jit-bridge)
    - [Java Bridge (`java`)](#java-bridge)
-   - [Golang Bridge (`go`, `golang`)](#golang-bridge)
+   - [Golang Bridge (`golang`)](#golang-bridge)
    - [Rust Bridge (`rust`)](#rust-bridge)
 9. [Error Handling & Runtime Exceptions](#9-error-handling--runtime-exceptions)
-10. [CLI Toolchain Commands](#10-cli-toolchain-commands)
-11. [VS Code Extension Reference](#11-vs-code-extension-reference)
+10. [CLI Toolchain Commands & Multi-Platform Installation](#10-cli-toolchain-commands--multi-platform-installation)
+11. [VS Code Extension Reference & Foreign IntelliSense](#11-vs-code-extension-reference--foreign-intellisense)
 12. [License](#12-license)
 
 ---
@@ -71,11 +73,11 @@ Skylang reserves the following keywords:
 ```
 async       await       break       cimport     class       continue    
 DICT        elif        else        extern      f           false       
-for         from        go          golang      if          import      
-in          init        js          L           new         nil         
-none        None        panic       python      return      rust        
-SET         SL          spawn       T           takes       this        
-true        while       I           D           B           C           S
+for         from        golang      if          import      in          
+init        js          L           new         none        panic       
+python      return      rust        SET         SL          spawn       
+T           takes       this        true        while       I           
+D           B           C           S
 ```
 
 ### Variable Declarations & Assignment
@@ -183,6 +185,39 @@ f <function_name> {
 - Functions can return multiple expressions separated by commas: `return val1, val2`.
 - Caller unbinds with comma-separated assignment: `a, b := fn()`.
 - Blank identifier `_` discards unwanted return slots: `val, _ := fn()`.
+
+---
+
+### Async Functions, Await & Spawn Syntax
+
+#### 1. Async Function Declarations (`async f`)
+Prefixing a function declaration with `async` defines an asynchronous function that executes in the background:
+```skylang
+async f fetch_user {
+    takes(user_id)
+    await async.sleep(0.05) // non-blocking pause
+    return {"id": user_id, "name": "Alice"}
+}
+```
+
+#### 2. The `await` Expression
+Waits for an asynchronous task to finish and returns its response value directly:
+```skylang
+user := await fetch_user(42)
+println(user["name"]) // "Alice"
+```
+
+#### 3. The `spawn` Task Expression
+Converts **any regular synchronous function** into a concurrent task executing on a background worker thread:
+```skylang
+// 1. Run in background and await response directly:
+result := await spawn compute_heavy_task(1000)
+
+// 2. Or launch background worker and retrieve response when needed:
+worker := spawn compute_heavy_task(1000)
+// ... do other work ...
+result := await worker
+```
 
 ---
 
@@ -558,32 +593,55 @@ Returned by `open(filepath, mode)`:
 
 ---
 
+### The `async` Concurrency Module
+
+- `async.sleep(seconds: number)`: Pauses execution for `seconds` without blocking the main event loop (use with `await`).
+- `async.all(tasks: list)`: Runs multiple background tasks in parallel and returns a list containing each task's resolved return value.
+- `async.race(tasks: list)`: Waits for multiple background tasks in parallel and returns the resolved result of whichever task completes first.
+- `async.spawn(callee: function, ...args)`: Spawns any synchronous function with arguments in a background worker task.
+
+---
+
 ## 8. Multi-Language Interoperability Bridges
+
+### Foreign Execution Blocks (`{ ... }`) & Automatic Variable Registration
+Skylang allows you to embed raw foreign code blocks directly inside `js.exec({ ... })` and `python.exec({ ... })` calls:
+- Standard output (like `console.log` in JavaScript or `print()` in Python) streams in real time to the terminal.
+- Variables declared in foreign blocks (`let`, `var`, `const` in JS; assignments in Python) are automatically captured and registered into Skylang scope for subsequent statements:
+  ```skylang
+  js.exec({
+    console.log("Server Started");
+    let a = 10
+  })
+
+  c := 90 + a // Evaluates to 100 in Skylang!
+  ```
+- Cross-module foreign exports (`import mod_js -> mod_js.a`) and scope collision detection with `ScopeError`.
 
 ### Python Bridge (`python`)
 - `python.load(module_name: string)`: Loads Python C-API module into Skylang object.
-- `python.exec(python_code: string)`: Executes arbitrary Python code block.
+- `python.exec(python_code: string | block)`: Executes Python code block and exports declared symbols to Skylang.
 
 ### JavaScript / NPM Bridge (`js`)
 - `js.load(module_or_package: string)`: Loads Node.js / NPM package.
-- `js.exec(js_code: string)`: Executes JavaScript code via Node runtime.
+- `js.exec(js_code: string | block)`: Executes JavaScript code via Node.js runtime and exports declared symbols to Skylang.
 
 ### C++ JIT Bridge (`cpp`)
-- `cpp.compile(cpp_source: string)`: JIT compiles C++ source with GCC into shared object.
+- `cpp.compile(cpp_source: string | block)`: JIT compiles C++ source with GCC into shared object.
 - `cpp.load(shared_library_path: string)`: Loads native C++ dynamic library.
 
 ### Java Bridge (`java`)
 - `java.load(class_name: string)`: Loads Java class via reflection.
 - `java.exec(method_call: string)`: Dispatches static/instance JVM method.
 
-### Golang Bridge (`go`, `golang`)
-- `go.load(package_name: string)`: Loads Go runtime package.
-- `go.compile(go_source: string)`: JIT compiles Go code into `c-shared` binary bridge.
-- `go.exec(function_call: string)`: Dispatches Go exported function.
+### Golang Bridge (`golang`)
+- `golang.load(package_name: string)`: Loads Go runtime package.
+- `golang.compile(go_source: string | block)`: JIT compiles Go code into `c-shared` binary bridge.
+- `golang.exec(function_call: string)`: Dispatches Go exported function.
 
 ### Rust Bridge (`rust`)
 - `rust.load(crate_name: string)`: Loads Rust crate library.
-- `rust.compile(rust_source: string)`: JIT compiles Rust code into `cdylib` bridge.
+- `rust.compile(rust_source: string | block)`: JIT compiles Rust code into `cdylib` bridge.
 - `rust.exec(function_call: string)`: Dispatches Rust `extern "C"` function.
 
 ---
@@ -608,7 +666,29 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 10. CLI Toolchain Commands
+## 10. CLI Toolchain Commands & Multi-Platform Installation
+
+### Cross-Platform Installation
+
+| Platform | Installer Command | Details |
+|---|---|---|
+| **Windows (.exe Installer)** | `skylang-installer.exe` | Native standalone Win32 installer: configures `%LOCALAPPDATA%\Skylang`, adds `bin\` to Registry PATH, registers `.sky` file associations, creates `uninstall.exe` |
+| **Linux & macOS** | `./install.sh` | Detects Homebrew/apt/dnf/pacman, builds and links `sky` and `skylang` to `/usr/local/bin` |
+| **From Source** | `make clean all` | Builds `bin/skylang`, `bin/sky`, and `lib/libskylang_rt.a` via Makefile / MinGW |
+
+#### Windows Installer CLI Options
+```cmd
+skylang-installer.exe             :: Interactive installation wizard
+skylang-installer.exe --silent    :: Unattended / silent installation
+skylang-installer.exe --dir "C:\Skylang" :: Custom destination path
+skylang-installer.exe --uninstall :: Remove Skylang and registry associations
+```
+
+### Uninstallation
+- **Windows**: Run `uninstall.exe` from your Skylang installation folder or Windows *Add or Remove Programs*
+- **Linux / macOS**: `./delete.sh`
+
+### CLI Commands
 
 | Command Signature | Function |
 |---|---|
@@ -621,11 +701,20 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 11. VS Code Extension Reference
+## 11. VS Code Extension Reference & Foreign IntelliSense
 
 - **File Associations**: `.sky`, `.skylang`
-- **Grammar Scopes**: TextMate grammar covering bracketless functions, `takes(...)`, walrus `:=`, scalar prefixes, f-strings, and multi-language bridges.
+- **Grammar Scopes**: TextMate grammar covering bracketless functions, `async f`, `await`, `spawn`, `takes(...)`, walrus `:=`, scalar prefixes, f-strings, and multi-language bridges.
+- **Universal Foreign IntelliSense**: Autocompletions, parameter hints, and hover documentation for:
+  - **Node.js / JS**: `fs`, `path`, `http`, `express`, `lodash`, `axios`, `Math`, `JSON`
+  - **Python 3**: `math`, `sys`, `os`, `json`, `numpy`, `requests`
+  - **Java / JVM**: `java.lang.Math`, `java.util.ArrayList`, `java.util.HashMap`, `java.io.File`
+  - **Golang**: `fmt`, `math`, `os`, `net/http`, `strings`, `sync`
+  - **Rust**: `std::f64::consts`, `std::collections::HashMap`, `std::fs`, `std::io`
+  - **C/C++ FFI**: `stdio.h`, `stdlib.h`, `math.h`, `string.h`, `unistd.h`
 - **Snippets Catalog**:
+  - `asyncf` / `await` / `spawn`: Asynchronous functions, task await, and background thread spawning
+  - `asyncsleep` / `asyncall` / `asyncrace` / `asyncspawn`: Concurrency standard library combinators
   - `f` / `fn`: Function declaration with `takes(...)`
   - `fvar`: Variadic function declaration with `args`
   - `takes`: Parameter filtering gateway
