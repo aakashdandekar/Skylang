@@ -99,4 +99,7 @@ vscode:
 	@python3 -c "import json, os; p = os.path.expanduser('~/.config/Code/User/settings.json'); os.makedirs(os.path.dirname(p), exist_ok=True); data = json.load(open(p)) if os.path.exists(p) else {}; data['workbench.iconTheme'] = 'skylang-icons'; data.setdefault('files.associations', {})['*.sky'] = 'skylang'; data['files.associations']['*.skylang'] = 'skylang'; json.dump(data, open(p, 'w'), indent=4)" 2>/dev/null || true
 	@echo "Skylang VS Code extension & default icon theme installed!"
 
-.PHONY: all dirs clean test win-installer vscode
+manual:
+	@python3 tools/generate_pdf_manual.py
+
+.PHONY: all dirs clean test win-installer vscode manual
