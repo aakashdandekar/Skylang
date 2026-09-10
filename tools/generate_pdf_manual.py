@@ -25,7 +25,7 @@ def markdown_to_html(md_text):
         if lang in ('skylang', 'sky', 'c', 'javascript', 'js', 'python', 'py', 'go', 'rust', 'java'):
             keywords = [
                 r'\b(import|from|as|cimport|extern|f|class|this|super|return|if|else|while|for|in|break|continue|async|await|spawn|eval|panic|takes)\b',
-                r'\b(true|false|none|null|nil)\b',
+                r'\b(true|false|none)\b',
                 r'\b(int|double|bool|char|string|type|array|list|tuple|dict|set|sortedList)\b',
                 r'\b(I|D|B|C|S|L|T|SL|DICT|SET)\b'
             ]

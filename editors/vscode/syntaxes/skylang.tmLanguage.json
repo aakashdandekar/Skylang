@@ -259,7 +259,7 @@
                 },
                 {
                     "name": "constant.language.nil.sky",
-                    "match": "\\b(nil|none|None)\\b"
+                    "match": "\\b(none)\\b"
                 },
                 {
                     "name": "constant.language.math.sky",

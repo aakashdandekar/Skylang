@@ -513,7 +513,7 @@ class SkylangCompletionItemProvider {
             item.sortText = `4_${typeName}`;
             items.push(item);
         }
-        // 9. Constants & Special Identifiers (true, false, none, nil, args, _)
+        // 9. Constants & Special Identifiers (true, false, none, args, _)
         for (const [cName, doc] of Object.entries(keywords_1.CONSTANTS)) {
             const item = new vscode.CompletionItem(cName, vscode.CompletionItemKind.Constant);
             item.detail = doc.name;

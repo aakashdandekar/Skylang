@@ -333,21 +333,11 @@ exports.CONSTANTS = {
         syntax: 'false',
         description: 'Boolean literal representing falsehood.'
     },
-    'nil': {
-        name: 'nil / none / None (Null Value)',
-        syntax: 'nil | none | None',
-        description: 'Represents the absence of a value or null object in Skylang.'
-    },
     'none': {
-        name: 'none (Go-Style Default Null / No-Error)',
+        name: 'none (Null / No-Error Value)',
         syntax: 'none',
-        description: 'Skylang null/nil value, automatically returned for `err` when a function returns a normal single value in Go-style multiple returns.',
+        description: 'Skylang canonical null value, automatically returned for `err` when a function returns a normal single value in Go-style multiple returns.',
         example: 'res, err := safe_fn()\nif err != none {\n    println("Error:", err)\n}'
-    },
-    'None': {
-        name: 'None (Python / Skylang Null Literal)',
-        syntax: 'None',
-        description: 'Alias for Skylang null/nil value.'
     },
     'args': {
         name: 'args (Implicit Function Argument List)',

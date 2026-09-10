@@ -74,10 +74,10 @@ Skylang reserves the following keywords:
 async       await       break       cimport     class       continue    
 DICT        elif        else        extern      f           false       
 for         from        go          golang      if          import      
-in          init        js          L           new         nil         
-none        None        panic       python      return      rust        
-SET         SL          spawn       T           takes       this        
-true        while       I           D           B           C           S
+in          init        js          L           new         none        
+panic       python      return      rust        SET         SL          
+spawn       T           takes       this        true        while       
+I           D           B           C           S
 ```
 
 ### Variable Declarations & Assignment
