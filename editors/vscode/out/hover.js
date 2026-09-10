@@ -40,10 +40,22 @@ const builtins_1 = require("./data/builtins");
 const stdlib_1 = require("./data/stdlib");
 const foreign_1 = require("./data/foreign");
 const completions_1 = require("./completions");
+const foreignLspBridge_1 = require("./foreignLspBridge");
 class SkylangHoverProvider {
     completionProvider = new completions_1.SkylangCompletionItemProvider();
-    provideHover(document, position, _token) {
+    async provideHover(document, position, _token) {
         const lineText = document.lineAt(position.line).text;
+        // 0. Check for Embedded Foreign Code hover (python.exec, cpp.compile, etc.)
+        const embeddedContext = this.completionProvider.getEmbeddedCodeContext(document, position);
+        if (embeddedContext) {
+            const lspBridge = foreignLspBridge_1.ForeignLspBridge.getInstance();
+            if (lspBridge && lspBridge.isLanguageExtensionAvailable(embeddedContext.bridge)) {
+                const shadowDoc = lspBridge.createShadowDocumentForEmbeddedCode(embeddedContext.bridge, embeddedContext.code, embeddedContext.offset);
+                const lspHover = await lspBridge.queryHover(shadowDoc);
+                if (lspHover)
+                    return lspHover;
+            }
+        }
         // 1. Check for C Header hover in `cimport "header.h"`
         const headerRange = document.getWordRangeAtPosition(position, /[a-zA-Z0-9_\.]+\.h/);
         if (headerRange) {
@@ -96,7 +108,16 @@ class SkylangHoverProvider {
             let foreignMod = undefined;
             const varSym = docSymbols.find(s => s.name === receiver);
             if (varSym && varSym.inferredType && varSym.inferredType.startsWith('foreign_')) {
-                const rawPkg = varSym.inferredType.replace(/^foreign_[a-z]+:/, '');
+                const matchBridge = varSym.inferredType.match(/^foreign_([a-z]+):(.*)$/);
+                const bridge = (matchBridge ? matchBridge[1] : 'js');
+                const rawPkg = matchBridge ? matchBridge[2] : varSym.inferredType.replace(/^foreign_[a-z]+:/, '');
+                const lspBridge = foreignLspBridge_1.ForeignLspBridge.getInstance();
+                if (lspBridge && lspBridge.isLanguageExtensionAvailable(bridge)) {
+                    const shadowDoc = lspBridge.createShadowDocumentForMember(bridge, rawPkg, member);
+                    const lspHover = await lspBridge.queryHover(shadowDoc);
+                    if (lspHover)
+                        return lspHover;
+                }
                 foreignMod = (0, foreign_1.getForeignModule)(rawPkg);
             }
             if (!foreignMod) {

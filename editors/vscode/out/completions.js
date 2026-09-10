@@ -41,6 +41,7 @@ const keywords_1 = require("./data/keywords");
 const builtins_1 = require("./data/builtins");
 const stdlib_1 = require("./data/stdlib");
 const foreign_1 = require("./data/foreign");
+const foreignLspBridge_1 = require("./foreignLspBridge");
 class SkylangCompletionItemProvider {
     async provideCompletionItems(document, position, token, context) {
         const lineText = document.lineAt(position.line).text;
@@ -48,6 +49,18 @@ class SkylangCompletionItemProvider {
         // Check if inside a comment
         if (this.isInsideComment(lineText, position.character)) {
             return [];
+        }
+        // Check if inside an embedded foreign code block (python.exec, cpp.compile, js.exec, etc.)
+        const embeddedContext = this.getEmbeddedCodeContext(document, position);
+        if (embeddedContext) {
+            const lspBridge = foreignLspBridge_1.ForeignLspBridge.getInstance();
+            if (lspBridge) {
+                const shadowDoc = lspBridge.createShadowDocumentForEmbeddedCode(embeddedContext.bridge, embeddedContext.code, embeddedContext.offset);
+                const lspCompletions = await lspBridge.queryCompletions(shadowDoc, context?.triggerCharacter);
+                if (lspCompletions && lspCompletions.length > 0) {
+                    return lspCompletions;
+                }
+            }
         }
         const items = [];
         // 1. Context: cimport "..."
@@ -299,12 +312,25 @@ class SkylangCompletionItemProvider {
                 const infType = varSymbol.inferredType;
                 // C1. Foreign Interop Module / Package Completion (e.g. express., app., lodash., axios., np., pd., Math_js.)
                 if (infType.startsWith('foreign_')) {
-                    const rawPkg = infType.replace(/^foreign_[a-z]+:/, '');
+                    const matchBridge = infType.match(/^foreign_([a-z]+):(.*)$/);
+                    const bridge = (matchBridge ? matchBridge[1] : 'js');
+                    const rawPkg = matchBridge ? matchBridge[2] : infType.replace(/^foreign_[a-z]+:/, '');
+                    // 1. Try querying the actual installed VS Code language extension first (Pylance, TS Server, Clangd, gopls, rust-analyzer, JDTLS)
+                    const lspBridge = foreignLspBridge_1.ForeignLspBridge.getInstance();
+                    if (lspBridge && lspBridge.isLanguageExtensionAvailable(bridge)) {
+                        const memberPrefix = linePrefix.match(/\.([a-zA-Z0-9_]*)$/)?.[1] || '';
+                        const shadowDoc = lspBridge.createShadowDocumentForMember(bridge, rawPkg, memberPrefix);
+                        const lspCompletions = await lspBridge.queryCompletions(shadowDoc, context?.triggerCharacter);
+                        if (lspCompletions && lspCompletions.length > 0) {
+                            return lspCompletions;
+                        }
+                    }
+                    // 2. Fallback to our curated zero-latency foreign database
                     const foreignMod = (0, foreign_1.getForeignModule)(rawPkg);
                     if (foreignMod) {
                         for (const [mName, mDoc] of Object.entries(foreignMod.methods)) {
                             const item = new vscode.CompletionItem(mName, vscode.CompletionItemKind.Method);
-                            item.detail = mDoc.signature;
+                            item.detail = `[${foreignMod.bridge.toUpperCase()}] ${mDoc.signature}`;
                             item.documentation = new vscode.MarkdownString(`${mDoc.description}\n\n**Returns:** \`${mDoc.returns || 'any'}\`${mDoc.example ? `\n\n\`\`\`skylang\n${mDoc.example}\n\`\`\`` : ''}`);
                             if (mDoc.snippet) {
                                 item.insertText = new vscode.SnippetString(mDoc.snippet);
@@ -318,7 +344,7 @@ class SkylangCompletionItemProvider {
                         if (foreignMod.properties) {
                             for (const [pName, pDoc] of Object.entries(foreignMod.properties)) {
                                 const item = new vscode.CompletionItem(pName, vscode.CompletionItemKind.Property);
-                                item.detail = pDoc.signature;
+                                item.detail = `[${foreignMod.bridge.toUpperCase()}] ${pDoc.signature}`;
                                 item.documentation = new vscode.MarkdownString(`${pDoc.description}\n\n**Returns:** \`${pDoc.returns || 'any'}\``);
                                 item.sortText = `1_${pName}`;
                                 items.push(item);
@@ -1167,6 +1193,44 @@ class SkylangCompletionItemProvider {
             return callee;
         }
         return undefined;
+    }
+    /**
+     * Detects if the cursor is positioned inside an embedded foreign code block (e.g. python.exec, cpp.compile).
+     */
+    getEmbeddedCodeContext(document, position) {
+        const fullText = document.getText();
+        const cursorOffset = document.offsetAt(position);
+        const bridgeRegex = /\b(python|js|cpp|go|rust|java)\s*\.\s*(exec|compile)\s*\(\s*(["'`])/g;
+        let match;
+        while ((match = bridgeRegex.exec(fullText)) !== null) {
+            const bridge = match[1];
+            const quoteChar = match[3];
+            const stringStart = match.index + match[0].length;
+            let stringEnd = -1;
+            let isEscaped = false;
+            for (let i = stringStart; i < fullText.length; i++) {
+                const char = fullText[i];
+                if (isEscaped) {
+                    isEscaped = false;
+                }
+                else if (char === '\\') {
+                    isEscaped = true;
+                }
+                else if (char === quoteChar) {
+                    stringEnd = i;
+                    break;
+                }
+            }
+            if (stringEnd === -1) {
+                stringEnd = fullText.length;
+            }
+            if (cursorOffset >= stringStart && cursorOffset <= stringEnd) {
+                const rawCode = fullText.substring(stringStart, stringEnd);
+                const offset = cursorOffset - stringStart;
+                return { bridge, code: rawCode, offset };
+            }
+        }
+        return null;
     }
 }
 exports.SkylangCompletionItemProvider = SkylangCompletionItemProvider;

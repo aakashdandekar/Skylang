@@ -1,11 +1,30 @@
 import * as vscode from 'vscode';
+import { ForeignLspBridge } from './foreignLspBridge';
+import { SkylangCompletionItemProvider } from './completions';
 
 export class SkylangDefinitionProvider implements vscode.DefinitionProvider {
-    public provideDefinition(
+    private completionProvider = new SkylangCompletionItemProvider();
+
+    public async provideDefinition(
         document: vscode.TextDocument,
         position: vscode.Position,
         _token: vscode.CancellationToken
-    ): vscode.ProviderResult<vscode.Definition | vscode.LocationLink[]> {
+    ): Promise<vscode.Definition | vscode.LocationLink[] | null> {
+        // 0. Check for Embedded Foreign Code definitions (python.exec, cpp.compile, etc.)
+        const embeddedContext = this.completionProvider.getEmbeddedCodeContext(document, position);
+        if (embeddedContext) {
+            const lspBridge = ForeignLspBridge.getInstance();
+            if (lspBridge && lspBridge.isLanguageExtensionAvailable(embeddedContext.bridge)) {
+                const shadowDoc = lspBridge.createShadowDocumentForEmbeddedCode(
+                    embeddedContext.bridge,
+                    embeddedContext.code,
+                    embeddedContext.offset
+                );
+                const lspDef = await lspBridge.queryDefinition(shadowDoc);
+                if (lspDef) return lspDef;
+            }
+        }
+
         const wordRange = document.getWordRangeAtPosition(position, /[a-zA-Z0-9_]+/);
         if (!wordRange) return null;
 

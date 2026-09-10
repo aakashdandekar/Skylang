@@ -35,8 +35,22 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SkylangDefinitionProvider = void 0;
 const vscode = __importStar(require("vscode"));
+const foreignLspBridge_1 = require("./foreignLspBridge");
+const completions_1 = require("./completions");
 class SkylangDefinitionProvider {
-    provideDefinition(document, position, _token) {
+    completionProvider = new completions_1.SkylangCompletionItemProvider();
+    async provideDefinition(document, position, _token) {
+        // 0. Check for Embedded Foreign Code definitions (python.exec, cpp.compile, etc.)
+        const embeddedContext = this.completionProvider.getEmbeddedCodeContext(document, position);
+        if (embeddedContext) {
+            const lspBridge = foreignLspBridge_1.ForeignLspBridge.getInstance();
+            if (lspBridge && lspBridge.isLanguageExtensionAvailable(embeddedContext.bridge)) {
+                const shadowDoc = lspBridge.createShadowDocumentForEmbeddedCode(embeddedContext.bridge, embeddedContext.code, embeddedContext.offset);
+                const lspDef = await lspBridge.queryDefinition(shadowDoc);
+                if (lspDef)
+                    return lspDef;
+            }
+        }
         const wordRange = document.getWordRangeAtPosition(position, /[a-zA-Z0-9_]+/);
         if (!wordRange)
             return null;

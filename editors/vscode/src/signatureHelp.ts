@@ -3,16 +3,32 @@ import { BUILTIN_FUNCTIONS, COLLECTION_METHODS } from './data/builtins';
 import { STDLIB_MODULES, COMMON_EXTERN_C_FUNCTIONS } from './data/stdlib';
 import { getForeignModule, ForeignModuleDoc } from './data/foreign';
 import { SkylangCompletionItemProvider } from './completions';
+import { ForeignLspBridge, ForeignBridgeType } from './foreignLspBridge';
 
 export class SkylangSignatureHelpProvider implements vscode.SignatureHelpProvider {
     private completionProvider = new SkylangCompletionItemProvider();
 
-    public provideSignatureHelp(
+    public async provideSignatureHelp(
         document: vscode.TextDocument,
         position: vscode.Position,
         _token: vscode.CancellationToken,
         _context: vscode.SignatureHelpContext
-    ): vscode.ProviderResult<vscode.SignatureHelp> {
+    ): Promise<vscode.SignatureHelp | null> {
+        // 0. Check for Embedded Foreign Code signature help (python.exec, cpp.compile, etc.)
+        const embeddedContext = this.completionProvider.getEmbeddedCodeContext(document, position);
+        if (embeddedContext) {
+            const lspBridge = ForeignLspBridge.getInstance();
+            if (lspBridge && lspBridge.isLanguageExtensionAvailable(embeddedContext.bridge)) {
+                const shadowDoc = lspBridge.createShadowDocumentForEmbeddedCode(
+                    embeddedContext.bridge,
+                    embeddedContext.code,
+                    embeddedContext.offset
+                );
+                const lspHelp = await lspBridge.querySignatureHelp(shadowDoc, '(');
+                if (lspHelp) return lspHelp;
+            }
+        }
+
         const textBeforeCursor = document.getText(new vscode.Range(new vscode.Position(0, 0), position));
         const callInfo = this.getCallInfo(textBeforeCursor);
         if (!callInfo) return null;
@@ -44,7 +60,17 @@ export class SkylangSignatureHelpProvider implements vscode.SignatureHelpProvide
             const varSym = parsedSymbols.find(s => s.name === modOrVar);
             let foreignMod: ForeignModuleDoc | undefined = undefined;
             if (varSym && varSym.inferredType && varSym.inferredType.startsWith('foreign_')) {
-                const rawPkg = varSym.inferredType.replace(/^foreign_[a-z]+:/, '');
+                const matchBridge = varSym.inferredType.match(/^foreign_([a-z]+):(.*)$/);
+                const bridge = (matchBridge ? matchBridge[1] : 'js') as ForeignBridgeType;
+                const rawPkg = matchBridge ? matchBridge[2] : varSym.inferredType.replace(/^foreign_[a-z]+:/, '');
+
+                const lspBridge = ForeignLspBridge.getInstance();
+                if (lspBridge && lspBridge.isLanguageExtensionAvailable(bridge)) {
+                    const shadowDoc = lspBridge.createShadowDocumentForMember(bridge, rawPkg, `${fnName}(`);
+                    const lspHelp = await lspBridge.querySignatureHelp(shadowDoc, '(');
+                    if (lspHelp) return lspHelp;
+                }
+
                 foreignMod = getForeignModule(rawPkg);
             }
             if (!foreignMod) {

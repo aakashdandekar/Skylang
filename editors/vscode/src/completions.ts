@@ -14,6 +14,7 @@ import {
     COMMON_RUST_CRATES
 } from './data/stdlib';
 import { getForeignModule, normalizeModuleName, ForeignModuleDoc } from './data/foreign';
+import { ForeignLspBridge, ForeignBridgeType } from './foreignLspBridge';
 
 export interface DocumentSymbolInfo {
     name: string;
@@ -39,6 +40,23 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
         // Check if inside a comment
         if (this.isInsideComment(lineText, position.character)) {
             return [];
+        }
+
+        // Check if inside an embedded foreign code block (python.exec, cpp.compile, js.exec, etc.)
+        const embeddedContext = this.getEmbeddedCodeContext(document, position);
+        if (embeddedContext) {
+            const lspBridge = ForeignLspBridge.getInstance();
+            if (lspBridge) {
+                const shadowDoc = lspBridge.createShadowDocumentForEmbeddedCode(
+                    embeddedContext.bridge,
+                    embeddedContext.code,
+                    embeddedContext.offset
+                );
+                const lspCompletions = await lspBridge.queryCompletions(shadowDoc, context?.triggerCharacter);
+                if (lspCompletions && lspCompletions.length > 0) {
+                    return lspCompletions;
+                }
+            }
         }
 
         const items: vscode.CompletionItem[] = [];
@@ -323,12 +341,27 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
 
                 // C1. Foreign Interop Module / Package Completion (e.g. express., app., lodash., axios., np., pd., Math_js.)
                 if (infType.startsWith('foreign_')) {
-                    const rawPkg = infType.replace(/^foreign_[a-z]+:/, '');
+                    const matchBridge = infType.match(/^foreign_([a-z]+):(.*)$/);
+                    const bridge = (matchBridge ? matchBridge[1] : 'js') as ForeignBridgeType;
+                    const rawPkg = matchBridge ? matchBridge[2] : infType.replace(/^foreign_[a-z]+:/, '');
+
+                    // 1. Try querying the actual installed VS Code language extension first (Pylance, TS Server, Clangd, gopls, rust-analyzer, JDTLS)
+                    const lspBridge = ForeignLspBridge.getInstance();
+                    if (lspBridge && lspBridge.isLanguageExtensionAvailable(bridge)) {
+                        const memberPrefix = linePrefix.match(/\.([a-zA-Z0-9_]*)$/)?.[1] || '';
+                        const shadowDoc = lspBridge.createShadowDocumentForMember(bridge, rawPkg, memberPrefix);
+                        const lspCompletions = await lspBridge.queryCompletions(shadowDoc, context?.triggerCharacter);
+                        if (lspCompletions && lspCompletions.length > 0) {
+                            return lspCompletions;
+                        }
+                    }
+
+                    // 2. Fallback to our curated zero-latency foreign database
                     const foreignMod = getForeignModule(rawPkg);
                     if (foreignMod) {
                         for (const [mName, mDoc] of Object.entries(foreignMod.methods)) {
                             const item = new vscode.CompletionItem(mName, vscode.CompletionItemKind.Method);
-                            item.detail = mDoc.signature;
+                            item.detail = `[${foreignMod.bridge.toUpperCase()}] ${mDoc.signature}`;
                             item.documentation = new vscode.MarkdownString(
                                 `${mDoc.description}\n\n**Returns:** \`${mDoc.returns || 'any'}\`${
                                     mDoc.example ? `\n\n\`\`\`skylang\n${mDoc.example}\n\`\`\`` : ''
@@ -346,7 +379,7 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
                         if (foreignMod.properties) {
                             for (const [pName, pDoc] of Object.entries(foreignMod.properties)) {
                                 const item = new vscode.CompletionItem(pName, vscode.CompletionItemKind.Property);
-                                item.detail = pDoc.signature;
+                                item.detail = `[${foreignMod.bridge.toUpperCase()}] ${pDoc.signature}`;
                                 item.documentation = new vscode.MarkdownString(
                                     `${pDoc.description}\n\n**Returns:** \`${pDoc.returns || 'any'}\``
                                 );
@@ -1312,4 +1345,51 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
 
         return undefined;
     }
+
+    /**
+     * Detects if the cursor is positioned inside an embedded foreign code block (e.g. python.exec, cpp.compile).
+     */
+    public getEmbeddedCodeContext(
+        document: vscode.TextDocument,
+        position: vscode.Position
+    ): { bridge: ForeignBridgeType; code: string; offset: number } | null {
+        const fullText = document.getText();
+        const cursorOffset = document.offsetAt(position);
+
+        const bridgeRegex = /\b(python|js|cpp|go|rust|java)\s*\.\s*(exec|compile)\s*\(\s*(["'`])/g;
+        let match: RegExpExecArray | null;
+
+        while ((match = bridgeRegex.exec(fullText)) !== null) {
+            const bridge = match[1] as ForeignBridgeType;
+            const quoteChar = match[3];
+            const stringStart = match.index + match[0].length;
+
+            let stringEnd = -1;
+            let isEscaped = false;
+            for (let i = stringStart; i < fullText.length; i++) {
+                const char = fullText[i];
+                if (isEscaped) {
+                    isEscaped = false;
+                } else if (char === '\\') {
+                    isEscaped = true;
+                } else if (char === quoteChar) {
+                    stringEnd = i;
+                    break;
+                }
+            }
+
+            if (stringEnd === -1) {
+                stringEnd = fullText.length;
+            }
+
+            if (cursorOffset >= stringStart && cursorOffset <= stringEnd) {
+                const rawCode = fullText.substring(stringStart, stringEnd);
+                const offset = cursorOffset - stringStart;
+                return { bridge, code: rawCode, offset };
+            }
+        }
+
+        return null;
+    }
 }
+

@@ -4,16 +4,32 @@ import { BUILTIN_FUNCTIONS, COLLECTION_METHODS, PROPERTIES } from './data/builti
 import { STDLIB_MODULES, COMMON_EXTERN_C_FUNCTIONS, COMMON_C_HEADERS } from './data/stdlib';
 import { getForeignModule, ForeignModuleDoc } from './data/foreign';
 import { SkylangCompletionItemProvider } from './completions';
+import { ForeignLspBridge, ForeignBridgeType } from './foreignLspBridge';
 
 export class SkylangHoverProvider implements vscode.HoverProvider {
     private completionProvider = new SkylangCompletionItemProvider();
 
-    public provideHover(
+    public async provideHover(
         document: vscode.TextDocument,
         position: vscode.Position,
         _token: vscode.CancellationToken
-    ): vscode.ProviderResult<vscode.Hover> {
+    ): Promise<vscode.Hover | null> {
         const lineText = document.lineAt(position.line).text;
+
+        // 0. Check for Embedded Foreign Code hover (python.exec, cpp.compile, etc.)
+        const embeddedContext = this.completionProvider.getEmbeddedCodeContext(document, position);
+        if (embeddedContext) {
+            const lspBridge = ForeignLspBridge.getInstance();
+            if (lspBridge && lspBridge.isLanguageExtensionAvailable(embeddedContext.bridge)) {
+                const shadowDoc = lspBridge.createShadowDocumentForEmbeddedCode(
+                    embeddedContext.bridge,
+                    embeddedContext.code,
+                    embeddedContext.offset
+                );
+                const lspHover = await lspBridge.queryHover(shadowDoc);
+                if (lspHover) return lspHover;
+            }
+        }
 
         // 1. Check for C Header hover in `cimport "header.h"`
         const headerRange = document.getWordRangeAtPosition(position, /[a-zA-Z0-9_\.]+\.h/);
@@ -71,7 +87,17 @@ export class SkylangHoverProvider implements vscode.HoverProvider {
             let foreignMod: ForeignModuleDoc | undefined = undefined;
             const varSym = docSymbols.find(s => s.name === receiver);
             if (varSym && varSym.inferredType && varSym.inferredType.startsWith('foreign_')) {
-                const rawPkg = varSym.inferredType.replace(/^foreign_[a-z]+:/, '');
+                const matchBridge = varSym.inferredType.match(/^foreign_([a-z]+):(.*)$/);
+                const bridge = (matchBridge ? matchBridge[1] : 'js') as ForeignBridgeType;
+                const rawPkg = matchBridge ? matchBridge[2] : varSym.inferredType.replace(/^foreign_[a-z]+:/, '');
+
+                const lspBridge = ForeignLspBridge.getInstance();
+                if (lspBridge && lspBridge.isLanguageExtensionAvailable(bridge)) {
+                    const shadowDoc = lspBridge.createShadowDocumentForMember(bridge, rawPkg, member);
+                    const lspHover = await lspBridge.queryHover(shadowDoc);
+                    if (lspHover) return lspHover;
+                }
+
                 foreignMod = getForeignModule(rawPkg);
             }
             if (!foreignMod) {

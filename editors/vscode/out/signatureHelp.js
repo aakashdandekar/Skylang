@@ -39,9 +39,21 @@ const builtins_1 = require("./data/builtins");
 const stdlib_1 = require("./data/stdlib");
 const foreign_1 = require("./data/foreign");
 const completions_1 = require("./completions");
+const foreignLspBridge_1 = require("./foreignLspBridge");
 class SkylangSignatureHelpProvider {
     completionProvider = new completions_1.SkylangCompletionItemProvider();
-    provideSignatureHelp(document, position, _token, _context) {
+    async provideSignatureHelp(document, position, _token, _context) {
+        // 0. Check for Embedded Foreign Code signature help (python.exec, cpp.compile, etc.)
+        const embeddedContext = this.completionProvider.getEmbeddedCodeContext(document, position);
+        if (embeddedContext) {
+            const lspBridge = foreignLspBridge_1.ForeignLspBridge.getInstance();
+            if (lspBridge && lspBridge.isLanguageExtensionAvailable(embeddedContext.bridge)) {
+                const shadowDoc = lspBridge.createShadowDocumentForEmbeddedCode(embeddedContext.bridge, embeddedContext.code, embeddedContext.offset);
+                const lspHelp = await lspBridge.querySignatureHelp(shadowDoc, '(');
+                if (lspHelp)
+                    return lspHelp;
+            }
+        }
         const textBeforeCursor = document.getText(new vscode.Range(new vscode.Position(0, 0), position));
         const callInfo = this.getCallInfo(textBeforeCursor);
         if (!callInfo)
@@ -69,7 +81,16 @@ class SkylangSignatureHelpProvider {
             const varSym = parsedSymbols.find(s => s.name === modOrVar);
             let foreignMod = undefined;
             if (varSym && varSym.inferredType && varSym.inferredType.startsWith('foreign_')) {
-                const rawPkg = varSym.inferredType.replace(/^foreign_[a-z]+:/, '');
+                const matchBridge = varSym.inferredType.match(/^foreign_([a-z]+):(.*)$/);
+                const bridge = (matchBridge ? matchBridge[1] : 'js');
+                const rawPkg = matchBridge ? matchBridge[2] : varSym.inferredType.replace(/^foreign_[a-z]+:/, '');
+                const lspBridge = foreignLspBridge_1.ForeignLspBridge.getInstance();
+                if (lspBridge && lspBridge.isLanguageExtensionAvailable(bridge)) {
+                    const shadowDoc = lspBridge.createShadowDocumentForMember(bridge, rawPkg, `${fnName}(`);
+                    const lspHelp = await lspBridge.querySignatureHelp(shadowDoc, '(');
+                    if (lspHelp)
+                        return lspHelp;
+                }
                 foreignMod = (0, foreign_1.getForeignModule)(rawPkg);
             }
             if (!foreignMod) {
