@@ -46,7 +46,7 @@ export const STDLIB_MODULES: Record<string, ModuleDoc> = {
         description: 'Direct embedded Python 3 C API runtime bridge with automatic bidirectional type marshalling for loading NumPy, SciPy, PyTorch, sys, math, and custom Python scripts.',
         functions: {
             'load': { name: 'python.load', signature: 'python.load(module_name, ...)', description: 'Loads one or more Python standard or third-party modules into callable Skylang objects.', params: [{ name: 'module_name', doc: 'Python module name (e.g. "numpy", "pandas", "math", "os", "sys", "torch")' }], returns: 'foreign_obj', example: 'import python\nnp := python.load("numpy")\narr := np.array([1, 2, 3, 4])\nprintln(arr)' },
-            'exec': { name: 'python.exec', signature: 'python.exec(code_str)', description: 'Executes Python source code statements, classes, and function definitions inside the embedded Python session.', params: [{ name: 'code_str', doc: 'Python source code block' }], returns: 'none', example: 'import python\npython.exec("\ndef greet(name):\n    return f\'Hello, {name}!\'\n")' },
+            'exec': { name: 'python.exec', signature: 'python.exec({\\n  ...\\n})', description: 'Executes Python source code statements, classes, and function definitions inside the embedded Python session.', params: [{ name: 'code_block', doc: 'Python source code block inside curly braces' }], returns: 'none', example: 'import python\npython.exec({\n    def greet(name):\n        return f\'Hello, {name}!\'\n})' },
             'version': { name: 'python.version', signature: 'python.version()', description: 'Returns the version string of the embedded Python runtime.', params: [], returns: 'string', example: 'import python\nprintln("Python:", python.version())' }
         }
     },
@@ -55,14 +55,14 @@ export const STDLIB_MODULES: Record<string, ModuleDoc> = {
         description: 'JavaScript / Node.js runtime and global ecosystem bridge with bidirectional JSON marshalling.',
         functions: {
             'load': { name: 'js.load', signature: 'js.load(global_or_pkg)', description: 'Loads a JavaScript global object (e.g. "Math", "JSON") or installed Node.js/NPM package into a callable Skylang object.', params: [{ name: 'global_or_pkg', doc: 'JS global object or NPM package name (e.g. "Math", "lodash", "axios")' }], returns: 'foreign_obj', example: 'import js\nMath_js := js.load("Math")\nprintln(Math_js.sqrt(625))' },
-            'exec': { name: 'js.exec', signature: 'js.exec(code_str)', description: 'Executes JavaScript code statements in the Node.js runtime environment.', params: [{ name: 'code_str', doc: 'JavaScript code block' }], returns: 'none', example: 'import js\njs.exec("console.log(\'Hello from Node.js\');")' }
+            'exec': { name: 'js.exec', signature: 'js.exec({\\n  ...\\n})', description: 'Executes JavaScript code statements in the Node.js runtime environment.', params: [{ name: 'code_block', doc: 'JavaScript code block inside curly braces' }], returns: 'none', example: 'import js\njs.exec({\n  console.log("Server Started");\n  let a = 10;\n})' }
         }
     },
     'cpp': {
         name: 'cpp (C++ JIT Compilation & Native Bridge)',
         description: 'On-the-fly C++ compilation pipeline via g++ and dynamic linking (`dlopen`) with support for JIT-compiled extern "C" functions.',
         functions: {
-            'compile': { name: 'cpp.compile', signature: 'cpp.compile(cpp_source_code)', description: 'JIT-compiles C++ source code with extern "C" bindings on-the-fly and loads the resulting shared library into a callable module.', params: [{ name: 'cpp_source_code', doc: 'C++ source code string' }], returns: 'foreign_obj', example: 'import cpp\ncpp_mod := cpp.compile("\nextern \\\"C\\\" {\n    double fast_add(double a, double b) {\n        return a + b;\n    }\n}\n")\nprintln(cpp_mod.fast_add(10.5, 20.5))' },
+            'compile': { name: 'cpp.compile', signature: 'cpp.compile({\\n  ...\\n})', description: 'JIT-compiles C++ source code with extern "C" bindings on-the-fly and loads the resulting shared library into a callable module.', params: [{ name: 'code_block', doc: 'C++ source code block inside curly braces' }], returns: 'foreign_obj', example: 'import cpp\ncpp_mod := cpp.compile({\n  extern "C" {\n    double fast_add(double a, double b) {\n      return a + b;\n    }\n  }\n})\nprintln(cpp_mod.fast_add(10.5, 20.5))' },
             'load': { name: 'cpp.load', signature: 'cpp.load(so_path)', description: 'Loads a pre-compiled native shared library (.so) into Skylang.', params: [{ name: 'so_path', doc: 'Path to .so shared object library' }], returns: 'foreign_obj', example: 'import cpp\nlib := cpp.load("./libnative.so")' }
         }
     },
@@ -71,25 +71,25 @@ export const STDLIB_MODULES: Record<string, ModuleDoc> = {
         description: 'Java Virtual Machine (OpenJDK) interop bridge supporting class reflection, static method dispatch, property access, and statement execution.',
         functions: {
             'load': { name: 'java.load', signature: 'java.load(class_name, ...)', description: 'Loads one or more Java classes via JVM reflection into callable Skylang objects.', params: [{ name: 'class_name', doc: 'Fully qualified Java class name (e.g. "java.lang.Math", "java.util.ArrayList")' }], returns: 'foreign_obj', example: 'import java\nMath := java.load("java.lang.Math")\nprintln("Java sqrt:", Math.sqrt(256.0))\nprintln("Java PI:", Math.PI)' },
-            'exec': { name: 'java.exec', signature: 'java.exec(code_str)', description: 'Executes Java statements and definitions in the JVM environment.', params: [{ name: 'code_str', doc: 'Java code block' }], returns: 'none' }
+            'exec': { name: 'java.exec', signature: 'java.exec({\\n  ...\\n})', description: 'Executes Java statements and definitions in the JVM environment.', params: [{ name: 'code_block', doc: 'Java code block inside curly braces' }], returns: 'none', example: 'import java\njava.exec({\n  System.out.println("Hello from JVM");\n})' }
         }
     },
     'golang': {
         name: 'golang (Golang JIT Compilation & Native Bridge)',
         description: 'On-the-fly Go compilation via `go build -buildmode=c-shared` and dynamic linking (`dlopen`) with support for exported Go functions.',
         functions: {
-            'compile': { name: 'golang.compile', signature: 'golang.compile(go_source_code)', description: 'JIT-compiles Go source code with `//export` bindings on-the-fly and loads the resulting shared library into a callable module.', params: [{ name: 'go_source_code', doc: 'Go source code string' }], returns: 'foreign_obj', example: 'import golang\ngo_mod := golang.compile("\n//export Add\nfunc Add(a, b float64) float64 {\n    return a + b\n}\n")\nprintln(go_mod.Add(10.5, 20.5))' },
+            'compile': { name: 'golang.compile', signature: 'golang.compile({\\n  ...\\n})', description: 'JIT-compiles Go source code with `//export` bindings on-the-fly and loads the resulting shared library into a callable module.', params: [{ name: 'code_block', doc: 'Go source code block inside curly braces' }], returns: 'foreign_obj', example: 'import golang\ngo_mod := golang.compile({\n  //export Add\n  func Add(a, b float64) float64 {\n    return a + b\n  }\n})\nprintln(go_mod.Add(10.5, 20.5))' },
             'load': { name: 'golang.load', signature: 'golang.load(so_path_or_pkg)', description: 'Loads a pre-compiled Go shared library (.so) or Go standard package into Skylang.', params: [{ name: 'so_path_or_pkg', doc: 'Path to .so library or Go package name' }], returns: 'foreign_obj', example: 'import golang\nlib := golang.load("./libcalc.so")' },
-            'exec': { name: 'golang.exec', signature: 'golang.exec(go_source_code)', description: 'Executes Go source code in the Go runtime environment.', params: [{ name: 'go_source_code', doc: 'Go code block' }], returns: 'none', example: 'import golang\ngolang.exec("println(\\"Hello from Go\\")")' }
+            'exec': { name: 'golang.exec', signature: 'golang.exec({\\n  ...\\n})', description: 'Executes Go source code in the Go runtime environment.', params: [{ name: 'code_block', doc: 'Go code block inside curly braces' }], returns: 'none', example: 'import golang\ngolang.exec({\n  println("Hello from Go")\n})' }
         }
     },
     'rust': {
         name: 'rust (Rust JIT Compilation & Native cdylib Bridge)',
         description: 'On-the-fly Rust compilation via `rustc --crate-type cdylib` and dynamic linking (`dlopen`) with support for `pub extern "C"` functions.',
         functions: {
-            'compile': { name: 'rust.compile', signature: 'rust.compile(rust_source_code)', description: 'JIT-compiles Rust source code with `#[no_mangle] pub extern "C"` bindings on-the-fly and loads the resulting shared library into a callable module.', params: [{ name: 'rust_source_code', doc: 'Rust source code string' }], returns: 'foreign_obj', example: 'import rust\nrs_mod := rust.compile("\n#[no_mangle]\npub extern \\"C\\" fn add(a: f64, b: f64) -> f64 {\n    a + b\n}\n")\nprintln(rs_mod.add(10.5, 20.5))' },
+            'compile': { name: 'rust.compile', signature: 'rust.compile({\\n  ...\\n})', description: 'JIT-compiles Rust source code with `#[no_mangle] pub extern "C"` bindings on-the-fly and loads the resulting shared library into a callable module.', params: [{ name: 'code_block', doc: 'Rust source code block inside curly braces' }], returns: 'foreign_obj', example: 'import rust\nrs_mod := rust.compile({\n  #[no_mangle]\n  pub extern "C" fn add(a: f64, b: f64) -> f64 {\n    a + b\n  }\n})\nprintln(rs_mod.add(10.5, 20.5))' },
             'load': { name: 'rust.load', signature: 'rust.load(so_path_or_module)', description: 'Loads a pre-compiled Rust cdylib library (.so) or standard module into Skylang.', params: [{ name: 'so_path_or_module', doc: 'Path to .so library or Rust module' }], returns: 'foreign_obj', example: 'import rust\nlib := rust.load("./librustcalc.so")' },
-            'exec': { name: 'rust.exec', signature: 'rust.exec(rust_source_code)', description: 'Executes Rust source code.', params: [{ name: 'rust_source_code', doc: 'Rust code block' }], returns: 'none', example: 'import rust\nrust.exec("println!(\\"Hello from Rust\\");")' }
+            'exec': { name: 'rust.exec', signature: 'rust.exec({\\n  ...\\n})', description: 'Executes Rust source code.', params: [{ name: 'code_block', doc: 'Rust code block inside curly braces' }], returns: 'none', example: 'import rust\nrust.exec({\n  println!("Hello from Rust");\n})' }
         }
     },
     'async': {

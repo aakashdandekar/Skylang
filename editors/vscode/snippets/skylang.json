@@ -434,7 +434,7 @@
   "C++ Compile": {
     "prefix": "cppcompile",
     "body": [
-      "${1:mod} := cpp.compile(\"\\nextern \\\"C\\\" {\\n    double ${2:add}(double a, double b) {\\n        return a + b;\\n    }\\n}\\n\")"
+      "${1:mod} := cpp.compile({\n\textern \"C\" {\n\t\tdouble ${2:add}(double a, double b) {\n\t\t\treturn a + b;\n\t\t}\n\t}\n})"
     ],
     "description": "JIT-compile C++ source code with extern C functions"
   },
@@ -455,7 +455,7 @@
   "Java Exec": {
     "prefix": "javaexec",
     "body": [
-      "java.exec(\"${1:System.out.println(\\\"Hello\\\");}\")"
+      "java.exec({\n\t${1:System.out.println(\"Hello\");}\n})"
     ],
     "description": "Execute Java statements in JVM"
   },
@@ -469,7 +469,7 @@
   "Golang Compile": {
     "prefix": "gocompile",
     "body": [
-      "${1:mod} := golang.compile(\"\\n//export ${2:Add}\\nfunc ${2:Add}(a, b float64) float64 {\\n\\treturn a + b\\n}\\n\")"
+      "${1:mod} := golang.compile({\n\t//export ${2:Add}\n\tfunc ${2:Add}(a, b float64) float64 {\n\t\treturn a + b\n\t}\n})"
     ],
     "description": "JIT-compile Go code with exported functions"
   },
@@ -490,14 +490,14 @@
   "Rust Compile": {
     "prefix": "rustcompile",
     "body": [
-      "${1:mod} := rust.compile(\"\\n#[no_mangle]\\npub extern \\\"C\\\" fn ${2:add}(a: f64, b: f64) -> f64 {\\n\\ta + b\\n}\\n\")"
+      "${1:mod} := rust.compile({\n\t#[no_mangle]\n\tpub extern \"C\" fn ${2:add}(a: f64, b: f64) -> f64 {\n\t\ta + b\n\t}\n})"
     ],
     "description": "JIT-compile Rust code with extern C functions"
   },
   "Rust Exec": {
     "prefix": "rustexec",
     "body": [
-      "rust.exec(\"${1:println!(\\\"Hello from Rust\\\");}\")"
+      "rust.exec({\n\t${1:println!(\"Hello from Rust\");}\n})"
     ],
     "description": "Execute Rust source code statements"
   },

@@ -700,7 +700,11 @@ export class SkylangCompletionItemProvider implements vscode.CompletionItemProvi
             return `${name}("\${1}")`;
         }
 
-        if (name === 'eval' || name === 'exec' || name === 'compile') {
+        if (name === 'exec' || name === 'compile') {
+            return `${name}({\\n\\t\${1}\\n})`;
+        }
+
+        if (name === 'eval') {
             return `${name}("\${1}")`;
         }
 
