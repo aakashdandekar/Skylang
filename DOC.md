@@ -17,7 +17,7 @@ This guide is designed for students learning Skylang from scratch. By the end of
 8. [Object-Oriented Programming (Classes)](#8-object-oriented-programming-classes)
 9. [Modules & File Importing](#9-modules--file-importing)
 10. [Error Handling & Memory Management](#10-error-handling--memory-management)
-11. [Async/Await Concurrency & Futures](#11-asyncawait-concurrency--futures)
+11. [Asynchronous Programming & Concurrency (async, await, spawn)](#11-asynchronous-programming--concurrency-async-await-spawn)
 12. [Multi-Language Interoperability & IntelliSense](#12-multi-language-interoperability--intellisense)
 13. [Student Practice Exercises](#13-student-practice-exercises)
 
@@ -596,32 +596,42 @@ Skylang provides core built-in functions available everywhere without imports:
 
 ---
 
-## 11. Async/Await Concurrency & Futures
+## 11. Asynchronous Programming & Concurrency (async, await, spawn)
 
-Skylang provides first-class asynchronous programming and OS-level pthread worker concurrency.
+Skylang provides first-class asynchronous programming and multi-threaded background task execution.
 
-### Async Functions (`async f`)
-Prefixing a function with `async` causes it to execute asynchronously and return a `Future` object immediately:
+### Async Functions (`async f`) & `await`
+Declare an asynchronous function using the `async f` keyword. Calling an async function with `await` executes it and returns its response value directly once completed:
 
 ```skylang
 import async
 
 async f fetch_user_data {
     takes(user_id)
-    await async.sleep(0.05) // non-blocking 50ms sleep
+    await async.sleep(0.05) // non-blocking 50ms pause
     return {"id": user_id, "name": "Alice", "status": "active"}
 }
 
-fut := fetch_user_data(42)
-println("Future state:", fut.state) // "pending" or "running"
-
-// Await pauses current execution until the future resolves:
-user := await fut
+// Directly await the async function call:
+user := await fetch_user_data(42)
 println("User:", user["name"])
 ```
 
-### Spawning Concurrent Tasks (`spawn`)
-The `spawn` expression launches any function call or expression on a background thread and returns a `Future`:
+You can also start an async task first, do other computations while it runs in the background, and `await` the response when needed:
+
+```skylang
+task := fetch_user_data(101)
+
+// Do other work while the task runs in the background...
+println("Performing other calculations...")
+
+// Retrieve the response:
+user := await task
+println("User payload:", user["name"])
+```
+
+### Spawning Background Tasks with `spawn`
+The `spawn` keyword converts **any regular synchronous function** into a background worker task that runs concurrently on an independent thread:
 
 ```skylang
 f heavy_computation {
@@ -635,52 +645,47 @@ f heavy_computation {
     return sum
 }
 
-// Run task in background thread
+// 1. Spawning and awaiting directly in one line:
+total := await spawn heavy_computation(500000)
+println("Total sum:", total)
+
+// 2. Or spawning in background to do other work concurrently:
 task := spawn heavy_computation(1000000)
 
-// Do other work while task executes...
-println("Computing in background...")
+println("Background worker is computing...")
 
-// Retrieve result
+// Retrieve the result when needed:
 result := await task
-println("Calculated sum:", result)
+println("Calculated result:", result)
 ```
-
-### The `Future` Object Model
-Every asynchronous computation in Skylang produces a `Future` instance with the following properties and methods:
-
-| Member | Type | Description |
-|---|---|---|
-| `.state` | Property (`string`) | Current state: `"pending"`, `"running"`, `"resolved"`, `"rejected"`, or `"cancelled"`. |
-| `.is_done` | Property (`bool`) | `true` if resolved, rejected, or cancelled. |
-| `.result` | Property (`any`) | The returned value once resolved (or `none`). |
-| `.error` | Property (`string`) | Error message string if rejected. |
-| `.await()` | Method | Suspends until the future finishes and returns its result. |
-| `.cancel()` | Method | Signals task cancellation. |
 
 ### The `async` Standard Library Module
 
-Import `async` to access high-level concurrency combinators:
+Import `async` to access high-level concurrency helpers:
 
 ```skylang
 import async
 
 // 1. Non-blocking sleep
-await async.sleep(0.1) // Sleep 100 milliseconds
+await async.sleep(0.1) // Sleeps for 100 milliseconds without blocking other tasks
 
 // 2. async.all - Parallel fan-out / join
-// Takes a list of futures and waits for all of them to resolve:
-futs := [spawn task_a(), spawn task_b(), spawn task_c()]
-results := await async.all(futs)
+// Runs multiple background tasks in parallel and returns a list of all their results:
+tasks := [
+    spawn fetch_from_server_a(),
+    spawn fetch_from_server_b(),
+    spawn fetch_from_server_c()
+]
+results := await async.all(tasks)
 
-// 3. async.race - Return first resolved future
-// Returns the result of whichever task finishes first:
+// 3. async.race - Return fastest response
+// Runs multiple tasks simultaneously and returns the result of whichever finishes first:
 fastest := await async.race([
-    spawn fetch_primary(),
-    spawn fetch_fallback()
+    spawn fetch_primary_mirror(),
+    spawn fetch_edge_cache()
 ])
 
-// 4. async.spawn - Helper to spawn functions with arguments
+// 4. async.spawn - Helper to launch a function with arguments in the background:
 task := async.spawn(heavy_computation, 50000)
 res := await task
 ```

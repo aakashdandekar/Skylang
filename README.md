@@ -45,23 +45,22 @@
    - [Dictionary (`dict`)](#dictionary-methods--properties)
    - [Set (`set`)](#set-methods--properties)
    - [Sorted List (`sortedList`)](#sorted-list-methods--properties)
-6. [Future Object Methods & Properties (`future`)](#6-future-object-methods--properties-future)
-7. [File Object Methods & Properties](#7-file-object-methods--properties)
-8. [Standard Library Modules](#8-standard-library-modules)
+6. [File Object Methods & Properties](#6-file-object-methods--properties)
+7. [Standard Library Modules](#7-standard-library-modules)
    - [The `math` Module](#the-math-module)
    - [The `str` Module](#the-str-module)
    - [The `async` Concurrency Module](#the-async-concurrency-module)
-9. [Multi-Language Interoperability Bridges](#9-multi-language-interoperability-bridges)
+8. [Multi-Language Interoperability Bridges](#8-multi-language-interoperability-bridges)
    - [Python Bridge (`python`)](#python-bridge)
    - [JavaScript / NPM Bridge (`js`)](#javascript--npm-bridge)
    - [C++ JIT Bridge (`cpp`)](#c-jit-bridge)
    - [Java Bridge (`java`)](#java-bridge)
    - [Golang Bridge (`go`, `golang`)](#golang-bridge)
    - [Rust Bridge (`rust`)](#rust-bridge)
-10. [Error Handling & Runtime Exceptions](#10-error-handling--runtime-exceptions)
-11. [CLI Toolchain Commands & Multi-Platform Installation](#11-cli-toolchain-commands--multi-platform-installation)
-12. [VS Code Extension Reference & Foreign IntelliSense](#12-vs-code-extension-reference--foreign-intellisense)
-13. [License](#13-license)
+9. [Error Handling & Runtime Exceptions](#9-error-handling--runtime-exceptions)
+10. [CLI Toolchain Commands & Multi-Platform Installation](#10-cli-toolchain-commands--multi-platform-installation)
+11. [VS Code Extension Reference & Foreign IntelliSense](#11-vs-code-extension-reference--foreign-intellisense)
+12. [License](#12-license)
 
 ---
 
@@ -192,26 +191,31 @@ f <function_name> {
 ### Async Functions, Await & Spawn Syntax
 
 #### 1. Async Function Declarations (`async f`)
-Prefixing a function declaration with `async` returns a concurrency `Future` object immediately:
+Prefixing a function declaration with `async` defines an asynchronous function that executes in the background:
 ```skylang
 async f fetch_user {
     takes(user_id)
-    await async.sleep(0.05)
+    await async.sleep(0.05) // non-blocking pause
     return {"id": user_id, "name": "Alice"}
 }
 ```
 
 #### 2. The `await` Expression
-Suspends the calling execution context until a `Future` resolves its value:
+Waits for an asynchronous task to finish and returns its response value directly:
 ```skylang
 user := await fetch_user(42)
-println(user["name"])
+println(user["name"]) // "Alice"
 ```
 
 #### 3. The `spawn` Task Expression
-Spawns any function call or expression onto a background OS worker thread:
+Converts **any regular synchronous function** into a concurrent task executing on a background worker thread:
 ```skylang
+// 1. Run in background and await response directly:
+result := await spawn compute_heavy_task(1000)
+
+// 2. Or launch background worker and retrieve response when needed:
 worker := spawn compute_heavy_task(1000)
+// ... do other work ...
 result := await worker
 ```
 
@@ -508,26 +512,7 @@ class <ClassName> {
 
 ---
 
-## 6. Future Object Methods & Properties (`future`)
-
-Returned by `async f` calls, `spawn` expressions, and `async.*` concurrency APIs:
-
-### Future Properties
-- `fut.state`: String representation of current state (`"pending"`, `"running"`, `"resolved"`, `"rejected"`, or `"cancelled"`).
-- `fut.is_done`: Boolean flag indicating if task has completed execution.
-- `fut.result`: The resolved return value (or `none` if pending/errored).
-- `fut.error`: Error message string if rejected.
-- `fut.T`: Returns `<type future>`.
-
-### Future Methods
-| Future Method Signature | Return Type | Description |
-|---|---|---|
-| `fut.await()` | `any` | Blocks calling thread until future resolves and returns its value. |
-| `fut.cancel()` | `bool` | Requests cancellation of the background worker task. |
-
----
-
-## 7. File Object Methods & Properties
+## 6. File Object Methods & Properties
 
 Returned by `open(filepath, mode)`:
 
@@ -549,7 +534,7 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 8. Standard Library Modules
+## 7. Standard Library Modules
 
 ### The `math` Module
 
@@ -610,14 +595,14 @@ Returned by `open(filepath, mode)`:
 
 ### The `async` Concurrency Module
 
-- `async.sleep(seconds: number)`: Returns a Future that resolves after non-blocking sleep duration.
-- `async.all(futures: list)`: Returns a Future resolving to a list of results once all tasks complete.
-- `async.race(futures: list)`: Returns a Future resolving to the value of whichever task finishes first.
-- `async.spawn(callee: function, ...args)`: Spawns function pointer with arguments in a background worker thread.
+- `async.sleep(seconds: number)`: Pauses execution for `seconds` without blocking the main event loop (use with `await`).
+- `async.all(tasks: list)`: Runs multiple background tasks in parallel and returns a list containing each task's resolved return value.
+- `async.race(tasks: list)`: Waits for multiple background tasks in parallel and returns the resolved result of whichever task completes first.
+- `async.spawn(callee: function, ...args)`: Spawns any synchronous function with arguments in a background worker task.
 
 ---
 
-## 9. Multi-Language Interoperability Bridges
+## 8. Multi-Language Interoperability Bridges
 
 ### Python Bridge (`python`)
 - `python.load(module_name: string)`: Loads Python C-API module into Skylang object.
@@ -647,7 +632,7 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 10. Error Handling & Runtime Exceptions
+## 9. Error Handling & Runtime Exceptions
 
 ### Error Protocol
 - `error(msg: string)`: Constructs Go-style error object.
@@ -667,7 +652,7 @@ Returned by `open(filepath, mode)`:
 
 ---
 
-## 11. CLI Toolchain Commands & Multi-Platform Installation
+## 10. CLI Toolchain Commands & Multi-Platform Installation
 
 ### Cross-Platform Installation
 
@@ -702,7 +687,7 @@ skylang-installer.exe --uninstall :: Remove Skylang and registry associations
 
 ---
 
-## 12. VS Code Extension Reference & Foreign IntelliSense
+## 11. VS Code Extension Reference & Foreign IntelliSense
 
 - **File Associations**: `.sky`, `.skylang`
 - **Grammar Scopes**: TextMate grammar covering bracketless functions, `async f`, `await`, `spawn`, `takes(...)`, walrus `:=`, scalar prefixes, f-strings, and multi-language bridges.
@@ -730,7 +715,7 @@ skylang-installer.exe --uninstall :: Remove Skylang and registry associations
 
 ---
 
-## 13. License
+## 12. License
 
 This project is licensed under the [Apache License, Version 2.0](LICENSE) - see the [LICENSE](LICENSE) file for details.
 
