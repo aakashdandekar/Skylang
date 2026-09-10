@@ -5,6 +5,7 @@
     "patterns": [
         { "include": "#comments" },
         { "include": "#fstrings" },
+        { "include": "#embedded_foreign_code" },
         { "include": "#strings" },
         { "include": "#chars" },
         { "include": "#constants" },
@@ -112,6 +113,58 @@
                                 { "include": "$self" }
                             ]
                         }
+                    ]
+                }
+            ]
+        },
+        "embedded_foreign_code": {
+            "patterns": [
+                {
+                    "name": "meta.embedded.block.python.sky",
+                    "begin": "(?<=\\bpython\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.python" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.javascript.sky",
+                    "begin": "(?<=\\bjs\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.js" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.cpp.sky",
+                    "begin": "(?<=\\bcpp\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.cpp" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.go.sky",
+                    "begin": "(?<=\\b(?:go|golang)\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.go" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.rust.sky",
+                    "begin": "(?<=\\brust\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.rust" }
+                    ]
+                },
+                {
+                    "name": "meta.embedded.block.java.sky",
+                    "begin": "(?<=\\bjava\\.(?:exec|compile)\\s*\\(\\s*)([\"'])",
+                    "end": "\\1",
+                    "patterns": [
+                        { "include": "source.java" }
                     ]
                 }
             ]
@@ -295,7 +348,7 @@
         "collection_methods": {
             "patterns": [
                 {
-                    "match": "(?<=\\.)(push|pop|clear|add|has|value|split|join|format|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|rjust|ljust|center|zfill|read|write|readline|readlines|close|chars|bytes)\\b(?=\\s*\\()",
+                    "match": "(?<=\\.)(push|pop|clear|add|has|value|split|join|format|upper|lower|trim|trimleft|trimright|contains|startswith|endswith|replace|find|count|reverse|rjust|ljust|center|zfill|read|write|readline|readlines|close|chars|bytes|await|cancel)\\b(?=\\s*\\()",
                     "name": "support.function.collection.sky"
                 }
             ]
@@ -303,7 +356,7 @@
         "properties": {
             "patterns": [
                 {
-                    "match": "(?<=\\.)(size|length|chars|bytes|T)\\b",
+                    "match": "(?<=\\.)(size|length|chars|bytes|T|is_done|result|error|state)\\b",
                     "name": "support.variable.property.sky"
                 }
             ]
