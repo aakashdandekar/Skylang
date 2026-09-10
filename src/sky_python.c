@@ -192,6 +192,55 @@ static Value py_to_sky(PyObject* obj) {
         return res;
     }
 
+    if (PyObject_HasAttrString(obj, "tolist")) {
+        PyObject* tolist_fn = PyObject_GetAttrString(obj, "tolist");
+        if (tolist_fn) {
+            if (PyCallable_Check(tolist_fn)) {
+                PyObject* list_obj = PyObject_CallObject(tolist_fn, NULL);
+                Py_DECREF(tolist_fn);
+                if (list_obj) {
+                    Value res = py_to_sky(list_obj);
+                    Py_DECREF(list_obj);
+                    return res;
+                }
+            } else {
+                Py_DECREF(tolist_fn);
+            }
+        }
+        if (PyErr_Occurred()) PyErr_Clear();
+    }
+
+    if (PyObject_HasAttrString(obj, "item")) {
+        PyObject* item_fn = PyObject_GetAttrString(obj, "item");
+        if (item_fn) {
+            if (PyCallable_Check(item_fn)) {
+                PyObject* item_obj = PyObject_CallObject(item_fn, NULL);
+                Py_DECREF(item_fn);
+                if (item_obj) {
+                    Value res = py_to_sky(item_obj);
+                    Py_DECREF(item_obj);
+                    return res;
+                }
+            } else {
+                Py_DECREF(item_fn);
+            }
+        }
+        if (PyErr_Occurred()) PyErr_Clear();
+    }
+
+    if (PyNumber_Check(obj)) {
+        if (PyLong_Check(obj)) {
+            return val_int((int64_t)PyLong_AsLongLong(obj));
+        }
+        PyObject* f = PyNumber_Float(obj);
+        if (f) {
+            double d = PyFloat_AsDouble(f);
+            Py_DECREF(f);
+            return val_double(d);
+        }
+        if (PyErr_Occurred()) PyErr_Clear();
+    }
+
     const char* type_name = Py_TYPE(obj)->tp_name;
     Py_INCREF(obj);
     return val_foreign(FOREIGN_PYTHON, type_name, (void*)obj, NULL);
@@ -444,12 +493,41 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                     while (*p && *p != '\n') p++;
                     continue;
                 } else if (!is_py_reserved_keyword(ident)) {
-                    const char* save_p = p;
-                    while (*p && isspace((unsigned char)*p)) p++;
-                    if (*p == '=' && *(p+1) != '=') {
-                        foreign_symtable_add(table, ident, "python", FOREIGN_DECL_ASSIGN, file, cur_line);
+                    char targets[16][128];
+                    size_t target_count = 0;
+                    strncpy(targets[target_count++], ident, 127);
+                    targets[0][127] = '\0';
+
+                    const char* scan_p = p;
+                    while (*scan_p && isspace((unsigned char)*scan_p) && *scan_p != '\n') scan_p++;
+                    
+                    while (*scan_p == ',') {
+                        scan_p++;
+                        while (*scan_p && isspace((unsigned char)*scan_p) && *scan_p != '\n') scan_p++;
+                        if (is_py_ident_start(*scan_p)) {
+                            const char* t_start = scan_p;
+                            while (is_py_ident_char(*scan_p)) scan_p++;
+                            size_t t_len = (size_t)(scan_p - t_start);
+                            if (t_len >= 128) t_len = 127;
+                            if (target_count < 16) {
+                                memcpy(targets[target_count], t_start, t_len);
+                                targets[target_count][t_len] = '\0';
+                                target_count++;
+                            }
+                            while (*scan_p && isspace((unsigned char)*scan_p) && *scan_p != '\n') scan_p++;
+                        } else {
+                            break;
+                        }
                     }
-                    p = save_p;
+
+                    if (*scan_p == '=' && *(scan_p + 1) != '=') {
+                        for (size_t ti = 0; ti < target_count; ++ti) {
+                            if (!is_py_reserved_keyword(targets[ti])) {
+                                foreign_symtable_add(table, targets[ti], "python", FOREIGN_DECL_ASSIGN, file, cur_line);
+                            }
+                        }
+                        p = scan_p;
+                    }
                 }
             }
         }
@@ -510,6 +588,20 @@ Value sky_python_exec(const char* code) {
     return result_dict;
 }
 
+void sky_python_set_global(const char* name, Value val) {
+    if (!name || !*name) return;
+    sky_python_ensure_init();
+    PyObject* main_mod = PyImport_AddModule("__main__");
+    if (!main_mod) return;
+    PyObject* global_dict = PyModule_GetDict(main_mod);
+    if (!global_dict) return;
+    PyObject* py_val = sky_to_py(val);
+    if (py_val) {
+        PyDict_SetItemString(global_dict, name, py_val);
+        Py_DECREF(py_val);
+    }
+}
+
 Value sky_python_call_method(ObjForeign* f, const char* name, int argc, Value* argv) {
     if (!f || !f->handle) return val_nil();
     sky_python_ensure_init();
@@ -532,6 +624,57 @@ Value sky_python_call_method(ObjForeign* f, const char* name, int argc, Value* a
         }
         PyObject* result = PyObject_CallObject(attr, py_args);
         Py_DECREF(py_args);
+
+        if (!result && PyErr_Occurred()) {
+            if (strcmp(name, "predict") == 0 && argc == 1) {
+                PyErr_Clear();
+                PyObject* py_2d = NULL;
+                if (argv[0].type == VAL_INT || argv[0].type == VAL_DOUBLE) {
+                    double num = (argv[0].type == VAL_INT) ? (double)argv[0].as.i : argv[0].as.d;
+                    py_2d = PyList_New(1);
+                    PyObject* row = PyList_New(1);
+                    PyList_SetItem(row, 0, PyFloat_FromDouble(num));
+                    PyList_SetItem(py_2d, 0, row);
+                } else if (argv[0].type == VAL_OBJ && argv[0].as.obj->type == OBJ_STRING) {
+                    ObjString* s = (ObjString*)argv[0].as.obj;
+                    if (s->chars) {
+                        char* endptr = NULL;
+                        double num = strtod(s->chars, &endptr);
+                        while (endptr && isspace((unsigned char)*endptr)) endptr++;
+                        if (endptr && *endptr == '\0' && endptr != s->chars) {
+                            py_2d = PyList_New(1);
+                            PyObject* row = PyList_New(1);
+                            PyList_SetItem(row, 0, PyFloat_FromDouble(num));
+                            PyList_SetItem(py_2d, 0, row);
+                        }
+                    }
+                } else if (argv[0].type == VAL_OBJ && argv[0].as.obj->type == OBJ_LIST) {
+                    ObjList* l = (ObjList*)argv[0].as.obj;
+                    bool is_1d = true;
+                    for (size_t k = 0; k < l->count; ++k) {
+                        if (l->items[k].type == VAL_OBJ && l->items[k].as.obj->type == OBJ_LIST) {
+                            is_1d = false;
+                            break;
+                        }
+                    }
+                    if (is_1d) {
+                        py_2d = PyList_New(1);
+                        PyObject* row = PyList_New((Py_ssize_t)l->count);
+                        for (size_t k = 0; k < l->count; ++k) {
+                            PyList_SetItem(row, (Py_ssize_t)k, sky_to_py(l->items[k]));
+                        }
+                        PyList_SetItem(py_2d, 0, row);
+                    }
+                }
+
+                if (py_2d) {
+                    PyObject* retry_args = PyTuple_New(1);
+                    PyTuple_SetItem(retry_args, 0, py_2d);
+                    result = PyObject_CallObject(attr, retry_args);
+                    Py_DECREF(retry_args);
+                }
+            }
+        }
         Py_DECREF(attr);
 
         if (!result) {

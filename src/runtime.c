@@ -1981,8 +1981,38 @@ Value val_call_method_kw(Value target, const char* name, int argc, Value* argv, 
                     Value key = val_string(name);
                     if (dict_has(d, key)) {
                         Value fn_val = dict_get(d, key);
-                        if (fn_val.type == VAL_OBJ && (fn_val.as.obj->type == OBJ_FUNCTION || fn_val.as.obj->type == OBJ_CLASS)) {
-                            return val_call_kw(fn_val, argc, argv, arg_names);
+                        if (fn_val.type == VAL_OBJ) {
+                            if (fn_val.as.obj->type == OBJ_FUNCTION || fn_val.as.obj->type == OBJ_CLASS) {
+                                return val_call_kw(fn_val, argc, argv, arg_names);
+                            }
+                            if (fn_val.as.obj->type == OBJ_FOREIGN) {
+                                ObjForeign* f = (ObjForeign*)fn_val.as.obj;
+                                switch (f->lang) {
+                                    case FOREIGN_PYTHON: return sky_python_call_method(f, f->name ? f->name : name, argc, argv);
+                                    case FOREIGN_JS: return sky_js_call_method(f, f->name ? f->name : name, argc, argv);
+                                    case FOREIGN_CPP: return sky_cpp_call_method(f, f->name ? f->name : name, argc, argv);
+                                    case FOREIGN_JAVA: return sky_java_call_method(f, f->name ? f->name : name, argc, argv);
+                                    case FOREIGN_GO: return sky_go_call_method(f, f->name ? f->name : name, argc, argv);
+                                    case FOREIGN_RUST: return sky_rust_call_method(f, f->name ? f->name : name, argc, argv);
+                                    default: break;
+                                }
+                            }
+                        }
+                    }
+                    Value handle_key = val_string("__foreign_handle__");
+                    if (dict_has(d, handle_key)) {
+                        Value hval = dict_get(d, handle_key);
+                        if (hval.type == VAL_OBJ && hval.as.obj->type == OBJ_FOREIGN) {
+                            ObjForeign* f = (ObjForeign*)hval.as.obj;
+                            switch (f->lang) {
+                                case FOREIGN_PYTHON: return sky_python_call_method(f, name, argc, argv);
+                                case FOREIGN_JS: return sky_js_call_method(f, name, argc, argv);
+                                case FOREIGN_CPP: return sky_cpp_call_method(f, name, argc, argv);
+                                case FOREIGN_JAVA: return sky_java_call_method(f, name, argc, argv);
+                                case FOREIGN_GO: return sky_go_call_method(f, name, argc, argv);
+                                case FOREIGN_RUST: return sky_rust_call_method(f, name, argc, argv);
+                                default: break;
+                            }
                         }
                     }
                 }
@@ -2163,6 +2193,18 @@ Value val_call_kw(Value callee, int argc, Value* argv, const char** arg_names) {
                 m = m->next;
             }
             return inst_v;
+        }
+        if (callee.as.obj->type == OBJ_FOREIGN) {
+            ObjForeign* f = (ObjForeign*)callee.as.obj;
+            switch (f->lang) {
+                case FOREIGN_PYTHON: return sky_python_call_method(f, f->name ? f->name : "__call__", argc, argv);
+                case FOREIGN_JS: return sky_js_call_method(f, f->name ? f->name : "__call__", argc, argv);
+                case FOREIGN_CPP: return sky_cpp_call_method(f, f->name ? f->name : "", argc, argv);
+                case FOREIGN_JAVA: return sky_java_call_method(f, f->name ? f->name : "", argc, argv);
+                case FOREIGN_GO: return sky_go_call_method(f, f->name ? f->name : "", argc, argv);
+                case FOREIGN_RUST: return sky_rust_call_method(f, f->name ? f->name : "", argc, argv);
+                default: break;
+            }
         }
     }
     sky_runtime_error("TypeError", "'%s' object is not callable", sky_type_name(val_get_type(callee).as.t));

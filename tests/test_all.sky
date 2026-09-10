@@ -70,6 +70,7 @@ if ", ".join(["a", "b", "c"]) != "a, b, c" || join(["a", "b", "c"], ", ") != "a,
 if ["a", "b", "c"].join(", ") != "a, b, c" { panic("Test failed: list join") }
 if "sky".chars.size != 3 || chars("sky").size != 3 { panic("Test failed: chars") }
 if "ABC".bytes[0] != 65 || bytes("ABC")[0] != 65 { panic("Test failed: bytes") }
+if type(input) != "function" { panic("Test failed: input builtin") }
 
 formatted := fmt.format("Number: {}", 42)
 if formatted != "Number: 42" { panic("Test failed: fmt.format") }

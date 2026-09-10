@@ -425,6 +425,8 @@ void foreign_symtable_free(ForeignSymbolTable* table);
 
 void sky_extract_js_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table);
 void sky_extract_py_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table);
+void sky_extract_cpp_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table);
+void sky_extract_java_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table);
 
 /* Parser */
 typedef struct {

@@ -64,6 +64,9 @@ static const char* codegen_current_fn = "<main>";
 static const char* declared_vars[2048];
 static size_t declared_vars_count = 0;
 
+static const char* all_global_vars[4096];
+static size_t global_vars_count = 0;
+
 static void scope_clear(void) {
     declared_vars_count = 0;
 }
@@ -293,7 +296,8 @@ static void extract_foreign_symbols_from_ast(AstNode* node, const char* filepath
         }
     } else if (node->type == AST_STMT_EXPR) {
         AstNode* expr = node->as.expr_stmt.expr;
-        if (expr && expr->type == AST_METHOD_CALL && strcmp(expr->as.method_call.method_name, "exec") == 0) {
+        if (expr && expr->type == AST_METHOD_CALL &&
+            (strcmp(expr->as.method_call.method_name, "exec") == 0 || strcmp(expr->as.method_call.method_name, "compile") == 0)) {
             AstNode* target = expr->as.method_call.target;
             AstNode* code_arg = expr->as.method_call.args.count > 0 ? expr->as.method_call.args.items[0] : NULL;
             const char* code_str = (code_arg && code_arg->type == AST_LITERAL && code_arg->as.literal.lit_type == TOK_STRING_LIT)
@@ -303,6 +307,10 @@ static void extract_foreign_symbols_from_ast(AstNode* node, const char* filepath
                     sky_extract_js_declarations(code_str, filepath, node->line, table);
                 } else if (strcmp(target->as.variable.name, "python") == 0) {
                     sky_extract_py_declarations(code_str, filepath, node->line, table);
+                } else if (strcmp(target->as.variable.name, "cpp") == 0) {
+                    sky_extract_cpp_declarations(code_str, filepath, node->line, table);
+                } else if (strcmp(target->as.variable.name, "java") == 0) {
+                    sky_extract_java_declarations(code_str, filepath, node->line, table);
                 }
             }
         }
@@ -351,12 +359,23 @@ static void validate_foreign_scopes(ModuleRegistry* reg, AstNode* root, const ch
     foreign_symtable_free(&root_syms);
 }
 
+static bool is_builtin_id(const char* name) {
+    if (!name) return false;
+    static const char* builtins[] = {
+        "print", "println", "input", "eval", "range", "len", "type", "takes", "gc", "free",
+        "panic", "error", "split", "join", "upper", "lower", "trim", "trimleft", "trimright",
+        "contains", "startswith", "endswith", "replace", "find", "count", "reverse", "chars",
+        "bytes", "math", "io", "fmt", "python", "js", "cpp", "java", "golang", "rust", "async"
+    };
+    for (size_t i = 0; i < sizeof(builtins)/sizeof(builtins[0]); ++i) {
+        if (strcmp(name, builtins[i]) == 0) return true;
+    }
+    return false;
+}
+
 static void add_global_id(const char* name, const char** vars, size_t* count, size_t max) {
     if (!name || strcmp(name, "_") == 0 || strcmp(name, "this") == 0) return;
-    if (strcmp(name, "js") == 0 || strcmp(name, "python") == 0 ||
-        strcmp(name, "cpp") == 0 || strcmp(name, "java") == 0 ||
-        strcmp(name, "golang") == 0 ||
-        strcmp(name, "rust") == 0 || strcmp(name, "async") == 0) return;
+    if (is_builtin_id(name)) return;
     for (size_t i = 0; i < *count; ++i) {
         if (strcmp(vars[i], name) == 0) return;
     }
@@ -377,7 +396,8 @@ static void collect_global_identifiers(AstNode* node, const char** vars, size_t*
         }
         case AST_STMT_EXPR: {
             AstNode* expr = node->as.expr_stmt.expr;
-            if (expr && expr->type == AST_METHOD_CALL && strcmp(expr->as.method_call.method_name, "exec") == 0) {
+            if (expr && expr->type == AST_METHOD_CALL &&
+                (strcmp(expr->as.method_call.method_name, "exec") == 0 || strcmp(expr->as.method_call.method_name, "compile") == 0)) {
                 AstNode* target = expr->as.method_call.target;
                 AstNode* code_arg = expr->as.method_call.args.count > 0 ? expr->as.method_call.args.items[0] : NULL;
                 const char* code_str = (code_arg && code_arg->type == AST_LITERAL && code_arg->as.literal.lit_type == TOK_STRING_LIT)
@@ -389,6 +409,10 @@ static void collect_global_identifiers(AstNode* node, const char** vars, size_t*
                         sky_extract_js_declarations(code_str, "<js>", 1, &syms);
                     } else if (strcmp(target->as.variable.name, "python") == 0) {
                         sky_extract_py_declarations(code_str, "<python>", 1, &syms);
+                    } else if (strcmp(target->as.variable.name, "cpp") == 0) {
+                        sky_extract_cpp_declarations(code_str, "<cpp>", 1, &syms);
+                    } else if (strcmp(target->as.variable.name, "java") == 0) {
+                        sky_extract_java_declarations(code_str, "<java>", 1, &syms);
                     }
                     for (size_t si = 0; si < syms.count; ++si) {
                         add_global_id(syms.items[si].name, vars, count, max);
@@ -895,11 +919,23 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
     switch (stmt->type) {
         case AST_STMT_EXPR: {
             AstNode* expr = stmt->as.expr_stmt.expr;
-            if (expr && expr->type == AST_METHOD_CALL && strcmp(expr->as.method_call.method_name, "exec") == 0) {
+            if (expr && expr->type == AST_METHOD_CALL &&
+                (strcmp(expr->as.method_call.method_name, "exec") == 0 || strcmp(expr->as.method_call.method_name, "compile") == 0)) {
                 AstNode* target = expr->as.method_call.target;
                 AstNode* code_arg = expr->as.method_call.args.count > 0 ? expr->as.method_call.args.items[0] : NULL;
                 const char* code_str = (code_arg && code_arg->type == AST_LITERAL && code_arg->as.literal.lit_type == TOK_STRING_LIT)
                                        ? code_arg->as.literal.as.s_val : NULL;
+
+                if (target && target->type == AST_VARIABLE && strcmp(target->as.variable.name, "python") == 0) {
+                    for (size_t gi = 0; gi < global_vars_count; ++gi) {
+                        const char* gname = all_global_vars[gi];
+                        if (is_builtin_id(gname)) {
+                            continue;
+                        }
+                        buf_printf(b, "if (sky_var_%s.type != VAL_NIL) sky_python_set_global(\"%s\", sky_var_%s);\n", gname, gname, gname);
+                        emit_indent(b, indent);
+                    }
+                }
 
                 int t = temp_var_counter++;
                 buf_printf(b, "Value _exec_res_%d = ", t);
@@ -913,6 +949,10 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
                         sky_extract_js_declarations(code_str, codegen_source_filename, stmt->line, &syms);
                     } else if (strcmp(target->as.variable.name, "python") == 0) {
                         sky_extract_py_declarations(code_str, codegen_source_filename, stmt->line, &syms);
+                    } else if (strcmp(target->as.variable.name, "cpp") == 0) {
+                        sky_extract_cpp_declarations(code_str, codegen_source_filename, stmt->line, &syms);
+                    } else if (strcmp(target->as.variable.name, "java") == 0) {
+                        sky_extract_java_declarations(code_str, codegen_source_filename, stmt->line, &syms);
                     }
 
                     if (syms.count > 0) {
@@ -944,7 +984,7 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
         }
         case AST_STMT_VAR_DECL: {
             const char* vname = stmt->as.var_decl.name;
-            if (scope_has(vname)) {
+            if (strcmp(codegen_current_fn, "<main>") == 0 || scope_has(vname)) {
                 buf_printf(b, "sky_var_%s = ", vname);
             } else {
                 scope_add(vname);
@@ -976,11 +1016,11 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
 
             if (tgt->type == AST_VARIABLE) {
                 const char* vname = tgt->as.variable.name;
-                if (!scope_has(vname)) {
+                if (strcmp(codegen_current_fn, "<main>") == 0 || scope_has(vname) || (op != TOK_ASSIGN && op != TOK_WALRUS)) {
+                    buf_printf(b, "sky_var_%s = ", vname);
+                } else {
                     scope_add(vname);
                     buf_printf(b, "Value sky_var_%s = ", vname);
-                } else {
-                    buf_printf(b, "sky_var_%s = ", vname);
                 }
 
                 if (op == TOK_ASSIGN || op == TOK_WALRUS) {
@@ -1043,7 +1083,7 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
                 emit_indent(b, indent);
                 if (strcmp(vname, "_") == 0) {
                     buf_printf(b, "(void)val_unpack(_mres_%d, %zu);\n", t, i);
-                } else if (scope_has(vname)) {
+                } else if (strcmp(codegen_current_fn, "<main>") == 0 || scope_has(vname)) {
                     buf_printf(b, "sky_var_%s = val_unpack(_mres_%d, %zu);\n", vname, t, i);
                 } else {
                     scope_add(vname);
@@ -1512,6 +1552,7 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
 
     buf_puts(&b, "static Value sky_var_print;\n");
     buf_puts(&b, "static Value sky_var_println;\n");
+    buf_puts(&b, "static Value sky_var_input;\n");
     buf_puts(&b, "static Value sky_var_eval;\n");
     buf_puts(&b, "static Value sky_var_range;\n");
     buf_puts(&b, "static Value sky_var_len;\n");
@@ -1548,8 +1589,7 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "static Value sky_var_rust;\n");
     buf_puts(&b, "static Value sky_var_async;\n");
 
-    const char* all_global_vars[4096];
-    size_t global_vars_count = 0;
+    global_vars_count = 0;
 
     for (size_t m = 0; m < registry.count; ++m) {
         LoadedModule* mod = &registry.items[m];
@@ -1570,6 +1610,20 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
     buf_puts(&b, "    }\n");
     buf_puts(&b, "    putchar('\\n');\n");
     buf_puts(&b, "    return val_nil();\n");
+    buf_puts(&b, "}\n\n");
+
+    buf_puts(&b, "static Value sky_builtin_input(int argc, Value* argv) {\n");
+    buf_puts(&b, "    if (argc >= 1) {\n");
+    buf_puts(&b, "        val_print(argv[0]);\n");
+    buf_puts(&b, "        fflush(stdout);\n");
+    buf_puts(&b, "    }\n");
+    buf_puts(&b, "    char buf[4096];\n");
+    buf_puts(&b, "    if (!fgets(buf, sizeof(buf), stdin)) return val_nil();\n");
+    buf_puts(&b, "    size_t len = strlen(buf);\n");
+    buf_puts(&b, "    while (len > 0 && (buf[len - 1] == '\\n' || buf[len - 1] == '\\r')) {\n");
+    buf_puts(&b, "        buf[--len] = '\\0';\n");
+    buf_puts(&b, "    }\n");
+    buf_puts(&b, "    return val_string(buf);\n");
     buf_puts(&b, "}\n\n");
 
     buf_puts(&b, "static Value sky_builtin_range(int argc, Value* argv) {\n");
@@ -1743,7 +1797,8 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
                                stmt->as.assign.target->as.variable.name, stmt->as.assign.target->as.variable.name);
                 } else if (stmt->type == AST_STMT_EXPR) {
                     AstNode* expr = stmt->as.expr_stmt.expr;
-                    if (expr && expr->type == AST_METHOD_CALL && strcmp(expr->as.method_call.method_name, "exec") == 0) {
+                    if (expr && expr->type == AST_METHOD_CALL &&
+                        (strcmp(expr->as.method_call.method_name, "exec") == 0 || strcmp(expr->as.method_call.method_name, "compile") == 0)) {
                         AstNode* target = expr->as.method_call.target;
                         AstNode* code_arg = expr->as.method_call.args.count > 0 ? expr->as.method_call.args.items[0] : NULL;
                         const char* code_str = (code_arg && code_arg->type == AST_LITERAL && code_arg->as.literal.lit_type == TOK_STRING_LIT)
@@ -1755,6 +1810,10 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
                                 sky_extract_js_declarations(code_str, mod->filepath, stmt->line, &syms);
                             } else if (strcmp(target->as.variable.name, "python") == 0) {
                                 sky_extract_py_declarations(code_str, mod->filepath, stmt->line, &syms);
+                            } else if (strcmp(target->as.variable.name, "cpp") == 0) {
+                                sky_extract_cpp_declarations(code_str, mod->filepath, stmt->line, &syms);
+                            } else if (strcmp(target->as.variable.name, "java") == 0) {
+                                sky_extract_java_declarations(code_str, mod->filepath, stmt->line, &syms);
                             }
                             for (size_t si = 0; si < syms.count; ++si) {
                                 buf_printf(&b, "    dict_set(_mod_dict, val_string(\"%s\"), sky_var_%s);\n",
@@ -1802,6 +1861,7 @@ char* codegen_emit_c(AstNode* root, const char* filename) {
 
     buf_puts(&b, "    sky_var_print = val_function(\"print\", sky_builtin_print, -1);\n");
     buf_puts(&b, "    sky_var_println = val_function(\"println\", sky_builtin_print, -1);\n");
+    buf_puts(&b, "    sky_var_input = val_function(\"input\", sky_builtin_input, -1);\n");
     buf_puts(&b, "    sky_var_eval = val_function(\"eval\", sky_builtin_eval, 1);\n");
     buf_puts(&b, "    sky_var_range = val_function(\"range\", sky_builtin_range, -1);\n");
     buf_puts(&b, "    sky_var_len = val_function(\"len\", sky_builtin_len, 1);\n");

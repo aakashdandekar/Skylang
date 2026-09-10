@@ -21,19 +21,45 @@ def markdown_to_html(md_text):
     list_type = None
 
     def highlight_code(code_str, lang):
-        escaped = html.escape(code_str)
-        if lang in ('skylang', 'sky', 'c', 'javascript', 'js', 'python', 'py', 'go', 'rust', 'java'):
-            keywords = [
-                r'\b(import|from|as|cimport|extern|f|class|this|super|return|if|else|while|for|in|break|continue|async|await|spawn|eval|panic|takes)\b',
-                r'\b(true|false|none)\b',
-                r'\b(int|double|bool|char|string|type|array|list|tuple|dict|set|sortedList)\b',
-                r'\b(I|D|B|C|S|L|T|SL|DICT|SET)\b'
-            ]
-            for kw in keywords:
-                escaped = re.sub(kw, r'<span class="kwd">\1</span>', escaped)
-            escaped = re.sub(r'(//.*?$|#.*?$)', r'<span class="cmt">\1</span>', escaped, flags=re.MULTILINE)
-            escaped = re.sub(r'(&quot;.*?&quot;|&#x27;.*?&#x27;|f&quot;.*?&quot;|f&#x27;.*?&#x27;)', r'<span class="str">\1</span>', escaped)
-        return escaped
+        if not lang or lang not in ('skylang', 'sky', 'c', 'javascript', 'js', 'python', 'py', 'go', 'rust', 'java', 'bash', 'sh', 'cmd'):
+            return html.escape(code_str)
+
+        token_re = re.compile(
+            r'(?P<cmt>//[^\n]*|#[^\n]*)'
+            r'|(?P<str>f?"(?:\\.|[^"\\])*"|f?\'(?:\\.|[^\'\\])*\')'
+            r'|(?P<word>\b[A-Za-z_][A-Za-z0-9_]*\b)'
+            r'|(?P<other>.)',
+            re.DOTALL
+        )
+
+        keywords = {
+            'import', 'from', 'as', 'cimport', 'extern', 'f', 'class', 'this', 'super',
+            'return', 'if', 'else', 'while', 'for', 'in', 'break', 'continue',
+            'async', 'await', 'spawn', 'eval', 'panic', 'takes', 'true', 'false', 'none'
+        }
+        types = {
+            'int', 'double', 'bool', 'char', 'string', 'type', 'array', 'list', 'tuple', 'dict', 'set', 'sortedList',
+            'I', 'D', 'B', 'C', 'S', 'L', 'T', 'SL', 'DICT', 'SET'
+        }
+
+        out = []
+        for m in token_re.finditer(code_str):
+            if m.group('cmt'):
+                out.append(f'<span class="cmt">{html.escape(m.group("cmt"))}</span>')
+            elif m.group('str'):
+                out.append(f'<span class="str">{html.escape(m.group("str"))}</span>')
+            elif m.group('word'):
+                w = m.group('word')
+                if w in keywords:
+                    out.append(f'<span class="kwd">{html.escape(w)}</span>')
+                elif w in types:
+                    out.append(f'<span class="typ">{html.escape(w)}</span>')
+                else:
+                    out.append(html.escape(w))
+            else:
+                out.append(html.escape(m.group('other')))
+
+        return "".join(out)
 
     def close_list():
         nonlocal in_list, list_type
@@ -84,8 +110,13 @@ def markdown_to_html(md_text):
                 close_table()
                 raw_code = "\n".join(code_lines)
                 highlighted = highlight_code(raw_code, code_lang)
-                badge = f"<div class='code-header'>{html.escape(code_lang or 'text')}</div>" if code_lang else ""
-                html_out.append(f"<div class='code-block'>{badge}<pre><code>{highlighted}</code></pre></div>")
+                badge_html = f"<div class='code-header'>{html.escape(code_lang.upper())}</div>" if code_lang else ""
+                block_html = (
+                    f"<table class='code-table' width='100%' cellpadding='0' cellspacing='0'>"
+                    f"<tr><td>{badge_html}<pre class='code-content'>{highlighted}</pre></td></tr>"
+                    f"</table>"
+                )
+                html_out.append(block_html)
                 in_code_block = False
                 code_lines = []
                 code_lang = ""
@@ -264,50 +295,53 @@ def main():
         margin: 18px 0;
     }}
     code {{
-        font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, "Courier New", monospace;
-        font-size: 9.5pt;
+        font-family: "DejaVu Sans Mono", "Liberation Mono", Consolas, "Courier New", monospace;
+        font-size: 9pt;
         background-color: #f1f5f9;
         color: #0f172a;
         padding: 1.5px 4.5px;
         border-radius: 4px;
         border: 1px solid #e2e8f0;
     }}
-    .code-block {{
-        background: #0f172a;
-        color: #f8fafc;
-        border-radius: 6px;
-        margin: 8px 0 12px 0;
-        overflow: hidden;
+    .code-table {{
+        background-color: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-collapse: separate;
+        border-radius: 4px;
+        margin: 6px 0 10px 0;
         page-break-inside: avoid;
-        border: 1px solid #1e293b;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        width: 100%;
     }}
-    .code-header {{
-        background: #1e293b;
-        color: #94a3b8;
-        font-family: monospace;
-        font-size: 8.5pt;
-        padding: 3px 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-bottom: 1px solid #334155;
-    }}
-    .code-block pre {{
-        margin: 0;
-        padding: 10px 14px;
-        overflow-x: auto;
-    }}
-    .code-block code {{
-        background: transparent;
-        color: #f8fafc;
+    .code-table td {{
+        background-color: #f8fafc;
         border: none;
         padding: 0;
-        font-size: 9pt;
-        line-height: 1.45;
     }}
-    .kwd {{ color: #f43f5e; font-weight: bold; }}
+    .code-header {{
+        background-color: #e2e8f0;
+        color: #1e3a8a;
+        font-family: "DejaVu Sans Mono", "Liberation Mono", Consolas, "Courier New", monospace;
+        font-size: 7.5pt;
+        font-weight: bold;
+        padding: 3px 8px;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #cbd5e1;
+    }}
+    pre.code-content {{
+        margin: 0;
+        padding: 8px 10px;
+        background-color: #f8fafc;
+        color: #0f172a;
+        font-family: "DejaVu Sans Mono", "Liberation Mono", Consolas, "Courier New", monospace;
+        font-size: 8.5pt;
+        line-height: 1.45;
+        border: none;
+        white-space: pre-wrap;
+    }}
+    .kwd {{ color: #be123c; font-weight: bold; }}
+    .typ {{ color: #6b21a8; font-weight: 600; }}
     .cmt {{ color: #64748b; font-style: italic; }}
-    .str {{ color: #34d399; }}
+    .str {{ color: #047857; }}
     
     .table-container {{
         margin: 10px 0 14px 0;

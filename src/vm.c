@@ -222,6 +222,20 @@ static Value vm_builtin_print(int argc, Value* argv) {
     return val_nil();
 }
 
+static Value vm_builtin_input(int argc, Value* argv) {
+    if (argc >= 1) {
+        val_print(argv[0]);
+        fflush(stdout);
+    }
+    char buf[4096];
+    if (!fgets(buf, sizeof(buf), stdin)) return val_nil();
+    size_t len = strlen(buf);
+    while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r')) {
+        buf[--len] = '\0';
+    }
+    return val_string(buf);
+}
+
 static Value vm_builtin_range(int argc, Value* argv) {
     int64_t start = 0, end = 0, step = 1;
     if (argc == 1) { end = argv[0].as.i; }
@@ -283,6 +297,7 @@ static Value vm_builtin_error(int argc, Value* argv) {
 static void vm_register_builtins(VM* vm) {
     vm_set_global(vm, "print",   val_function("print",   vm_builtin_print,    -1));
     vm_set_global(vm, "println", val_function("println", vm_builtin_print,    -1));
+    vm_set_global(vm, "input",   val_function("input",   vm_builtin_input,    -1));
     vm_set_global(vm, "eval",    val_function("eval",    sky_builtin_eval,     1));
     vm_set_global(vm, "range",   val_function("range",   vm_builtin_range,    -1));
     vm_set_global(vm, "len",     val_function("len",     vm_builtin_len,       1));

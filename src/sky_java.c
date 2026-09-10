@@ -1,4 +1,5 @@
 
+#include "../include/skylang.h"
 #include "../include/sky_java.h"
 #include "../include/sky_platform.h"
 #include <ctype.h>
@@ -10,6 +11,236 @@
 Value sky_mod_java;
 
 static int java_file_counter = 0;
+
+static Value parse_bracket_or_brace_list(const char** pp) {
+    const char* p = *pp;
+    if (*p != '{' && *p != '[') return val_nil();
+    char open_ch = *p;
+    char close_ch = (open_ch == '{') ? '}' : ']';
+    p++;
+
+    Value list_val = val_list();
+    ObjList* l = as_list(list_val);
+
+    while (*p && *p != close_ch) {
+        while (*p && (isspace((unsigned char)*p) || *p == ',')) p++;
+        if (*p == close_ch || !*p) break;
+
+        if (*p == '{' || *p == '[') {
+            list_push(l, parse_bracket_or_brace_list(&p));
+        } else if (*p == '"' || *p == '\'') {
+            char q = *p++;
+            const char* str_start = p;
+            while (*p && *p != q) {
+                if (*p == '\\' && *(p + 1)) p += 2;
+                else p++;
+            }
+            size_t slen = (size_t)(p - str_start);
+            char* sval = (char*)malloc(slen + 1);
+            memcpy(sval, str_start, slen);
+            sval[slen] = '\0';
+            list_push(l, val_string(sval));
+            free(sval);
+            if (*p == q) p++;
+        } else {
+            const char* val_start = p;
+            while (*p && *p != ',' && *p != close_ch && !isspace((unsigned char)*p)) p++;
+            size_t vlen = (size_t)(p - val_start);
+            char vstr[64];
+            if (vlen >= sizeof(vstr)) vlen = sizeof(vstr) - 1;
+            memcpy(vstr, val_start, vlen);
+            vstr[vlen] = '\0';
+            if (strcmp(vstr, "true") == 0) {
+                list_push(l, val_bool(true));
+            } else if (strcmp(vstr, "false") == 0) {
+                list_push(l, val_bool(false));
+            } else if (strchr(vstr, '.') || strchr(vstr, 'e') || strchr(vstr, 'E') ||
+                       strchr(vstr, 'f') || strchr(vstr, 'F') || strchr(vstr, 'd') || strchr(vstr, 'D')) {
+                list_push(l, val_double(atof(vstr)));
+            } else {
+                list_push(l, val_int(atoll(vstr)));
+            }
+        }
+    }
+    if (*p == close_ch) p++;
+    *pp = p;
+    return list_val;
+}
+
+void sky_extract_java_declarations(const char* code, const char* file, int base_line, ForeignSymbolTable* table) {
+    if (!code) return;
+    const char* p = code;
+    int cur_line = base_line;
+    int brace_depth = 0;
+
+    while (*p) {
+        if (*p == '\n') { cur_line++; p++; continue; }
+        if (isspace((unsigned char)*p)) { p++; continue; }
+
+        if (p[0] == '/' && p[1] == '/') {
+            p += 2;
+            while (*p && *p != '\n') p++;
+            continue;
+        }
+        if (p[0] == '/' && p[1] == '*') {
+            p += 2;
+            while (*p && !(p[0] == '*' && p[1] == '/')) {
+                if (*p == '\n') cur_line++;
+                p++;
+            }
+            if (*p) p += 2;
+            continue;
+        }
+        if (*p == '"' || *p == '\'') {
+            char q = *p++;
+            while (*p && *p != q) {
+                if (*p == '\\' && *(p + 1)) {
+                    if (*p == '\n') cur_line++;
+                    p += 2;
+                } else {
+                    if (*p == '\n') cur_line++;
+                    p++;
+                }
+            }
+            if (*p == q) p++;
+            continue;
+        }
+
+        if (*p == '{') { brace_depth++; p++; continue; }
+        if (*p == '}') { if (brace_depth > 0) brace_depth--; p++; continue; }
+
+        if (brace_depth <= 1) {
+            static const char* java_modifiers[] = {
+                "public", "private", "protected", "static", "final", "abstract",
+                "synchronized", "transient", "volatile", "native", "strictfp", "default"
+            };
+            bool skipped_modifier = false;
+            for (size_t m = 0; m < sizeof(java_modifiers)/sizeof(java_modifiers[0]); ++m) {
+                size_t mlen = strlen(java_modifiers[m]);
+                if (strncmp(p, java_modifiers[m], mlen) == 0 && (isspace((unsigned char)p[mlen]) || p[mlen] == '\0')) {
+                    p += mlen;
+                    while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                    skipped_modifier = true;
+                    break;
+                }
+            }
+            if (skipped_modifier) continue;
+
+            static const char* java_ctrl_keywords[] = {
+                "if", "else", "while", "for", "do", "switch", "case", "break", "continue",
+                "return", "try", "catch", "finally", "throw", "throws", "new", "instanceof",
+                "assert", "import", "package", "class", "interface", "enum", "record"
+            };
+            bool is_ctrl = false;
+            for (size_t c = 0; c < sizeof(java_ctrl_keywords)/sizeof(java_ctrl_keywords[0]); ++c) {
+                size_t clen = strlen(java_ctrl_keywords[c]);
+                if (strncmp(p, java_ctrl_keywords[c], clen) == 0 && (!isalnum((unsigned char)p[clen]) && p[clen] != '_')) {
+                    is_ctrl = true;
+                    p += clen;
+                    break;
+                }
+            }
+            if (is_ctrl) continue;
+
+            if (isalpha((unsigned char)*p) || *p == '_') {
+                while (isalnum((unsigned char)*p) || *p == '_' || *p == '.' || *p == '[' || *p == ']') {
+                    p++;
+                }
+                if (*p == '<') {
+                    int tdepth = 1;
+                    p++;
+                    while (*p && tdepth > 0) {
+                        if (*p == '<') tdepth++;
+                        else if (*p == '>') tdepth--;
+                        p++;
+                    }
+                }
+                while (*p == '[' || *p == ']' || isspace((unsigned char)*p)) {
+                    if (*p == '\n') cur_line++;
+                    p++;
+                }
+
+                while (isalpha((unsigned char)*p) || *p == '_') {
+                    const char* id_start = p;
+                    while (isalnum((unsigned char)*p) || *p == '_') p++;
+                    size_t id_len = (size_t)(p - id_start);
+                    char name[128];
+                    if (id_len >= sizeof(name)) id_len = sizeof(name) - 1;
+                    memcpy(name, id_start, id_len);
+                    name[id_len] = '\0';
+
+                    while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+
+                    if (*p == '[') {
+                        while (*p && *p != ']') p++;
+                        if (*p == ']') p++;
+                        foreign_symtable_add(table, name, "java", FOREIGN_DECL_VAR, file, cur_line);
+                    } else if (*p == '(') {
+                        foreign_symtable_add(table, name, "java", FOREIGN_DECL_FUNCTION, file, cur_line);
+                        int pdepth = 1;
+                        p++;
+                        while (*p && pdepth > 0) {
+                            if (*p == '(') pdepth++;
+                            else if (*p == ')') pdepth--;
+                            p++;
+                        }
+                        while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                        if (*p == '{') {
+                            int bdepth = 1;
+                            p++;
+                            while (*p && bdepth > 0) {
+                                if (*p == '{') bdepth++;
+                                else if (*p == '}') bdepth--;
+                                p++;
+                            }
+                        }
+                        break;
+                    } else {
+                        foreign_symtable_add(table, name, "java", FOREIGN_DECL_VAR, file, cur_line);
+                    }
+
+                    while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                    if (*p == '=') {
+                        p++;
+                        int paren = 0, bracket = 0, brace = 0;
+                        while (*p) {
+                            if (*p == '(') paren++;
+                            else if (*p == ')') { if (paren > 0) paren--; }
+                            else if (*p == '[') bracket++;
+                            else if (*p == ']') { if (bracket > 0) bracket--; }
+                            else if (*p == '{') brace++;
+                            else if (*p == '}') { if (brace > 0) brace--; }
+                            else if (*p == '"' || *p == '\'') {
+                                char q = *p++;
+                                while (*p && *p != q) {
+                                    if (*p == '\\' && *(p + 1)) p += 2;
+                                    else p++;
+                                }
+                                if (*p == q) p++;
+                                continue;
+                            } else if (paren == 0 && bracket == 0 && brace == 0) {
+                                if (*p == ',' || *p == ';' || *p == '\n') break;
+                            }
+                            p++;
+                        }
+                    }
+
+                    while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                    if (*p == ',') {
+                        p++;
+                        while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                        continue;
+                    }
+                    if (*p == ';') { p++; break; }
+                    break;
+                }
+                continue;
+            }
+        }
+
+        p++;
+    }
+}
 
 static Value parse_java_output(char* out) {
     if (!out || !*out || strcmp(out, "null") == 0) {
@@ -78,8 +309,79 @@ Value sky_java_load(const char* class_name) {
 }
 
 Value sky_java_exec(const char* code) {
+    if (!code || !*code) return val_dict();
+
+    ForeignSymbolTable syms;
+    foreign_symtable_init(&syms);
+    sky_extract_java_declarations(code, "<java>", 1, &syms);
+
+    Value result_dict = val_dict();
+    ObjDict* d = as_dict(result_dict);
+
+    for (size_t i = 0; i < syms.count; ++i) {
+        const char* sname = syms.items[i].name;
+        if (syms.items[i].kind == FOREIGN_DECL_FUNCTION) continue;
+
+        const char* p = strstr(code, sname);
+        if (p) {
+            p += strlen(sname);
+            while (*p && isspace((unsigned char)*p)) p++;
+            if (*p == '[') {
+                while (*p && *p != ']') p++;
+                if (*p == ']') p++;
+                while (*p && isspace((unsigned char)*p)) p++;
+            }
+            if (*p == '=') {
+                p++;
+                while (*p && isspace((unsigned char)*p)) p++;
+
+                if (strncmp(p, "new ", 4) == 0) {
+                    while (*p && *p != '{' && *p != ';' && *p != '\n') p++;
+                }
+
+                if (*p == '{' || *p == '[') {
+                    Value list_val = parse_bracket_or_brace_list(&p);
+                    dict_set(d, val_string(sname), list_val);
+                } else if (*p == '"') {
+                    p++;
+                    const char* str_start = p;
+                    while (*p && *p != '"') {
+                        if (*p == '\\' && *(p+1)) p += 2;
+                        else p++;
+                    }
+                    size_t slen = (size_t)(p - str_start);
+                    char* sval = (char*)malloc(slen + 1);
+                    memcpy(sval, str_start, slen);
+                    sval[slen] = '\0';
+                    dict_set(d, val_string(sname), val_string(sval));
+                    free(sval);
+                } else {
+                    const char* val_start = p;
+                    while (*p && *p != ';' && *p != ',' && !isspace((unsigned char)*p)) p++;
+                    size_t vlen = (size_t)(p - val_start);
+                    char vstr[64];
+                    if (vlen >= sizeof(vstr)) vlen = sizeof(vstr) - 1;
+                    memcpy(vstr, val_start, vlen);
+                    vstr[vlen] = '\0';
+                    if (strcmp(vstr, "true") == 0) {
+                        dict_set(d, val_string(sname), val_bool(true));
+                    } else if (strcmp(vstr, "false") == 0) {
+                        dict_set(d, val_string(sname), val_bool(false));
+                    } else if (strchr(vstr, '.') || strchr(vstr, 'e') || strchr(vstr, 'E') ||
+                               strchr(vstr, 'f') || strchr(vstr, 'F') || strchr(vstr, 'd') || strchr(vstr, 'D')) {
+                        dict_set(d, val_string(sname), val_double(atof(vstr)));
+                    } else {
+                        dict_set(d, val_string(sname), val_int(atoll(vstr)));
+                    }
+                }
+            }
+        }
+    }
+
+    foreign_symtable_free(&syms);
+
     char class_name[256];
-    snprintf(class_name, sizeof(class_name), "SkyJavaRunner_%d_%d", getpid(), ++java_file_counter);
+    snprintf(class_name, sizeof(class_name), "SkyJavaRunner_%d_%d", (int)sky_getpid(), ++java_file_counter);
 
     char full[8192];
     snprintf(full, sizeof(full),
@@ -90,8 +392,14 @@ Value sky_java_exec(const char* code) {
              "}\n",
              class_name, code);
     char* out = run_java_runner(class_name, full);
-    if (out) free(out);
-    return val_nil();
+    if (out) {
+        if (*out && strcmp(out, "null") != 0) {
+            printf("%s\n", out);
+            fflush(stdout);
+        }
+        free(out);
+    }
+    return result_dict;
 }
 
 Value sky_java_call_method(ObjForeign* f, const char* name, int argc, Value* argv) {

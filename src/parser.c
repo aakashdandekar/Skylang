@@ -863,6 +863,8 @@ static AstNode* parse_function_decl(Parser* parser, const char* forced_name) {
                     params[param_count++] = strdup(args->items[i]->as.variable.name);
                 } else if (args->items[i]->type == AST_NAMED_ARG) {
                     params[param_count++] = strdup(args->items[i]->as.named_arg.name);
+                } else if (args->items[i]->type == AST_LITERAL && args->items[i]->as.literal.lit_type == TOK_STRING_LIT) {
+                    params[param_count++] = strdup(args->items[i]->as.literal.as.s_val);
                 }
             }
             break;
