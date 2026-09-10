@@ -8,6 +8,10 @@
 #include <string.h>
 #include "sky_platform.h"
 
+#ifdef _WIN32
+#define TokenType SkyTokenType
+#endif
+
 /* Token types */
 typedef enum {
     /* End of file / Error */
@@ -102,7 +106,11 @@ typedef enum {
     TOK_COMMA,        /* , */
     TOK_COLON,        /* : */
     TOK_SEMICOLON     /* ; */
-} TokenType;
+} SkyTokenType;
+
+#ifndef _WIN32
+typedef SkyTokenType TokenType;
+#endif
 
 typedef struct {
     TokenType type;

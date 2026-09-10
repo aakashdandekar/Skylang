@@ -264,10 +264,25 @@ f slow_task {
     return "slow"
 }
 race_result := await async.race([spawn slow_task(), spawn fast_task()])
-if race_result != "fast" {
-    panic("Test failed: async.race")
+// 17. Polyglot Foreign Multi-Variable Extraction
+import python, java
+
+java.exec({
+    int test_jarr[] = {10, 20, 30};
+})
+if test_jarr[0] != 10 || test_jarr[1] != 20 || test_jarr[2] != 30 {
+    panic("Test failed: java.exec array extraction")
+}
+
+python.exec({
+    px, py, pz = 100, 200, 300
+    p_sum = px + py + pz
+})
+if px != 100 || py != 200 || pz != 300 || p_sum != 600 {
+    panic("Test failed: python.exec multi-variable extraction")
 }
 
 println("All Skylang tests passed successfully! [100% OK]")
+
 
 

@@ -910,6 +910,7 @@ static void emit_statement(Buffer* b, AstNode* stmt, const char* current_class, 
     if (!stmt) return;
 
     if (codegen_source_filename && stmt->line > 0) {
+        buf_printf(b, "#line %d \"%s\"\n", stmt->line, codegen_source_filename);
         emit_indent(b, indent);
         buf_printf(b, "sky_set_loc(\"%s\", %d, \"%s\");\n", codegen_source_filename, stmt->line, codegen_current_fn);
     }

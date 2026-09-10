@@ -1,4 +1,3 @@
-
 #include "../include/skylang.h"
 #include "../include/sky_cpp.h"
 #include "../include/sky_platform.h"
@@ -6,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <gc.h>
 
 Value sky_mod_cpp;
 static int cpp_file_counter = 0;

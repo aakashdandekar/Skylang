@@ -21,3 +21,5 @@ node_modules/
 *.pdf
 .DS_Store
 tools/
+*.pdb
+build/

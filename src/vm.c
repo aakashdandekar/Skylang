@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <gc.h>
 
 void profiler_init(Profiler* p) {
     memset(p, 0, sizeof(Profiler));

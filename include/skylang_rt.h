@@ -11,7 +11,27 @@
 #ifndef GC_THREADS
 #define GC_THREADS 1
 #endif
+#if defined(__has_include)
+#if __has_include(<gc.h>)
 #include <gc.h>
+#else
+#define SKY_NO_GC 1
+#endif
+#else
+#include <gc.h>
+#endif
+
+#ifdef SKY_NO_GC
+#define GC_INIT() ((void)0)
+#define GC_MALLOC(sz) malloc(sz)
+#define GC_MALLOC_ATOMIC(sz) malloc(sz)
+#define GC_REALLOC(ptr, sz) realloc(ptr, sz)
+#define GC_FREE(ptr) free(ptr)
+#define GC_gcollect() ((void)0)
+#define GC_pthread_create pthread_create
+#define GC_pthread_join pthread_join
+#endif
+
 #include "sky_platform.h"
 
 #ifdef __cplusplus

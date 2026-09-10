@@ -417,12 +417,18 @@ static int cmd_build(const char* sky_file, const char* out_bin) {
     return res;
 }
 
+static void print_version(void) {
+    printf("Skylang version 1.0.0\n");
+}
+
 static void print_help(const char* prog) {
-    printf("Skylang Compiler and Toolchain\n");
+    printf("Skylang Compiler and Toolchain (v1.0.0)\n");
     printf("Usage:\n");
     printf("  %s run <file.sky>               Compile and run a Skylang program\n", prog);
     printf("  %s build <file.sky> [-o <bin>]  Compile Skylang program to native binary (default: <file>)\n", prog);
     printf("  %s <file.sky>                   Short for 'run <file.sky>'\n", prog);
+    printf("  %s --version                    Show version information\n", prog);
+    printf("  %s --help                       Show this help message\n", prog);
 }
 
 int main(int argc, char** argv) {
@@ -432,6 +438,11 @@ int main(int argc, char** argv) {
     }
 
     const char* command = argv[1];
+
+    if (strcmp(command, "-v") == 0 || strcmp(command, "--version") == 0 || strcmp(command, "version") == 0) {
+        print_version();
+        return 0;
+    }
 
     if (strcmp(command, "run") == 0) {
         if (argc < 3) {

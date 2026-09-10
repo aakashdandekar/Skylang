@@ -1,6 +1,4 @@
 
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
 #include "../include/skylang.h"
 #include "../include/sky_python.h"
 #include <stdio.h>
@@ -8,7 +6,21 @@
 #include <string.h>
 #include <ctype.h>
 
+#if !defined(SKY_NO_PYTHON) && defined(__has_include)
+#if __has_include(<Python.h>)
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#define HAVE_PYTHON_H 1
+#endif
+#elif !defined(SKY_NO_PYTHON)
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#define HAVE_PYTHON_H 1
+#endif
+
 Value sky_mod_python;
+
+#ifdef HAVE_PYTHON_H
 static bool py_initialized = false;
 
 static void sky_python_ensure_init(void) {
@@ -245,6 +257,7 @@ static Value py_to_sky(PyObject* obj) {
     Py_INCREF(obj);
     return val_foreign(FOREIGN_PYTHON, type_name, (void*)obj, NULL);
 }
+#endif /* HAVE_PYTHON_H */
 
 static bool is_py_ident_start(char c) {
     return isalpha((unsigned char)c) || c == '_';
@@ -344,7 +357,7 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
             if (*p == '\t') { indent_level += 4; p++; continue; }
             at_line_start = false;
         }
-        if (isspace((unsigned char)*p)) { p++; continue; }
+        if (*p == ' ' || *p == '\t' || *p == '\r') { p++; continue; }
 
         if (*p == '#') {
             while (*p && *p != '\n') p++;
@@ -369,7 +382,7 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                 if (*p == '\\' && *(p+1)) p += 2;
                 else p++;
             }
-            if (*p) p += 2;
+            if (*p) p++;
             continue;
         }
 
@@ -384,7 +397,7 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
 
             if (indent_level == 0) {
                 if (strcmp(ident, "def") == 0) {
-                    while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                    while (*p && (*p == ' ' || *p == '\t')) p++;
                     if (is_py_ident_start(*p)) {
                         const char* fn_start = p;
                         while (is_py_ident_char(*p)) p++;
@@ -400,7 +413,7 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                     while (*p && *p != '\n') p++;
                     continue;
                 } else if (strcmp(ident, "class") == 0) {
-                    while (*p && isspace((unsigned char)*p)) { if (*p == '\n') cur_line++; p++; }
+                    while (*p && (*p == ' ' || *p == '\t')) p++;
                     if (is_py_ident_start(*p)) {
                         const char* cl_start = p;
                         while (is_py_ident_char(*p)) p++;
@@ -417,7 +430,7 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                     continue;
                 } else if (strcmp(ident, "import") == 0) {
                     while (*p && *p != '\n') {
-                        while (*p && isspace((unsigned char)*p)) p++;
+                        while (*p && (*p == ' ' || *p == '\t')) p++;
                         if (!is_py_ident_start(*p)) break;
                         const char* mod_start = p;
                         while (is_py_ident_char(*p) || *p == '.') p++;
@@ -427,10 +440,10 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                         memcpy(mod_name, mod_start, mod_len);
                         mod_name[mod_len] = '\0';
 
-                        while (*p && isspace((unsigned char)*p)) p++;
-                        if (strncmp(p, "as", 2) == 0 && isspace((unsigned char)p[2])) {
+                        while (*p && (*p == ' ' || *p == '\t')) p++;
+                        if (strncmp(p, "as", 2) == 0 && (p[2] == ' ' || p[2] == '\t')) {
                             p += 2;
-                            while (*p && isspace((unsigned char)*p)) p++;
+                            while (*p && (*p == ' ' || *p == '\t')) p++;
                             if (is_py_ident_start(*p)) {
                                 const char* as_start = p;
                                 while (is_py_ident_char(*p)) p++;
@@ -446,19 +459,23 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                             if (dot) *dot = '\0';
                             foreign_symtable_add(table, mod_name, "python", FOREIGN_DECL_VAR, file, cur_line);
                         }
-                        while (*p && isspace((unsigned char)*p)) p++;
-                        if (*p == ',') p++;
-                        else break;
+                        while (*p && (*p == ' ' || *p == '\t')) p++;
+                        if (*p == ',') {
+                            p++;
+                            while (*p && (*p == ' ' || *p == '\t')) p++;
+                        } else break;
                     }
                     while (*p && *p != '\n') p++;
                     continue;
                 } else if (strcmp(ident, "from") == 0) {
+                    const char* eol = strchr(p, '\n');
                     const char* imp_pos = strstr(p, "import");
-                    if (imp_pos) {
+                    if (imp_pos && (!eol || imp_pos < eol)) {
                         p = imp_pos + 6;
                         while (*p && *p != '\n') {
-                            while (*p && isspace((unsigned char)*p)) p++;
-                            if (*p == '*') break;
+                            while (*p && (*p == ' ' || *p == '\t')) p++;
+                            if (*p == '\n' || *p == '\0') break;
+                            if (*p == '*') { p++; break; }
                             if (!is_py_ident_start(*p)) break;
                             const char* sym_start = p;
                             while (is_py_ident_char(*p)) p++;
@@ -468,10 +485,10 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                             memcpy(sym_name, sym_start, sym_len);
                             sym_name[sym_len] = '\0';
 
-                            while (*p && isspace((unsigned char)*p)) p++;
-                            if (strncmp(p, "as", 2) == 0 && isspace((unsigned char)p[2])) {
+                            while (*p && (*p == ' ' || *p == '\t')) p++;
+                            if (strncmp(p, "as", 2) == 0 && (p[2] == ' ' || p[2] == '\t')) {
                                 p += 2;
-                                while (*p && isspace((unsigned char)*p)) p++;
+                                while (*p && (*p == ' ' || *p == '\t')) p++;
                                 if (is_py_ident_start(*p)) {
                                     const char* as_start = p;
                                     while (is_py_ident_char(*p)) p++;
@@ -485,9 +502,11 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                             } else {
                                 foreign_symtable_add(table, sym_name, "python", FOREIGN_DECL_VAR, file, cur_line);
                             }
-                            while (*p && isspace((unsigned char)*p)) p++;
-                            if (*p == ',') p++;
-                            else break;
+                            while (*p && (*p == ' ' || *p == '\t')) p++;
+                            if (*p == ',') {
+                                p++;
+                                while (*p && (*p == ' ' || *p == '\t')) p++;
+                            } else break;
                         }
                     }
                     while (*p && *p != '\n') p++;
@@ -499,11 +518,11 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                     targets[0][127] = '\0';
 
                     const char* scan_p = p;
-                    while (*scan_p && isspace((unsigned char)*scan_p) && *scan_p != '\n') scan_p++;
+                    while (*scan_p && (*scan_p == ' ' || *scan_p == '\t')) scan_p++;
                     
                     while (*scan_p == ',') {
                         scan_p++;
-                        while (*scan_p && isspace((unsigned char)*scan_p) && *scan_p != '\n') scan_p++;
+                        while (*scan_p && (*scan_p == ' ' || *scan_p == '\t')) scan_p++;
                         if (is_py_ident_start(*scan_p)) {
                             const char* t_start = scan_p;
                             while (is_py_ident_char(*scan_p)) scan_p++;
@@ -514,7 +533,7 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                                 targets[target_count][t_len] = '\0';
                                 target_count++;
                             }
-                            while (*scan_p && isspace((unsigned char)*scan_p) && *scan_p != '\n') scan_p++;
+                            while (*scan_p && (*scan_p == ' ' || *scan_p == '\t')) scan_p++;
                         } else {
                             break;
                         }
@@ -526,7 +545,26 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
                                 foreign_symtable_add(table, targets[ti], "python", FOREIGN_DECL_ASSIGN, file, cur_line);
                             }
                         }
+                        int paren_depth = 0;
+                        int bracket_depth = 0;
+                        int brace_depth = 0;
+                        while (*scan_p) {
+                            if (*scan_p == '(') paren_depth++;
+                            else if (*scan_p == ')' && paren_depth > 0) paren_depth--;
+                            else if (*scan_p == '[') bracket_depth++;
+                            else if (*scan_p == ']' && bracket_depth > 0) bracket_depth--;
+                            else if (*scan_p == '{') brace_depth++;
+                            else if (*scan_p == '}' && brace_depth > 0) brace_depth--;
+                            else if (*scan_p == '\n') {
+                                if (paren_depth == 0 && bracket_depth == 0 && brace_depth == 0) {
+                                    break;
+                                }
+                                cur_line++;
+                            }
+                            scan_p++;
+                        }
                         p = scan_p;
+                        continue;
                     }
                 }
             }
@@ -537,6 +575,7 @@ void sky_extract_py_declarations(const char* code, const char* file, int base_li
     if (dedented) free(dedented);
 }
 
+#ifdef HAVE_PYTHON_H
 Value sky_python_load(const char* module_name) {
     sky_python_ensure_init();
     PyObject* mod = PyImport_ImportModule(module_name);
@@ -762,4 +801,17 @@ Value sky_python_init(void) {
     sky_mod_python = mod;
     return mod;
 }
+#else
+void sky_python_set_global(const char* name, Value val) { (void)name; (void)val; }
+Value sky_python_load(const char* module_name) { (void)module_name; return val_nil(); }
+Value sky_python_exec(const char* code) { (void)code; return val_dict(); }
+Value sky_python_call_method(ObjForeign* f, const char* name, int argc, Value* argv) { (void)f; (void)name; (void)argc; (void)argv; return val_nil(); }
+Value sky_python_get_prop(ObjForeign* f, const char* name) { (void)f; (void)name; return val_nil(); }
+Value sky_python_set_prop(ObjForeign* f, const char* name, Value val) { (void)f; (void)name; (void)val; return val_nil(); }
+Value sky_python_init(void) {
+    Value mod = val_dict();
+    sky_mod_python = mod;
+    return mod;
+}
+#endif
 
